@@ -1,0 +1,401 @@
+.btn {
+  --lift: 0px;
+  --glow: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: space(0.75);
+  padding: 0.55rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface-2);
+  color: var(--text-1);
+  transform: translateY(var(--lift));
+  position: relative;
+  overflow: hidden;
+  @include interactive();
+}
+
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: translateX(-120%);
+}
+
+.btn:enabled:hover {
+  --lift: -1px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.btn:enabled:hover::after {
+  opacity: 0.6;
+  animation: float-sheen 1.4s var(--easing-standard);
+}
+
+.btn:focus-visible {
+  --lift: -1px;
+  @include focus-ring();
+}
+
+.btn:active {
+  --lift: 1px;
+  box-shadow: none;
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: grayscale(0.3);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border-1);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 88%, black), color-mix(in oklab, var(--accent-strong) 85%, black));
+  color: var(--text-inverse);
+  border-color: transparent;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 78%, black), color-mix(in oklab, var(--accent-strong) 76%, black));
+}
+
+.badge {
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.18rem 0.55rem;
+  text-transform: uppercase;
+  background: color-mix(in oklab, var(--surface-3) 60%, transparent);
+  color: var(--text-2);
+}
+
+.badge:empty {
+  display: none;
+}
+
+$badge-colors: (
+  "todo": #64748b,
+  "doing": #0ea5e9,
+  "done": #22c55e,
+  "blocked": #ef4444,
+  "active": #16a34a,
+  "archived": #94a3b8
+);
+
+@each $name, $color in $badge-colors {
+  .badge[data-status="#{$name}"] {
+    background: color-mix(in oklab, #{$color} 20%, transparent);
+    color: color-mix(in oklab, #{$color} 70%, var(--text-1));
+    border: 1px solid color-mix(in oklab, #{$color} 35%, transparent);
+  }
+}
+
+.card {
+  position: relative;
+  border-radius: var(--radius-md);
+  padding: space(2.5);
+  @include surface(var(--surface-1), var(--border-1));
+  @include elevation(1);
+  animation: fade-slide-in 180ms var(--easing-standard) both;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0.4rem auto 0.4rem 0.4rem;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent), transparent 70%);
+  opacity: 0.6;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: space(2);
+  margin-bottom: space(1.5);
+}
+
+.card-title {
+  margin: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: space(1.5);
+  list-style: none;
+}
+
+.list.is-counter {
+  list-style: ledger;
+  padding-left: 1rem;
+}
+
+.list-item {
+  display: flex;
+  flex-direction: column;
+  gap: space(0.75);
+  padding: space(1.5);
+  border-radius: 16px;
+  border: 1px solid var(--border-1);
+  background: color-mix(in oklab, var(--surface-2) 70%, transparent);
+  @include interactive();
+}
+
+.list-item:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-1);
+}
+
+.list-item:last-child {
+  margin-bottom: 0;
+}
+
+.list-item:last-of-type {
+  border-color: color-mix(in oklab, var(--accent) 18%, var(--border-1));
+}
+
+.list-item:nth-child(even) {
+  background: color-mix(in oklab, var(--accent) 7%, var(--surface-2));
+}
+
+.list-item-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: space(1);
+}
+
+.list-item-title {
+  font-weight: 600;
+}
+
+.list-item-sub {
+  color: var(--text-3);
+}
+
+.list-item-sub:empty {
+  display: none;
+}
+
+.field {
+  display: grid;
+  gap: space(0.6);
+  margin-bottom: space(1.5);
+}
+
+.field-label {
+  font-size: 0.9rem;
+  color: var(--text-2);
+}
+
+.field-input {
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-1);
+  background: var(--surface-2);
+  color: var(--text-1);
+  @include interactive();
+}
+
+.field-input::placeholder {
+  color: color-mix(in oklab, var(--text-3) 85%, transparent);
+}
+
+.field-input:focus {
+  border-color: color-mix(in oklab, var(--accent) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+.field-input:invalid {
+  border-color: color-mix(in oklab, var(--danger) 70%, transparent);
+}
+
+.field-input:valid {
+  border-color: color-mix(in oklab, var(--success) 55%, transparent);
+}
+
+.field-input:read-only {
+  background: color-mix(in oklab, var(--surface-2) 70%, transparent);
+  cursor: not-allowed;
+}
+
+.field-input:read-write {
+  background: var(--surface-2);
+}
+
+.field-input:required {
+  border-left: 3px solid color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+.field-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.field:focus-within .field-label {
+  color: var(--text-1);
+}
+
+@supports selector(:has(*)) {
+  .field:has(.field-input:invalid) .field-label {
+    color: color-mix(in oklab, var(--danger) 70%, var(--text-1));
+  }
+}
+
+.modal-backdrop {
+  display: grid;
+  place-items: center;
+  position: fixed;
+  inset: 0;
+  background: color-mix(in oklab, black 45%, transparent);
+  backdrop-filter: blur(12px);
+  z-index: 50;
+}
+
+.modal {
+  width: min(92vw, 620px);
+  border-radius: var(--radius-lg);
+  padding: space(2.5);
+  @include surface(var(--surface-1), var(--border-1));
+  @include elevation(2);
+  animation: fade-slide-in 160ms var(--easing-standard) both;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: space(1.5);
+  margin-bottom: space(1.5);
+}
+
+.modal-title {
+  margin: 0;
+}
+
+.modal-body {
+  display: grid;
+  gap: space(1.25);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: space(1);
+  margin-top: space(1.25);
+}
+
+.modal-actions .btn:last-of-type {
+  box-shadow: 0 10px 24px color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent);
+}
+
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  @include focus-ring();
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+.table,
+.table table,
+app-table,
+.table-grid,
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.table thead,
+.table-grid thead,
+table thead {
+  background: color-mix(in oklab, var(--accent) 10%, var(--surface-2));
+}
+
+.table th,
+.table td,
+.table-grid th,
+.table-grid td,
+table th,
+table td {
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-1);
+  color: var(--text-2);
+}
+
+.table tbody tr:nth-child(even),
+.table-grid tbody tr:nth-child(even),
+table tbody tr:nth-child(even) {
+  background: color-mix(in oklab, var(--accent) 6%, transparent);
+}
+
+.table tbody tr:last-child td,
+.table-grid tbody tr:last-child td,
+table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: space(0.75);
+}
+
+.section-title svg,
+.section-title .icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+@supports (selector(:scope)) {
+  @scope (.card) {
+    :scope > :last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
+@container (min-width: 760px) {
+  .list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 1100px) {
+  .list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

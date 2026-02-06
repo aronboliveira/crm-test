@@ -1,0 +1,22 @@
+@supports (animation-timeline: auto) {
+  @starting-style {
+    .card,
+    .modal,
+    .sidebar {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+}
+
+@supports (position-try: flip-block) {
+  .modal {
+    position-try: flip-block, flip-inline;
+  }
+}
+
+@supports selector(:has(*)) {
+  .card:has(.list) {
+    border-color: color-mix(in oklab, var(--accent) 22%, var(--border-1));
+  }
+}

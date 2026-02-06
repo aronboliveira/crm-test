@@ -1,0 +1,55 @@
+@function space($steps, $unit: var(--space-unit)) {
+  @if $steps == 0 {
+    @return 0;
+  }
+  @return calc(#{$unit} * #{$steps});
+}
+
+@function radius($size) {
+  @if $size == sm {
+    @return var(--radius-sm);
+  } @else if $size == lg {
+    @return var(--radius-lg);
+  }
+  @return var(--radius-md);
+}
+
+@mixin focus-ring($color: var(--focus-ring), $offset: 2px) {
+  outline: 2px solid $color;
+  outline-offset: $offset;
+}
+
+@mixin interactive($timing: var(--transition-fast)) {
+  transition:
+    color $timing var(--easing-standard),
+    background-color $timing var(--easing-standard),
+    border-color $timing var(--easing-standard),
+    box-shadow $timing var(--easing-standard),
+    transform $timing var(--easing-standard),
+    opacity $timing var(--easing-standard);
+}
+
+@mixin elevation($level: 1) {
+  @if $level == 1 {
+    box-shadow: var(--shadow-1);
+  } @else if $level == 2 {
+    box-shadow: var(--shadow-2);
+  } @else {
+    box-shadow: var(--shadow-3);
+  }
+}
+
+@mixin surface($bg: var(--surface-1), $border: var(--border-1)) {
+  background: $bg;
+  border: 1px solid $border;
+}
+
+@mixin clamp-type($min, $ideal, $max) {
+  font-size: clamp(#{$min}, #{$ideal}, #{$max});
+}
+
+@mixin container-up($min) {
+  @container (min-width: #{$min}) {
+    @content;
+  }
+}

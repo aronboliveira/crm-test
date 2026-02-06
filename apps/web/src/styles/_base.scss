@@ -1,0 +1,120 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--app-bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  color: var(--text-1);
+  background: var(--app-bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+:where(h1, h2, h3, h4, h5, h6) {
+  margin: 0 0 0.35rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  text-wrap: balance;
+}
+
+h1 { @include clamp-type(2rem, 2.5vw + 1.2rem, 3rem); }
+h2 { @include clamp-type(1.5rem, 1.6vw + 1rem, 2.2rem); }
+h3 { @include clamp-type(1.2rem, 1vw + 1rem, 1.7rem); }
+h4 { @include clamp-type(1.05rem, 0.6vw + 0.9rem, 1.3rem); }
+h5 { font-size: 1rem; }
+h6 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.08em; }
+
+p {
+  margin: 0 0 0.85rem;
+  color: var(--text-2);
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+}
+
+:where(img, svg) {
+  max-width: 100%;
+  height: auto;
+}
+
+:where(ul, ol) {
+  margin: 0;
+  padding: 0;
+}
+
+:where(code, pre) {
+  font-family: var(--font-mono);
+}
+
+a:any-link {
+  color: var(--link);
+  text-decoration: none;
+  border-radius: 8px;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  @include interactive();
+}
+
+a:any-link:hover {
+  color: var(--link-hover);
+  outline-color: color-mix(in oklab, var(--link-hover) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--link-hover) 18%, transparent);
+}
+
+a:any-link:focus-visible {
+  @include focus-ring();
+}
+
+a:any-link:visited {
+  color: color-mix(in oklab, var(--link) 70%, var(--text-3));
+}
+
+::selection {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+  color: var(--text-inverse);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scroll-track);
+}
+
+html {
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

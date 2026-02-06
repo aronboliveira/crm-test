@@ -1,0 +1,76 @@
+=== Codebase Validation Report ===
+Generated: Fri Feb  6 01:42:13 AM -03 2026
+
+--- TypeScript Build Check (packages) ---
+
+> @corp/contracts@0.0.1 build
+> tsc -p tsconfig.json
+
+✓ @corp/contracts build: SUCCESS
+
+> @corp/foundations@0.0.1 build
+> tsc -p tsconfig.json
+
+✓ @corp/foundations build: SUCCESS
+
+--- Linting Check ---
+
+> @corp/contracts@0.0.1 lint
+> eslint --config ../../eslint.config.mjs src/**/*.ts
+
+
+Oops! Something went wrong! :(
+
+ESLint: 9.39.2
+
+Error: ENOENT: no such file or directory, stat '/home/aronboliveira/Desktop/programming/_portfolio/web/crm/eslint.config.mjs'
+    at async Object.stat (node:internal/fs/promises:1037:18)
+    at async loadConfigFile (/home/aronboliveira/Desktop/programming/_portfolio/web/crm/node_modules/eslint/lib/config/config-loader.js:206:17)
+    at async ConfigLoader.calculateConfigArray (/home/aronboliveira/Desktop/programming/_portfolio/web/crm/node_modules/eslint/lib/config/config-loader.js:589:23)
+npm error Lifecycle script `lint` failed with error:
+npm error code 2
+npm error path /home/aronboliveira/Desktop/programming/_portfolio/web/crm/packages/contracts
+npm error workspace @corp/contracts@0.0.1
+npm error location /home/aronboliveira/Desktop/programming/_portfolio/web/crm/packages/contracts
+npm error command failed
+npm error command sh -c eslint --config ../../eslint.config.mjs src/**/*.ts
+
+> @corp/foundations@0.0.1 lint
+> eslint --config ../../eslint.config.mjs src/**/*.ts
+
+
+Oops! Something went wrong! :(
+
+ESLint: 9.39.2
+
+Error: ENOENT: no such file or directory, stat '/home/aronboliveira/Desktop/programming/_portfolio/web/crm/eslint.config.mjs'
+    at async Object.stat (node:internal/fs/promises:1037:18)
+    at async loadConfigFile (/home/aronboliveira/Desktop/programming/_portfolio/web/crm/node_modules/eslint/lib/config/config-loader.js:206:17)
+    at async ConfigLoader.calculateConfigArray (/home/aronboliveira/Desktop/programming/_portfolio/web/crm/node_modules/eslint/lib/config/config-loader.js:589:23)
+npm error Lifecycle script `lint` failed with error:
+npm error code 2
+npm error path /home/aronboliveira/Desktop/programming/_portfolio/web/crm/packages/foundations
+npm error workspace @corp/foundations@0.0.1
+npm error location /home/aronboliveira/Desktop/programming/_portfolio/web/crm/packages/foundations
+npm error command failed
+npm error command sh -c eslint --config ../../eslint.config.mjs src/**/*.ts
+
+--- Test Results ---
+
+> crm@1.0.0 test
+> jest
+
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151001: [0mIf you have issues related to imports, you should consider setting `esModuleInterop` to `true` in your TypeScript configuration file (usually `tsconfig.json`). See https://blogs.msdn.microsoft.com/typescript/2018/01/31/announcing-typescript-2-7/#easier-ecmascript-module-interoperability for more information.
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151001: [0mIf you have issues related to imports, you should consider setting `esModuleInterop` to `true` in your TypeScript configuration file (usually `tsconfig.json`). See https://blogs.msdn.microsoft.com/typescript/2018/01/31/announcing-typescript-2-7/#easier-ecmascript-module-interoperability for more information.
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151001: [0mIf you have issues related to imports, you should consider setting `esModuleInterop` to `true` in your TypeScript configuration file (usually `tsconfig.json`). See https://blogs.msdn.microsoft.com/typescript/2018/01/31/announcing-typescript-2-7/#easier-ecmascript-module-interoperability for more information.
+PASS packages/foundations/__tests__/deepFreeze.test.ts
+PASS packages/foundations/__tests__/CompatibilityValidator.test.ts
+PASS packages/foundations/__tests__/deepSeal.test.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       11 passed, 11 total
+Snapshots:   0 total
+Time:        3.654 s, estimated 6 s
+Ran all test suites.
+
+=== Validation Complete ===

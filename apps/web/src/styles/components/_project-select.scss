@@ -1,0 +1,127 @@
+@keyframes projectSelectPulse {
+  0% {
+    filter: brightness(1);
+    transform: translateY(0);
+  }
+  50% {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+  100% {
+    filter: brightness(1);
+    transform: translateY(0);
+  }
+}
+
+.project-select {
+  align-items: end;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr auto;
+  padding: 0.25rem;
+
+  @container (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.project-select__control {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(120, 120, 140, 0.35);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.1);
+  font-size: 0.95rem;
+  padding: 0.65rem 0.75rem;
+  transition:
+    box-shadow 140ms ease,
+    transform 140ms ease,
+    border-color 140ms ease;
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  &:enabled:hover {
+    border-color: rgba(120, 120, 160, 0.6);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  }
+
+  &:invalid {
+    border-color: rgba(220, 80, 80, 0.65);
+  }
+
+  &:valid {
+    border-color: rgba(80, 160, 120, 0.55);
+  }
+
+  &:required {
+    outline: none;
+  }
+
+  &::placeholder {
+    opacity: 0.7;
+  }
+
+  &::selection {
+    background: rgba(120, 120, 200, 0.25);
+  }
+}
+
+.project-select__label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.project-select__refresh {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(120, 120, 140, 0.35);
+  font-weight: 700;
+  padding: 0.65rem 0.9rem;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  transition:
+    filter 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  &:enabled:hover {
+    filter: brightness(1.05);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  }
+}
+
+.project-select__text {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+
+  &::first-letter {
+    text-transform: uppercase;
+  }
+}
+
+@starting-style {
+  .project-select {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@supports (position-try: flip-block) {
+  @position-try flip-block;
+}
