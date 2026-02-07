@@ -73,11 +73,13 @@ export default class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException('Token expired');
       }
 
+      // Return user with permissions from JWT payload (not from user entity)
+      // The permissions are resolved during login and stored in the JWT
       return {
         id: String((user as any)._id),
         email: (user as any).email,
-        role: (user as any).roleKey,
-        perms: (user as any).perms || [],
+        role: payload.role || (user as any).roleKey || 'viewer',
+        perms: payload.perms || [], // Use permissions from JWT payload
       };
     } catch (error) {
       if (error instanceof UnauthorizedException) {

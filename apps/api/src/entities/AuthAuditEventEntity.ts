@@ -17,6 +17,8 @@ export type AuditKind =
   | 'auth.login.failure'
   | 'auth.password_reset.requested'
   | 'auth.password_reset.completed'
+  | 'auth.password.changed'
+  | 'auth.email.change_requested'
   | 'admin.user.role_changed'
   | 'admin.user.role_updated'
   | 'admin.user.force_reset'

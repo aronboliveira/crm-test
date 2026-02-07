@@ -8,7 +8,6 @@ export default class LocalStrategy extends PassportStrategy(Strategy, 'local') {
   private readonly logger = new Logger(LocalStrategy.name);
 
   constructor(private readonly auth: AuthService) {
-    super({ usernameField: 'email' });
     super({ usernameField: 'email', passwordField: 'password' });
     try {
       if (!auth) {

@@ -7,8 +7,11 @@ import {
   Post,
   Body,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { Permissions } from '../../rbac/permissions.decorator';
+import JwtAuthGuard from '../../auth/guards/jwt-auth.guard';
+import PermissionsGuard from '../../rbac/permissions.guard';
 import UserAdminService from './user-admin.service';
 
 interface QueryParams {
@@ -31,6 +34,7 @@ interface CreateUserBody {
 }
 
 @Controller('/admin/users')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export default class UserAdminController {
   constructor(private readonly s: UserAdminService) {}
 

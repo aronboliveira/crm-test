@@ -1,5 +1,7 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Permissions } from '../../rbac/permissions.decorator';
+import JwtAuthGuard from '../../auth/guards/jwt-auth.guard';
+import PermissionsGuard from '../../rbac/permissions.guard';
 import AuditAdminService from './audit-admin.service';
 
 interface QueryParams {
@@ -11,6 +13,7 @@ interface QueryParams {
 }
 
 @Controller('/admin/audit')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export default class AuditAdminController {
   constructor(private readonly s: AuditAdminService) {}
 

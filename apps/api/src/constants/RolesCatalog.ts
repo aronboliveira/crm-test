@@ -28,6 +28,9 @@ const roles: readonly RoleSpec[] = [
       'roles.manage',
       'permissions.read',
       'permissions.manage',
+      'audit.read',
+      'audit.write',
+      'audit.manage',
     ],
   },
   {

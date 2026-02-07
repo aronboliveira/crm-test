@@ -5,6 +5,7 @@ import UserEntity from '../../entities/UserEntity';
 import AuthAuditEventEntity from '../../entities/AuthAuditEventEntity';
 import PasswordResetRequestEntity from '../../entities/PasswordResetRequestEntity';
 
+import MailOutboxEntity from '../../entities/MailOutboxEntity';
 import AuditModule from '../audit/audit.module';
 
 import UserAdminController from './users/user-admin.controller';
@@ -28,6 +29,7 @@ import MailAdminService from './mail/mail-admin.service';
       UserEntity,
       AuthAuditEventEntity,
       PasswordResetRequestEntity,
+      MailOutboxEntity,
     ]),
     AuditModule,
     NotificationsModule,

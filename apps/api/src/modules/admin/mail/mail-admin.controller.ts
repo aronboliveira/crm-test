@@ -1,5 +1,7 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { Permissions } from '../../rbac/permissions.decorator';
+import JwtAuthGuard from '../../auth/guards/jwt-auth.guard';
+import PermissionsGuard from '../../rbac/permissions.guard';
 import MailAdminService from './mail-admin.service';
 
 interface QueryParams {
@@ -9,6 +11,7 @@ interface QueryParams {
 }
 
 @Controller('/admin/mail-outbox')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export default class MailAdminController {
   constructor(private readonly s: MailAdminService) {}
 
