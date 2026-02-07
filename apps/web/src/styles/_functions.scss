@@ -1,0 +1,109 @@
+// ============================================================================
+// SCSS FUNCTIONS - Utility functions for calculations and value generation
+// ============================================================================
+
+/// Fluid typography calculation (safe for clamp)
+/// @param {Number} $min - Minimum font size (px or rem)
+/// @param {Number} $max - Maximum font size (px or rem)
+/// @param {Number} $min-vw - Minimum viewport width (px)
+/// @param {Number} $max-vw - Maximum viewport width (px)
+/// @return {String} - clamp() value
+@function fluid-type($min, $max, $min-vw: 320px, $max-vw: 1440px) {
+  $slope: calc((#{$max} - #{$min}) / (#{$max-vw} - #{$min-vw}));
+  $intercept: calc(#{$min} - #{$slope} * #{$min-vw});
+  @return clamp(#{$min}, calc(#{$intercept} + #{$slope} * 100vw), #{$max});
+}
+
+/// Generate spacing based on base unit
+/// @param {Number} $multiplier - Multiplier for base unit
+/// @param {String} $unit - Base unit (default: 0.5rem)
+/// @return {String} - calc() value
+@function space($multiplier, $unit: 0.5rem) {
+  @if $multiplier == 0 {
+    @return 0;
+  }
+  @return calc(#{$unit} * #{$multiplier});
+}
+
+/// Convert px to rem
+/// @param {Number} $px - Pixel value
+/// @param {Number} $base - Base font size (default: 16)
+/// @return {Number} - Rem value
+@function rem($px, $base: 16) {
+  @return calc(#{$px} / #{$base}) * 1rem;
+}
+
+/// Color with alpha
+/// @param {Color} $color - Base color
+/// @param {Number} $alpha - Alpha value (0-1)
+/// @return {Color} - Color with alpha
+@function alpha($color, $alpha) {
+  @return color-mix(in oklab, #{$color} calc(#{$alpha} * 100%), transparent);
+}
+
+/// Lighten color using oklab
+/// @param {Color} $color - Base color
+/// @param {Number} $amount - Amount to lighten (0-100)
+/// @return {Color} - Lightened color
+@function tint($color, $amount) {
+  @return color-mix(in oklab, #{$color}, white #{$amount}%);
+}
+
+/// Darken color using oklab
+/// @param {Color} $color - Base color
+/// @param {Number} $amount - Amount to darken (0-100)
+/// @return {Color} - Darkened color
+@function shade($color, $amount) {
+  @return color-mix(in oklab, #{$color}, black #{$amount}%);
+}
+
+/// Get radius token
+/// @param {String} $size - Size name (xs, sm, md, lg, xl, full)
+/// @return {String} - CSS variable reference
+@function radius($size: md) {
+  @if $size == xs {
+    @return var(--radius-xs);
+  }
+  @if $size == sm {
+    @return var(--radius-sm);
+  }
+  @if $size == lg {
+    @return var(--radius-lg);
+  }
+  @if $size == xl {
+    @return var(--radius-xl);
+  }
+  @if $size == full {
+    @return 9999px;
+  }
+  @return var(--radius-md);
+}
+
+/// Get shadow token
+/// @param {Number} $level - Shadow level (1-4)
+/// @return {String} - CSS variable reference
+@function shadow($level: 1) {
+  @if $level == 2 {
+    @return var(--shadow-2);
+  }
+  @if $level == 3 {
+    @return var(--shadow-3);
+  }
+  @if $level == 4 {
+    @return var(--shadow-4);
+  }
+  @return var(--shadow-1);
+}
+
+/// Get transition timing
+/// @param {String} $speed - Speed name (fast, mid, slow)
+/// @return {String} - CSS variable reference
+@function timing($speed: fast) {
+  @if $speed == mid {
+    @return var(--transition-mid);
+  }
+  @if $speed == slow {
+    @return var(--transition-slow);
+  }
+  @return var(--transition-fast);
+}

@@ -1,120 +1,443 @@
+// ============================================================================
+// BASE STYLES – Global resets and element defaults
+// ============================================================================
+
+@use "mixins" as *;
+
+// Box sizing reset
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-  background: var(--app-bg);
-}
-
-body {
-  margin: 0;
-  min-height: 100dvh;
-  font-family: var(--font-sans);
-  color: var(--text-1);
-  background: var(--app-bg);
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-}
-
-#app {
-  min-height: 100dvh;
-}
-
-:where(h1, h2, h3, h4, h5, h6) {
-  margin: 0 0 0.35rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--text-1);
-  text-wrap: balance;
-}
-
-h1 { @include clamp-type(2rem, 2.5vw + 1.2rem, 3rem); }
-h2 { @include clamp-type(1.5rem, 1.6vw + 1rem, 2.2rem); }
-h3 { @include clamp-type(1.2rem, 1vw + 1rem, 1.7rem); }
-h4 { @include clamp-type(1.05rem, 0.6vw + 0.9rem, 1.3rem); }
-h5 { font-size: 1rem; }
-h6 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.08em; }
-
-p {
-  margin: 0 0 0.85rem;
-  color: var(--text-2);
-}
-
-:where(button, input, select, textarea) {
-  font: inherit;
-  color: inherit;
-}
-
-:where(img, svg) {
-  max-width: 100%;
-  height: auto;
-}
-
-:where(ul, ol) {
   margin: 0;
   padding: 0;
 }
 
-:where(code, pre) {
-  font-family: var(--font-mono);
+// Root element
+html {
+  scroll-behavior: smooth;
+  background: var(--app-bg);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  @include styled-scrollbar(10px);
 }
+
+// Body
+body {
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  font-weight: var(--font-weight-normal);
+  color: var(--text-1);
+  background: var(--app-bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// App container
+#app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+// ============================================================================
+// TYPOGRAPHY – Headings with fluid scaling (FIXED: calc() for mixed units)
+// ============================================================================
+
+:where(h1, h2, h3, h4, h5, h6) {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.025em;
+  color: var(--text-1);
+  text-wrap: balance;
+  line-height: 1.2;
+}
+
+// Fluid typography - using CSS clamp() directly to avoid SCSS unit math errors
+h1 {
+  font-size: clamp(2rem, calc(2.5vw + 1.2rem), 3rem);
+  letter-spacing: -0.035em;
+}
+
+h2 {
+  font-size: clamp(1.5rem, calc(1.6vw + 1rem), 2.25rem);
+  letter-spacing: -0.03em;
+}
+
+h3 {
+  font-size: clamp(1.25rem, calc(1vw + 1rem), 1.75rem);
+}
+
+h4 {
+  font-size: clamp(1.1rem, calc(0.6vw + 0.9rem), 1.35rem);
+  font-weight: var(--font-weight-semibold);
+}
+
+h5 {
+  font-size: 1rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+h6 {
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+
+// Paragraphs
+p {
+  margin: 0 0 var(--space-4);
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+// Small text
+small {
+  font-size: 0.875em;
+  color: var(--text-3);
+}
+
+// Strong/bold
+strong,
+b {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-1);
+}
+
+// Emphasis
+em,
+i {
+  font-style: italic;
+}
+
+// ============================================================================
+// LINKS – Animated hover effects
+// ============================================================================
 
 a:any-link {
-  color: var(--link);
-  text-decoration: none;
-  border-radius: 8px;
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-  @include interactive();
-}
-
-a:any-link:hover {
-  color: var(--link-hover);
-  outline-color: color-mix(in oklab, var(--link-hover) 55%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--link-hover) 18%, transparent);
-}
-
-a:any-link:focus-visible {
-  @include focus-ring();
+  @include link-interactive(var(--link), true);
 }
 
 a:any-link:visited {
-  color: color-mix(in oklab, var(--link) 70%, var(--text-3));
+  color: var(--link-visited);
 }
+
+// ============================================================================
+// FORM ELEMENTS
+// ============================================================================
+
+:where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+}
+
+:where(button) {
+  cursor: pointer;
+}
+
+:where(input, select, textarea) {
+  &::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+}
+
+// ============================================================================
+// MEDIA
+// ============================================================================
+
+:where(img, svg, video, canvas) {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+:where(svg) {
+  fill: currentColor;
+}
+
+// ============================================================================
+// LISTS
+// ============================================================================
+
+:where(ul, ol) {
+  list-style: none;
+}
+
+// Styled lists (opt-in)
+.list-styled {
+  padding-left: var(--space-6);
+
+  li {
+    margin-bottom: var(--space-2);
+
+    &::marker {
+      color: var(--primary);
+    }
+  }
+}
+
+ul.list-styled {
+  list-style-type: disc;
+}
+
+ol.list-styled {
+  list-style-type: decimal;
+}
+
+// ============================================================================
+// CODE
+// ============================================================================
+
+:where(code, pre, kbd, samp) {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+code {
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-2);
+  border-radius: radius(sm);
+  color: var(--danger);
+}
+
+pre {
+  padding: var(--space-4);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: radius(md);
+  overflow-x: auto;
+  @include styled-scrollbar(6px);
+
+  code {
+    padding: 0;
+    background: none;
+    color: inherit;
+  }
+}
+
+kbd {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: radius(sm);
+  box-shadow: var(--shadow-1);
+  font-size: 0.85em;
+}
+
+// ============================================================================
+// SELECTION
+// ============================================================================
 
 ::selection {
-  background: color-mix(in oklab, var(--accent) 35%, transparent);
-  color: var(--text-inverse);
+  background: color-mix(in oklab, var(--primary) 35%, transparent);
+  color: var(--text-1);
 }
 
-::-webkit-scrollbar {
-  width: 10px;
+// ============================================================================
+// FOCUS STATES
+// ============================================================================
+
+:focus {
+  outline: none;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--scroll-track);
+:focus-visible {
+  @include focus-ring;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--scroll-thumb);
-  border-radius: 999px;
-  border: 2px solid var(--scroll-track);
+// ============================================================================
+// SCROLLBARS – Custom styling with dark mode support
+// ============================================================================
+
+// Applied via mixin to html, also add for elements that need custom scrollbars
+.custom-scrollbar {
+  @include styled-scrollbar;
 }
 
-html {
-  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+.hide-scrollbar {
+  @include hide-scrollbar;
 }
+
+// ============================================================================
+// HR / DIVIDERS
+// ============================================================================
+
+hr {
+  height: 1px;
+  margin: var(--space-6) 0;
+  background: var(--border-1);
+  border: none;
+}
+
+// ============================================================================
+// BLOCKQUOTE
+// ============================================================================
+
+blockquote {
+  margin: var(--space-4) 0;
+  padding: var(--space-4) var(--space-6);
+  border-left: 4px solid var(--primary);
+  background: var(--surface-2);
+  border-radius: 0 radius(md) radius(md) 0;
+  color: var(--text-2);
+  font-style: italic;
+
+  cite {
+    display: block;
+    margin-top: var(--space-2);
+    font-size: 0.875em;
+    font-style: normal;
+    color: var(--text-3);
+
+    &::before {
+      content: "— ";
+    }
+  }
+}
+
+// ============================================================================
+// TABLES – Global table styling
+// ============================================================================
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.9375rem;
+}
+
+th,
+td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--table-border);
+}
+
+th {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-1);
+  background: var(--table-header-bg);
+  white-space: nowrap;
+}
+
+td {
+  color: var(--text-2);
+}
+
+// Striped rows
+tbody tr:nth-child(even) {
+  background: var(--table-row-alt);
+}
+
+// Hover effect
+tbody tr {
+  @include interactive;
+
+  &:hover {
+    background: var(--table-row-hover);
+  }
+}
+
+// Table wrapper for overflow
+.table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--table-border);
+  border-radius: radius(md);
+  @include styled-scrollbar(6px);
+}
+
+// ============================================================================
+// ACCESSIBILITY
+// ============================================================================
+
+// Screen reader only
+.sr-only {
+  @include sr-only;
+}
+
+// Skip link
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-1);
+  border: 2px solid var(--primary);
+  border-radius: radius(md);
+  color: var(--primary);
+  font-weight: var(--font-weight-semibold);
+  z-index: 9999;
+  @include interactive;
+
+  &:focus {
+    top: var(--space-4);
+  }
+}
+
+// ============================================================================
+// REDUCED MOTION
+// ============================================================================
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 1ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 1ms !important;
+    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+// ============================================================================
+// PRINT STYLES
+// ============================================================================
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+  }
+
+  pre,
+  blockquote {
+    border: 1px solid #999;
+    page-break-inside: avoid;
+  }
+
+  img {
+    page-break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    page-break-after: avoid;
   }
 }

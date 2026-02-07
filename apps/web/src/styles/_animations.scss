@@ -1,7 +1,16 @@
+// ============================================================================
+// ANIMATIONS – Keyframes and animation utilities
+// ============================================================================
+
+// ============================================================================
+// ENTRANCE ANIMATIONS
+// ============================================================================
+
+// Fade in with slide from bottom
 @keyframes fade-slide-in {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -9,6 +18,84 @@
   }
 }
 
+// Fade in with slide from top
+@keyframes fade-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Fade in with slide from left
+@keyframes fade-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// Fade in with slide from right
+@keyframes fade-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+// Simple fade
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// Scale up entrance
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// Scale up with bounce (Material-inspired)
+@keyframes scale-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+// ============================================================================
+// LOADING ANIMATIONS
+// ============================================================================
+
+// Skeleton shimmer
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -18,6 +105,51 @@
   }
 }
 
+// Spinner rotation
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Pulsing dots
+@keyframes pulse-dot {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Progress bar indeterminate
+@keyframes progress-indeterminate {
+  0% {
+    left: -40%;
+    width: 40%;
+  }
+  50% {
+    left: 20%;
+    width: 60%;
+  }
+  100% {
+    left: 100%;
+    width: 40%;
+  }
+}
+
+// ============================================================================
+// INTERACTIVE ANIMATIONS
+// ============================================================================
+
+// Soft pulse for hover states
 @keyframes pulse-soft {
   0% {
     transform: scale(1);
@@ -30,13 +162,80 @@
   }
 }
 
+// Ripple effect (Material Design)
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+// Focus ring pulse
+@keyframes focus-pulse {
+  0% {
+    outline-offset: 0px;
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 40%, transparent);
+  }
+  50% {
+    outline-offset: 3px;
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 20%, transparent);
+  }
+  100% {
+    outline-offset: 2px;
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 0%, transparent);
+  }
+}
+
+// Button press
+@keyframes button-press {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+// Shake for errors
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+// ============================================================================
+// DECORATIVE ANIMATIONS
+// ============================================================================
+
+// Floating sheen effect
 @keyframes float-sheen {
   0% {
     opacity: 0;
     transform: translateX(-40%) skewX(-12deg);
   }
-  60% {
-    opacity: 1;
+  50% {
+    opacity: 0.6;
   }
   100% {
     opacity: 0;
@@ -44,8 +243,166 @@
   }
 }
 
+// Gentle float
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+// Gradient shift
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+// Glow pulse
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 5px color-mix(in oklab, var(--primary) 30%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 20px color-mix(in oklab, var(--primary) 50%, transparent);
+  }
+}
+
+// Subtle bounce
+@keyframes bounce-subtle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px);
+  }
+  60% {
+    transform: translateY(-4px);
+  }
+}
+
+// ============================================================================
+// EXIT ANIMATIONS
+// ============================================================================
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes scale-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes slide-out-up {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+// ============================================================================
+// COUNTER STYLES
+// ============================================================================
+
 @counter-style ledger {
   system: cyclic;
-  symbols: "-" "+" "*";
+  symbols: "−" "+" "•";
   suffix: " ";
+}
+
+@counter-style check {
+  system: cyclic;
+  symbols: "✓";
+  suffix: " ";
+}
+
+// ============================================================================
+// ANIMATION UTILITY CLASSES
+// ============================================================================
+
+// Apply animations
+.animate-fade-in {
+  animation: fade-in var(--transition-mid) var(--easing-standard);
+}
+
+.animate-slide-up {
+  animation: fade-slide-in var(--transition-mid) var(--easing-standard);
+}
+
+.animate-slide-down {
+  animation: fade-slide-down var(--transition-mid) var(--easing-standard);
+}
+
+.animate-scale-in {
+  animation: scale-in var(--transition-mid) var(--easing-bounce);
+}
+
+.animate-bounce-in {
+  animation: scale-bounce-in var(--transition-slow) var(--easing-bounce);
+}
+
+// Loading states
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-pulse {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+// Interactive
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+// Decorative
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+// Staggered children animations
+.stagger-children > * {
+  animation: fade-slide-in var(--transition-mid) var(--easing-standard)
+    backwards;
+}
+
+@for $i from 1 through 10 {
+  .stagger-children > *:nth-child(#{$i}) {
+    animation-delay: calc(#{$i - 1} * 50ms);
+  }
 }

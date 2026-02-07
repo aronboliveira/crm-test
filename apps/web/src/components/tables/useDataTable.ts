@@ -71,11 +71,11 @@ const defaultCmp = (a: unknown, b: unknown): number => {
 export default function useDataTable<T>(cfg: TableConfig<T>): Vm<T> {
   const page = ref(1);
   const pageSizes = cfg.pageSizes?.length ? cfg.pageSizes : [10, 20, 50];
-  const pageSize = ref(
+  const defaultPageSize =
     cfg.initialPageSize && pageSizes.includes(cfg.initialPageSize)
       ? cfg.initialPageSize
-      : pageSizes[0],
-  );
+      : (pageSizes[0] ?? 10);
+  const pageSize = ref<number>(defaultPageSize);
   const search = ref("");
   const sort = ref<SortState>({ colId: null, dir: "asc" });
 
