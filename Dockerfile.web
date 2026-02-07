@@ -1,0 +1,27 @@
+# Frontend Web Dockerfile
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY apps/web/package*.json ./apps/web/
+
+# Install dependencies
+RUN npm ci && \
+    cd apps/web && \
+    npm ci
+
+# Development stage
+FROM base AS development
+
+WORKDIR /app
+
+# Copy all source files
+COPY . .
+
+# Expose Vite dev server port
+EXPOSE 5173
+
+# Start in development mode
+CMD ["npm", "run", "--workspace=apps/web", "dev", "--", "--host", "0.0.0.0"]
