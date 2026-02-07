@@ -28,9 +28,30 @@ export default class TaskEntity {
   @Column()
   priority!: TaskPriority;
 
+  @Column()
+  assigneeEmail?: string;
+
+  /** User _id of the assigned person (optional) */
+  @Index()
+  @Column()
+  assigneeId?: string;
+
+  /** Milestone _id this task contributes to */
+  @Index()
+  @Column()
+  milestoneId?: string;
+
+  /** Tag keys (references TagEntity.key) */
+  @Column()
+  tags?: string[];
+
   @Index()
   @Column()
   dueAt?: string;
+
+  /** Hard deadline — after this date the task is considered overdue */
+  @Column()
+  deadlineAt?: string;
 
   @Column()
   createdAt!: string;
