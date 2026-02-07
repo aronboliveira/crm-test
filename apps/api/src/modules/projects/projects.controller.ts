@@ -35,17 +35,24 @@ export default class ProjectsController {
 
   @Get()
   @Permissions('projects.read')
-  async list() {
+  async list(@Query('limit') limit?: string, @Query('cursor') cursor?: string) {
     try {
       const rows = await this.s.list();
-      return rows.map((p) => ({
+      const items = rows.map((p) => ({
         id: String(p._id),
+        code: (p as any).code || null,
         name: p.name,
         description: p.description,
         status: p.status,
+        ownerEmail: (p as any).ownerEmail || null,
+        dueAt: (p as any).dueAt || null,
+        deadlineAt: (p as any).deadlineAt || null,
+        tags: (p as any).tags || [],
+        templateKey: (p as any).templateKey || null,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       }));
+      return { items, nextCursor: null };
     } catch (error) {
       this.logger.error('Error in list endpoint:', error);
       throw error;

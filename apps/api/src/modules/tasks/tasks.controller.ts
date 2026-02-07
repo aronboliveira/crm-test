@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
   Logger,
 } from '@nestjs/common';
@@ -34,20 +35,26 @@ export default class TasksController {
 
   @Get()
   @Permissions('tasks.read')
-  async list() {
+  async list(@Query('limit') limit?: string, @Query('cursor') cursor?: string) {
     try {
       const rows = await this.s.list();
-      return rows.map((t) => ({
+      const items = rows.map((t) => ({
         id: String(t._id),
         projectId: t.projectId,
         title: t.title,
         description: t.description,
         status: t.status,
         priority: t.priority,
+        assigneeEmail: (t as any).assigneeEmail || null,
+        assigneeId: (t as any).assigneeId || null,
+        milestoneId: (t as any).milestoneId || null,
+        tags: (t as any).tags || [],
         dueAt: t.dueAt,
+        deadlineAt: (t as any).deadlineAt || null,
         createdAt: t.createdAt,
         updatedAt: t.updatedAt,
       }));
+      return { items, nextCursor: null };
     } catch (error) {
       this.logger.error('Error in list endpoint:', error);
       throw error;

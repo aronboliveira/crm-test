@@ -13,8 +13,14 @@ import ProjectEntity, {
 
 type CreateProjectDto = Readonly<{
   name: string;
+  code?: string;
   description?: string;
   status?: ProjectStatus;
+  ownerEmail?: string;
+  dueAt?: string;
+  deadlineAt?: string;
+  tags?: string[];
+  templateKey?: string;
 }>;
 
 type UpdateProjectDto = Readonly<Partial<CreateProjectDto>>;
@@ -61,17 +67,54 @@ export default class ProjectsService {
         throw new BadRequestException('Invalid name');
       }
 
+      const validStatuses: ProjectStatus[] = [
+        'active',
+        'archived',
+        'planned',
+        'blocked',
+        'done',
+      ];
       const status: ProjectStatus =
-        dto.status === 'archived' ? 'archived' : 'active';
+        dto.status && validStatuses.includes(dto.status)
+          ? dto.status
+          : 'active';
       const now = new Date().toISOString();
+
+      const code =
+        typeof dto.code === 'string' && dto.code.trim()
+          ? dto.code.trim().toUpperCase()
+          : undefined;
+
+      const ownerEmail =
+        typeof dto.ownerEmail === 'string' && dto.ownerEmail.trim()
+          ? dto.ownerEmail.trim()
+          : undefined;
+
+      const dueAt =
+        typeof dto.dueAt === 'string' && /^\d{4}-\d{2}/.test(dto.dueAt)
+          ? dto.dueAt
+          : undefined;
 
       const project = await this.repo.save({
         name,
+        code,
         description:
           typeof dto.description === 'string' && dto.description.trim()
             ? dto.description.trim()
             : undefined,
         status,
+        ownerEmail,
+        dueAt,
+        deadlineAt:
+          typeof dto.deadlineAt === 'string' &&
+          /^\d{4}-\d{2}/.test(dto.deadlineAt)
+            ? dto.deadlineAt
+            : undefined,
+        tags: Array.isArray(dto.tags) ? dto.tags.filter(Boolean) : undefined,
+        templateKey:
+          typeof dto.templateKey === 'string' && dto.templateKey.trim()
+            ? dto.templateKey.trim()
+            : undefined,
         createdAt: now,
         updatedAt: now,
       } as any);
@@ -111,8 +154,41 @@ export default class ProjectsService {
             : undefined;
       }
 
-      if (dto.status === 'active' || dto.status === 'archived') {
+      const validStatuses: ProjectStatus[] = [
+        'active',
+        'archived',
+        'planned',
+        'blocked',
+        'done',
+      ];
+      if (dto.status && validStatuses.includes(dto.status)) {
         patch.status = dto.status;
+      }
+
+      if (typeof dto.code === 'string') {
+        patch.code = dto.code.trim().toUpperCase() || undefined;
+      }
+
+      if (typeof dto.ownerEmail === 'string') {
+        patch.ownerEmail = dto.ownerEmail.trim() || undefined;
+      }
+
+      if (typeof dto.dueAt === 'string') {
+        patch.dueAt = /^\d{4}-\d{2}/.test(dto.dueAt) ? dto.dueAt : undefined;
+      }
+
+      if (typeof dto.deadlineAt === 'string') {
+        patch.deadlineAt = /^\d{4}-\d{2}/.test(dto.deadlineAt)
+          ? dto.deadlineAt
+          : undefined;
+      }
+
+      if (Array.isArray(dto.tags)) {
+        patch.tags = dto.tags.filter(Boolean);
+      }
+
+      if (typeof dto.templateKey === 'string') {
+        patch.templateKey = dto.templateKey.trim() || undefined;
       }
 
       patch.updatedAt = new Date().toISOString();

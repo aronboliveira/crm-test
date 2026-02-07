@@ -4,12 +4,30 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import PermissionEntity from '../entities/PermissionEntity';
 import RoleEntity from '../entities/RoleEntity';
 import UserEntity from '../entities/UserEntity';
+import ProjectEntity from '../entities/ProjectEntity';
+import TaskEntity from '../entities/TaskEntity';
+import MailOutboxEntity from '../entities/MailOutboxEntity';
+import TagEntity from '../entities/TagEntity';
+import MilestoneEntity from '../entities/MilestoneEntity';
+import CommentEntity from '../entities/CommentEntity';
+import ProjectTemplateEntity from '../entities/ProjectTemplateEntity';
 
 import MockSeedService from './mock-seed.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PermissionEntity, RoleEntity, UserEntity]),
+    TypeOrmModule.forFeature([
+      PermissionEntity,
+      RoleEntity,
+      UserEntity,
+      ProjectEntity,
+      TaskEntity,
+      MailOutboxEntity,
+      TagEntity,
+      MilestoneEntity,
+      CommentEntity,
+      ProjectTemplateEntity,
+    ]),
   ],
   providers: [MockSeedService],
 })
@@ -17,6 +35,8 @@ export default class MockSeedModule implements OnModuleInit {
   constructor(private readonly seed: MockSeedService) {}
 
   async onModuleInit() {
-    process.env.SEED_MOCKS === '1' ? await this.seed.run() : void 0;
+    if (process.env.SEED_MOCKS === '1') {
+      await this.seed.run();
+    }
   }
 }

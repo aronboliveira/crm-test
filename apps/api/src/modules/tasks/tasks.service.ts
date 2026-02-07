@@ -22,6 +22,11 @@ type CreateTaskDto = Readonly<{
   status?: TaskStatus;
   priority?: TaskPriority;
   dueAt?: string;
+  assigneeId?: string;
+  assigneeEmail?: string;
+  milestoneId?: string;
+  tags?: string[];
+  deadlineAt?: string;
 }>;
 
 type UpdateTaskDto = Readonly<Partial<CreateTaskDto>>;
@@ -107,7 +112,21 @@ export default class TasksService {
             : undefined,
         status,
         priority,
+        assigneeEmail:
+          typeof dto.assigneeEmail === 'string' && dto.assigneeEmail.trim()
+            ? dto.assigneeEmail.trim()
+            : undefined,
+        assigneeId:
+          typeof dto.assigneeId === 'string' && dto.assigneeId.trim()
+            ? dto.assigneeId.trim()
+            : undefined,
+        milestoneId:
+          typeof dto.milestoneId === 'string' && dto.milestoneId.trim()
+            ? dto.milestoneId.trim()
+            : undefined,
+        tags: Array.isArray(dto.tags) ? dto.tags.filter(Boolean) : undefined,
         dueAt: isIso(dto.dueAt) ? dto.dueAt : undefined,
+        deadlineAt: isIso(dto.deadlineAt) ? dto.deadlineAt : undefined,
         createdAt: now,
         updatedAt: now,
       } as any);
@@ -163,6 +182,26 @@ export default class TasksService {
 
       if (isIso(dto.dueAt)) {
         patch.dueAt = dto.dueAt;
+      }
+
+      if (isIso(dto.deadlineAt)) {
+        patch.deadlineAt = dto.deadlineAt;
+      }
+
+      if (typeof dto.assigneeId === 'string') {
+        patch.assigneeId = dto.assigneeId.trim() || undefined;
+      }
+
+      if (typeof dto.assigneeEmail === 'string') {
+        patch.assigneeEmail = dto.assigneeEmail.trim() || undefined;
+      }
+
+      if (typeof dto.milestoneId === 'string') {
+        patch.milestoneId = dto.milestoneId.trim() || undefined;
+      }
+
+      if (Array.isArray(dto.tags)) {
+        patch.tags = dto.tags.filter(Boolean);
       }
 
       if (typeof dto.projectId === 'string') {
