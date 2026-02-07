@@ -179,6 +179,7 @@ const {
   </div>
 
   <div v-else class="p-6 opacity-70" aria-label="Access denied">
-    Access denied.
+    apps/web/src/pages/{AdminAuditPage,AdminUsersPage}.vue still do not
+    recognize my permission. .
   </div>
 </template>

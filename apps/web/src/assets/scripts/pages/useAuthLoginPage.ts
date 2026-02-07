@@ -1,12 +1,14 @@
-import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
+import { onMounted, ref, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
 import AlertService from "../../../services/AlertService";
-import AuthService from "../../../services/AuthService";
 import FormPersistenceService from "../../../services/FormPersistenceService";
 import AuthRecoveryService from "../../../services/AuthRecoveryService";
+import { useAuthStore } from "../../../pinia/stores/auth.store";
 
 export function useAuthLoginPage() {
   const router = useRouter();
+  const route = useRoute();
+  const authStore = useAuthStore();
 
   const formId = "auth_login_form";
   const formEl = ref<HTMLFormElement | null>(null);
@@ -15,8 +17,30 @@ export function useAuthLoginPage() {
   const email = ref("");
   const password = ref("");
 
+  // Sync autofilled values from DOM
+  const syncAutofill = () => {
+    if (!formEl.value) return;
+
+    const emailInput = formEl.value.querySelector<HTMLInputElement>(
+      'input[name="email"], input[type="email"]',
+    );
+    const passInput = formEl.value.querySelector<HTMLInputElement>(
+      'input[name="password"], input[type="password"]',
+    );
+
+    if (emailInput && emailInput.value && !email.value) {
+      email.value = emailInput.value;
+    }
+    if (passInput && passInput.value && !password.value) {
+      password.value = passInput.value;
+    }
+  };
+
   const submit = async () => {
     if (busy.value) return;
+
+    // Sync autofill values before submit
+    syncAutofill();
 
     busy.value = true;
     try {
@@ -29,14 +53,16 @@ export function useAuthLoginPage() {
         return;
       }
 
-      await AuthService.login(email.value, password.value);
+      await authStore.login({ email: email.value, password: password.value });
 
-      if (!AuthService.isAuthed()) {
+      if (!authStore.isLoggedIn) {
         await AlertService.error("Login failed", "Token not received");
         return;
       }
 
-      await router.replace("/");
+      // Redirect to next URL or dashboard
+      const next = (route.query.next as string) || "/dashboard";
+      await router.replace(next);
     } catch (e) {
       console.error("[AuthLoginPage] submit failed:", e);
       await AlertService.error("Login failed", e);
@@ -54,11 +80,23 @@ export function useAuthLoginPage() {
 
       if (formEl.value) {
         FormPersistenceService.bind(formEl.value, formId);
+
+        // Check for autofill after a short delay (browser behavior)
+        setTimeout(syncAutofill, 100);
+        setTimeout(syncAutofill, 500);
+        setTimeout(syncAutofill, 1000);
+
+        // Listen for animation events (Chrome autofill detection)
+        formEl.value.addEventListener("animationstart", (e) => {
+          if (e.animationName === "onAutoFillStart") {
+            syncAutofill();
+          }
+        });
       }
     } catch (e) {
       console.error("[AuthLoginPage] mount failed:", e);
     }
   });
 
-  return { formId, busy, email, password, submit };
+  return { formId, formEl, busy, email, password, submit };
 }

@@ -1,13 +1,13 @@
 import { computed, onMounted, ref } from "vue";
-import PolicyService from "../../../services/PolicyService";
-import type { PermissionKey } from "../../../types/permissions.types";
+import { usePolicyStore } from "../../../pinia/stores/policy.store";
 import AlertService from "../../../services/AlertService";
 import StorageService from "../../../services/StorageService";
 import AdminApiService from "../../../services/AdminApiService";
 import type { AdminAuditSliceRow } from "../../../types/admin.types";
 
 export function useAdminAuditPage() {
-  const can = computed(() => PolicyService.can("audit.read" as PermissionKey));
+  const policy = usePolicyStore();
+  const can = computed(() => policy.can("audit.read"));
 
   const KEY = "admin.audit.state";
   const st = ref<{

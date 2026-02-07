@@ -1,6 +1,6 @@
 import { computed, onMounted, ref } from "vue";
 import Swal from "sweetalert2";
-import PolicyService from "../../../services/PolicyService";
+import { usePolicyStore } from "../../../pinia/stores/policy.store";
 import AlertService from "../../../services/AlertService";
 import StorageService from "../../../services/StorageService";
 import AdminApiService from "../../../services/AdminApiService";
@@ -8,11 +8,12 @@ import type { AdminUserRow } from "../../../types/admin.types";
 import type { ResetResponse } from "../../../types/auth.types";
 
 export function useAdminUsersPage() {
+  const policy = usePolicyStore();
   const createOpen = ref(false);
   const openCreate = () => (createOpen.value = true);
   const closeCreate = () => (createOpen.value = false);
 
-  const can = computed(() => PolicyService.can("users.manage"));
+  const can = computed(() => policy.can("users.manage"));
 
   const KEY = "admin.users.state";
   const st = ref<{

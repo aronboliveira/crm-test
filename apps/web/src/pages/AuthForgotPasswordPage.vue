@@ -4,19 +4,16 @@ const { formId, busy, email, submit, router } = useAuthForgotPasswordPage();
 </script>
 
 <template>
-  <div class="auth-page min-h-[100dvh] grid place-items-center p-4">
-    <section
-      class="auth-card card max-w-[560px] w-full"
-      aria-label="Password recovery"
-    >
-      <header class="card-head">
-        <h1 class="card-title">Forgot password</h1>
+  <div class="auth-page">
+    <section class="auth-card" aria-label="Password recovery">
+      <header class="auth-header">
+        <h1 class="auth-title">Forgot password</h1>
       </header>
 
       <form
         ref="formEl"
         :id="formId"
-        class="grid gap-3"
+        class="auth-form"
         aria-label="Forgot password form"
         @submit.prevent="submit"
       >
@@ -24,10 +21,10 @@ const { formId, busy, email, submit, router } = useAuthForgotPasswordPage();
           Enter your email. If it exists, you will receive reset instructions.
         </p>
 
-        <label class="grid gap-1">
-          <span class="font-semibold">Email</span>
+        <label class="auth-field">
+          <span class="auth-label">Email</span>
           <input
-            class="auth-input table-search-input"
+            class="auth-input"
             type="email"
             name="email"
             autocomplete="username"
@@ -38,23 +35,23 @@ const { formId, busy, email, submit, router } = useAuthForgotPasswordPage();
           />
         </label>
 
-        <div class="auth-actions flex gap-2 justify-end">
+        <div class="auth-actions">
           <button
-            class="btn btn-ghost"
-            type="button"
-            aria-label="Back to login"
-            @click="router.replace('/login')"
-          >
-            Back
-          </button>
-
-          <button
-            class="btn btn-primary"
+            class="btn btn-primary btn-block"
             type="submit"
             :disabled="busy"
             :aria-disabled="busy"
           >
             {{ busy ? "Sending..." : "Send reset link" }}
+          </button>
+
+          <button
+            class="btn btn-ghost btn-block"
+            type="button"
+            aria-label="Back to login"
+            @click="router.replace('/login')"
+          >
+            Back
           </button>
         </div>
 
@@ -69,116 +66,136 @@ const { formId, busy, email, submit, router } = useAuthForgotPasswordPage();
 </template>
 
 <style lang="scss">
-@keyframes authCardEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(10px) scale(0.99);
+// ============================================================================
+// AUTH PAGE STYLES
+// ============================================================================
+
+.auth-page {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: clamp(1rem, 4vw, 2rem);
+  background: var(--app-bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-2);
+}
+
+.auth-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-1);
+}
+
+.auth-title {
+  margin: 0;
+  font-size: clamp(1.25rem, 3vw, 1.5rem);
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.auth-helper {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.auth-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.auth-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-md, 12px);
+  outline: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &::placeholder {
+    color: var(--text-muted);
   }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+
+  &:hover:not(:focus):not(:disabled) {
+    border-color: var(--border-hover);
+  }
+
+  &:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 
 .auth-actions {
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
-.auth-card {
-  animation: authCardEnter 220ms ease both;
-  container-type: inline-size;
-}
-
-.auth-helper {
-  opacity: 0.8;
-}
-
-.auth-input {
-  &:active {
-    transform: translateY(1px);
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.55;
-  }
-
-  &:enabled:hover {
-    filter: brightness(1.02);
-  }
-
-  &:invalid {
-    outline: 2px solid rgba(220, 80, 80, 0.35);
-    outline-offset: 2px;
-  }
-
-  &:valid {
-    outline: 2px solid rgba(80, 160, 120, 0.25);
-    outline-offset: 2px;
-  }
-
-  &:required {
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
-  }
-
-  &::placeholder {
-    opacity: 0.7;
-  }
-
-  &::selection {
-    background: rgba(120, 120, 200, 0.22);
-  }
-}
-
-.auth-link {
-  border-bottom: 1px dashed rgba(120, 120, 160, 0.55);
-  font-weight: 700;
-  text-decoration: none;
-  transition:
-    filter 140ms ease,
-    transform 140ms ease;
-
-  &:active {
-    transform: translateY(1px);
-  }
-
-  &:hover {
-    filter: brightness(1.05);
-  }
+.btn-block {
+  width: 100%;
+  justify-content: center;
 }
 
 .auth-links {
   display: flex;
   justify-content: center;
-  padding-top: 0.25rem;
+  margin-top: 0.5rem;
 }
 
+.auth-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed color-mix(in oklab, var(--primary) 50%, transparent);
+  transition:
+    color 150ms ease,
+    border-color 150ms ease;
+
+  &:hover {
+    color: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+}
+
+// Dark mode adjustments
 .dark-mode {
-  .auth-link {
-    border-bottom-color: rgba(170, 170, 210, 0.45);
+  .auth-input {
+    background: var(--surface-2);
   }
-}
-
-@container (max-width: 520px) {
-  .auth-actions {
-    flex-direction: column-reverse;
-    gap: 0.5rem;
-    justify-content: stretch;
-
-    > .btn {
-      width: 100%;
-    }
-  }
-}
-
-@starting-style {
-  .auth-card {
-    opacity: 0;
-    transform: translateY(10px) scale(0.99);
-  }
-}
-
-@supports (position-try: flip-block) {
-  @position-try flip-block;
 }
 </style>

@@ -2,7 +2,7 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import PolicyService from "../../../services/PolicyService";
 import type { PermissionKey } from "../../../types/permissions.types";
-import type { MenuItem, MenuSection } from "../../../types/menu.types";
+import type { MenuSection } from "../../../types/menu.types";
 import ObjectDeep, { type DeepReadonly } from "../../../utils/ObjectDeep";
 import { usePolicyStore } from "../../../pinia/stores/policy.store";
 

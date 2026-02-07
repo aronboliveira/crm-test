@@ -3,19 +3,67 @@ import { useRoute } from "vue-router";
 import StorageService from "../../../services/StorageService";
 import type { NavItem } from "../../../types/menu.types";
 
+export interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
 export function useSidebarNav() {
   const route = useRoute();
   const KEY = "ui.sidebar.collapsed";
 
   const collapsed = ref(StorageService.local.getBool(KEY, false));
-  const items = computed<readonly NavItem[]>(() => [
-    { to: "/tasks", label: "Tasks", key: "tasks" },
-    { to: "/projects", label: "Projects", key: "projects" },
+
+  // Organized navigation sections
+  const sections = computed<readonly NavSection[]>(() => [
+    {
+      title: "Dashboard",
+      items: [
+        { to: "/dashboard", label: "Overview", key: "dashboard", icon: "home" },
+        {
+          to: "/dashboard/projects",
+          label: "Projects",
+          key: "projects",
+          icon: "folder",
+        },
+        {
+          to: "/dashboard/tasks",
+          label: "Tasks",
+          key: "tasks",
+          icon: "check-square",
+        },
+      ],
+    },
+    {
+      title: "Administration",
+      items: [
+        { to: "/admin/users", label: "Users", key: "users", icon: "users" },
+        {
+          to: "/admin/audit",
+          label: "Audit Log",
+          key: "audit",
+          icon: "activity",
+        },
+        { to: "/admin/mail", label: "Mail Outbox", key: "mail", icon: "mail" },
+      ],
+    },
   ]);
 
-  const iconFor = (key: string) => {
-    if (key === "projects") return "grid";
-    return "check";
+  // Flat list of all items for backwards compatibility
+  const items = computed<readonly NavItem[]>(() =>
+    sections.value.flatMap((s) => s.items),
+  );
+
+  const iconFor = (key: string): string => {
+    const iconMap: Record<string, string> = {
+      dashboard: "home",
+      projects: "folder",
+      tasks: "check-square",
+      users: "users",
+      audit: "activity",
+      mail: "mail",
+    };
+    return iconMap[key] || "circle";
   };
 
   const toggle = () => {
@@ -29,12 +77,15 @@ export function useSidebarNav() {
 
   const isActive = (to: string) => {
     try {
-      return route.path === to ? "is-active" : "";
+      // Exact match or starts with (for nested routes)
+      if (route.path === to) return "is-active";
+      if (to !== "/dashboard" && route.path.startsWith(to)) return "is-active";
+      return "";
     } catch (e) {
       console.error("[SidebarNav] isActive failed:", e);
       return "";
     }
   };
 
-  return { collapsed, items, iconFor, toggle, isActive, route };
+  return { collapsed, sections, items, iconFor, toggle, isActive, route };
 }
