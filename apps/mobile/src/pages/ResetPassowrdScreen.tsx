@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { useNavigation } from "@react-navigation/native";
-
 import AlertService from "../services/AlertService";
 import AuthRecoveryService from "../services/AuthRecoveryService";
 

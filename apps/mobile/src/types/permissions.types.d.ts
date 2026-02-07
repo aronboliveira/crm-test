@@ -1,0 +1,16 @@
+export type PermissionKey =
+  | "projects.read"
+  | "projects.write"
+  | "projects.manage"
+  | "tasks.read"
+  | "tasks.write"
+  | "tasks.manage"
+  | "users.read"
+  | "users.write"
+  | "users.manage"
+  | "roles.read"
+  | "roles.write"
+  | "roles.manage"
+  | "permissions.read"
+  | "permissions.manage"
+  | "audit.read";

@@ -1,4 +1,4 @@
-import { MMKV } from "react-native-mmkv";
+import type { MMKV } from "react-native-mmkv";
 
 type Store = {
   getItem(key: string): string | null;
