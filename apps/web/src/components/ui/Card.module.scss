@@ -1,0 +1,189 @@
+// Card component CSS module for frequently mounted/unmounted scenarios
+// CSS modules provide scoped styles with better performance for dynamic components
+
+.card {
+  position: relative;
+  border-radius: var(--radius-lg, 16px);
+  padding: var(--space-5, 1.25rem);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  box-shadow: var(--shadow-1);
+  animation: cardEnter 200ms var(--easing-standard, ease) backwards;
+  transition:
+    transform var(--transition-mid, 220ms) cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow var(--transition-mid, 220ms) ease,
+    border-color var(--transition-fast, 140ms) ease;
+}
+
+// Accent stripe
+.card::before {
+  content: "";
+  position: absolute;
+  top: var(--space-3, 0.75rem);
+  bottom: var(--space-3, 0.75rem);
+  left: var(--space-2, 0.5rem);
+  width: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    var(--primary) 0%,
+    color-mix(in oklab, var(--primary), transparent 60%) 100%
+  );
+  opacity: 0.7;
+  transition: opacity var(--transition-fast, 140ms);
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+// ============================================================================
+// VARIANTS
+// ============================================================================
+
+.flat {
+  composes: card;
+  box-shadow: none;
+}
+
+.flat::before {
+  display: none;
+}
+
+.flat:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.interactive {
+  composes: card;
+  cursor: pointer;
+}
+
+.interactive:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-3);
+  border-color: color-mix(in oklab, var(--border-1), var(--primary) 30%);
+}
+
+.interactive:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.elevated {
+  composes: card;
+  box-shadow: var(--shadow-2);
+}
+
+.elevated:hover {
+  box-shadow: var(--shadow-3);
+}
+
+// ============================================================================
+// STRUCTURE
+// ============================================================================
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 1rem);
+  margin-bottom: var(--space-4, 1rem);
+  padding-bottom: var(--space-4, 1rem);
+  border-bottom: 1px solid var(--border-1);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--text-1);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 0.75rem);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 1rem);
+  margin-top: var(--space-4, 1rem);
+  padding-top: var(--space-4, 1rem);
+  border-top: 1px solid var(--border-1);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+}
+
+// ============================================================================
+// STATES
+// ============================================================================
+
+.loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--surface-1), white 10%),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite ease-in-out;
+  border-radius: inherit;
+}
+
+.error {
+  composes: card;
+  border-color: color-mix(in oklab, var(--danger) 30%, var(--border-1));
+}
+
+.error::before {
+  background: var(--danger);
+}
+
+.success {
+  composes: card;
+  border-color: color-mix(in oklab, var(--success) 30%, var(--border-1));
+}
+
+.success::before {
+  background: var(--success);
+}
+
+// ============================================================================
+// ANIMATIONS
+// ============================================================================
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

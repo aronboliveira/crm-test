@@ -1,0 +1,238 @@
+// Badge component CSS module for frequently mounted/unmounted scenarios
+// CSS modules provide scoped styles with better performance for dynamic components
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold, 600);
+  letter-spacing: 0.03em;
+  padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem);
+  text-transform: uppercase;
+  background: var(--surface-3);
+  color: var(--text-2);
+  white-space: nowrap;
+  transition:
+    background var(--transition-fast, 140ms) ease,
+    color var(--transition-fast, 140ms) ease,
+    transform var(--transition-fast, 140ms) ease;
+}
+
+.badge:empty {
+  display: none;
+}
+
+// Dot indicator
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+// ============================================================================
+// SIZES
+// ============================================================================
+
+.sm {
+  font-size: 0.6875rem;
+  padding: 2px var(--space-2, 0.5rem);
+}
+
+.sm::before {
+  width: 5px;
+  height: 5px;
+}
+
+.lg {
+  font-size: 0.8125rem;
+  padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+}
+
+.lg::before {
+  width: 8px;
+  height: 8px;
+}
+
+// ============================================================================
+// COLOR VARIANTS
+// ============================================================================
+
+.todo {
+  composes: badge;
+  --badge-color: #64748b;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.todo::before {
+  background: #64748b;
+}
+
+.doing,
+.inProgress {
+  composes: badge;
+  --badge-color: #0ea5e9;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.doing::before,
+.inProgress::before {
+  background: #0ea5e9;
+}
+
+.done,
+.completed {
+  composes: badge;
+  --badge-color: #22c55e;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.done::before,
+.completed::before {
+  background: #22c55e;
+}
+
+.blocked {
+  composes: badge;
+  --badge-color: #ef4444;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.blocked::before {
+  background: #ef4444;
+}
+
+.active {
+  composes: badge;
+  --badge-color: #16a34a;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.active::before {
+  background: #16a34a;
+}
+
+.archived {
+  composes: badge;
+  --badge-color: #94a3b8;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.archived::before {
+  background: #94a3b8;
+}
+
+.pending {
+  composes: badge;
+  --badge-color: #f59e0b;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.pending::before {
+  background: #f59e0b;
+}
+
+.review {
+  composes: badge;
+  --badge-color: #8b5cf6;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.review::before {
+  background: #8b5cf6;
+}
+
+// Priority badges
+.high {
+  composes: badge;
+  --badge-color: #ef4444;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.high::before {
+  background: #ef4444;
+}
+
+.medium {
+  composes: badge;
+  --badge-color: #f59e0b;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.medium::before {
+  background: #f59e0b;
+}
+
+.low {
+  composes: badge;
+  --badge-color: #22c55e;
+  background: color-mix(in oklab, var(--badge-color) 15%, transparent);
+  color: color-mix(in oklab, var(--badge-color) 80%, var(--text-1));
+  border: 1px solid color-mix(in oklab, var(--badge-color) 30%, transparent);
+}
+
+.low::before {
+  background: #22c55e;
+}
+
+// ============================================================================
+// INTERACTIVE STATES
+// ============================================================================
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+.clickable:active {
+  transform: scale(0.98);
+}
+
+// ============================================================================
+// PULSE ANIMATION FOR ACTIVE STATES
+// ============================================================================
+
+.pulsing::before {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
