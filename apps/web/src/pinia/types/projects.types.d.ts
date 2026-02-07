@@ -14,6 +14,9 @@ export type ProjectRow = Readonly<{
   ownerEmail: string;
   status: ProjectStatus;
   dueAt: string | null;
+  deadlineAt: string | null;
+  tags: string[];
+  templateKey: string | null;
   createdAt: string;
   updatedAt: string;
 }>;

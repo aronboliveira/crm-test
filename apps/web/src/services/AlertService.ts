@@ -1,5 +1,26 @@
 type AnyError = unknown;
 
+// Helper to detect dark mode
+function isDarkMode(): boolean {
+  return (
+    document.documentElement.classList.contains("dark-mode") ||
+    document.documentElement.dataset.theme === "dark" ||
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+}
+
+// Get theme-aware SweetAlert config
+function getThemeConfig() {
+  const dark = isDarkMode();
+  return {
+    background: dark ? "#18181b" : "#ffffff",
+    color: dark ? "#e4e4e7" : "#0f172a",
+    confirmButtonColor: "#3b82f6",
+    cancelButtonColor: dark ? "#3f3f46" : "#e2e8f0",
+    iconColor: undefined, // use default per icon type
+  };
+}
+
 export default class AlertService {
   static async success(title: string, text?: string): Promise<void> {
     try {
@@ -15,6 +36,7 @@ export default class AlertService {
         text: detail,
         timer: detail ? undefined : 1400,
         showConfirmButton: !!detail,
+        ...getThemeConfig(),
       });
     } catch (error) {
       console.error("[AlertService] Failed to show success alert:", error);
@@ -33,6 +55,7 @@ export default class AlertService {
         icon: "error",
         title,
         text: detail || undefined,
+        ...getThemeConfig(),
       });
     } catch (error) {
       console.error("[AlertService] Failed to show error alert:", error);
@@ -54,6 +77,7 @@ export default class AlertService {
         text,
         showCancelButton: true,
         confirmButtonText: "Confirm",
+        ...getThemeConfig(),
       });
       return !!r.isConfirmed;
     } catch (error) {

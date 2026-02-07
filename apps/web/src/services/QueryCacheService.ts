@@ -10,7 +10,7 @@ export default class QueryCacheService {
   static #PFX = "cache.";
 
   static get<T>(key: string): T | null {
-    const env = StorageService.session.getJson<CacheEnvelope<T>>(
+    const env = StorageService.session.getJson<CacheEnvelope<T> | null>(
       QueryCacheService.#PFX + key,
       null,
     );

@@ -23,7 +23,6 @@ export const useProjectsStore = defineStore("projects", {
 
   getters: {
     rows: (s) => s.ids.map((id) => s.byId[id]).filter(Boolean),
-    prefs: (s) => s.prefs,
   },
 
   actions: {
@@ -38,7 +37,7 @@ export const useProjectsStore = defineStore("projects", {
       this.error = null;
 
       try {
-        const limit = this.prefs.pageSize;
+        const limit = this.prefs?.pageSize || DEFAULT_PREFS.pageSize;
         const cursor = reset ? undefined : this.nextCursor || undefined;
 
         const r = await AdminApiService.projectsList({
@@ -68,7 +67,9 @@ export const useProjectsStore = defineStore("projects", {
         const dev =
           typeof import.meta !== "undefined" && !!(import.meta as any).env?.DEV;
         const fallback = dev
-          ? MockRowsFactory.projects(this.prefs.pageSize)
+          ? MockRowsFactory.projects(
+              this.prefs?.pageSize || DEFAULT_PREFS.pageSize,
+            )
           : [];
         if (fallback.length) {
           this.byId = {};

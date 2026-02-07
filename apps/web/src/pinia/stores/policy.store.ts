@@ -1,59 +1,75 @@
 import { defineStore } from "pinia";
 import ApiClientService from "../../services/ApiClientService";
-import ObjectDeep from "../../utils/ObjectDeep";
 
 export const usePolicyStore = defineStore("policy", {
   state: () => ({
     ready: false,
-    perms: ObjectDeep.freeze([] as string[]),
+    perms: [] as string[],
   }),
 
   getters: {
     isReady: (s) => !!s.ready,
-    can: (s) => (perm: string) => s.perms.includes(String(perm || "").trim()),
   },
 
   actions: {
-    async bootstrap() {
-      const cached = (() => {
-        try {
-          const raw = sessionStorage.getItem("_policy_perms_v1");
-          const arr = raw ? JSON.parse(raw) : null;
-          return Array.isArray(arr) ? arr.map(String) : null;
-        } catch {
-          return null;
-        }
-      })();
-
-      if (cached && cached.length) {
-        this.perms = ObjectDeep.freeze(cached) as any;
-        this.ready = true;
-        return;
+    /**
+     * Check whether the current user has a specific permission.
+     * Implemented as an action (not a getter returning a closure)
+     * to avoid stale-closure and computed-caching issues with Pinia.
+     */
+    can(perm: string): boolean {
+      const needle = String(perm || "").trim();
+      if (!needle) return false;
+      // Defensive: iterate the live state array
+      const arr: string[] = this.perms ?? [];
+      for (let i = 0; i < arr.length; i++) {
+        if (arr[i] === needle) return true;
       }
+      return false;
+    },
 
-      const me = (await ApiClientService.raw.get("/api/me")).data as any;
-      const perms = Array.isArray(me?.permissionCodes)
-        ? me.permissionCodes.map(String)
-        : [];
-
+    async bootstrap(): Promise<void> {
       try {
-        sessionStorage.setItem("_policy_perms_v1", JSON.stringify(perms));
-      } catch {
-        void 0;
-      }
+        console.log("[PolicyStore] bootstrap() called");
 
-      this.perms = ObjectDeep.freeze(perms) as any;
-      this.ready = true;
+        // Always fetch fresh from the API — no sessionStorage double-cache.
+        // The PersistPlugin already handles state rehydration across tabs.
+        const response = await ApiClientService.raw.get("/auth/me");
+        const me = response?.data as Record<string, unknown> | null;
+
+        console.log("[PolicyStore] /auth/me response:", {
+          status: response?.status,
+          hasPerms: Array.isArray(me?.perms),
+          permCount: Array.isArray(me?.perms) ? (me!.perms as any).length : 0,
+          hasPermCodes: Array.isArray(me?.permissionCodes),
+        });
+
+        const raw: unknown[] = Array.isArray(me?.perms)
+          ? (me!.perms as unknown[])
+          : Array.isArray(me?.permissionCodes)
+            ? (me!.permissionCodes as unknown[])
+            : [];
+
+        // Store as a plain mutable string array (no freeze) for full
+        // Pinia reactivity compatibility.
+        const perms: string[] = raw
+          .map((p) => String(p ?? "").trim())
+          .filter(Boolean);
+
+        console.log(`[PolicyStore] Loaded ${perms.length} permissions:`, perms);
+
+        this.perms = perms;
+        this.ready = true;
+      } catch (error) {
+        console.error("[PolicyStore] bootstrap() FAILED:", error);
+        // Mark ready so the router guard doesn't loop, but perms stay empty.
+        this.ready = true;
+      }
     },
 
     reset() {
-      try {
-        sessionStorage.removeItem("_policy_perms_v1");
-      } catch {
-        void 0;
-      }
-      this.perms = ObjectDeep.freeze([]) as any;
-      this.ready = true;
+      this.perms = [];
+      this.ready = false;
     },
   },
 });

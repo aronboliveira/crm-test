@@ -39,10 +39,15 @@ export default class AuthService {
 
   static me(): SessionUser | null {
     try {
-      return StorageService.session.getJson<SessionUser | null>(
+      const stored = StorageService.session.getJson<SessionUser>(
         AuthService.#ME,
-        null,
+        {} as SessionUser,
       );
+      // Check if the stored value is a valid SessionUser
+      if (stored && typeof stored === "object" && "email" in stored) {
+        return stored;
+      }
+      return null;
     } catch (error) {
       console.error("[AuthService] Failed to get user data:", error);
       return null;

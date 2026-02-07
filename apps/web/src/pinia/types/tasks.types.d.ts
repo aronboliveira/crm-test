@@ -8,9 +8,13 @@ export type TaskRow = Readonly<{
   projectId: string;
   title: string;
   assigneeEmail: string;
+  assigneeId: string | null;
+  milestoneId: string | null;
+  tags: string[];
   status: TaskStatus;
   priority: TaskPriority;
   dueAt: string | null;
+  deadlineAt: string | null;
   createdAt: string;
   updatedAt: string;
 }>;

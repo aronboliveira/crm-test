@@ -2,17 +2,14 @@ import { DeepFreeze } from "@corp/foundations";
 import AuthService from "./AuthService";
 import type { PermissionKey } from "../types/permissions.types";
 
-export type { PermissionKey };
-
 export default class PolicyService {
   static #ready = false;
 
-  static #DICT = DeepFreeze.apply({
-    keys: {
-      projectsRead: "projects.read" as PermissionKey,
-      projectsWrite: "projects.write" as PermissionKey,
-      tasksWrite: "tasks.write" as PermissionKey,
-    },
+  // Permission key mappings for common operations
+  static readonly KEYS = DeepFreeze.apply({
+    projectsRead: "projects.read" as PermissionKey,
+    projectsWrite: "projects.write" as PermissionKey,
+    tasksWrite: "tasks.write" as PermissionKey,
   });
 
   static async bootstrap(): Promise<void> {

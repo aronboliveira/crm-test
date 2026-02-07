@@ -54,6 +54,8 @@ export default class DrawerA11yService {
     const last = list[list.length - 1];
     const active = document.activeElement;
 
+    if (!first || !last) return;
+
     ev.shiftKey && active === first
       ? (ev.preventDefault(), last.focus())
       : void 0;

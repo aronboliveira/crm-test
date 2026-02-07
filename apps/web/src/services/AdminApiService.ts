@@ -33,7 +33,7 @@ export default class AdminApiService {
     params: Readonly<{ q?: string; cursor?: string; limit?: number }>,
   ): Promise<PagedResult<Record<string, unknown>>> {
     try {
-      const response = await ApiClientService.raw.get("/admin/projects", {
+      const response = await ApiClientService.raw.get("/projects", {
         params,
       });
       return response.data as PagedResult<Record<string, unknown>>;
@@ -52,7 +52,7 @@ export default class AdminApiService {
     }>,
   ): Promise<PagedResult<Record<string, unknown>>> {
     try {
-      const response = await ApiClientService.raw.get("/admin/tasks", {
+      const response = await ApiClientService.raw.get("/tasks", {
         params,
       });
       return response.data as PagedResult<Record<string, unknown>>;

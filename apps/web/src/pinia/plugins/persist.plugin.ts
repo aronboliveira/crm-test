@@ -14,7 +14,7 @@ export default class PersistPlugin {
     {
       key: "_pinia_session_v1",
       storage: "session",
-      includeStores: ["auth", "policy"],
+      includeStores: ["auth"],
     },
     {
       key: "_pinia_local_v1",

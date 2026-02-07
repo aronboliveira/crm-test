@@ -1,5 +1,4 @@
 import { defineStore } from "pinia";
-import RetryRunner from "../foundations/RetryRunner";
 import ApiClientService from "../../services/ApiClientService";
 import type { UserProfile, LoginResponse } from "../../types/auth.types";
 
@@ -37,24 +36,20 @@ export const useAuthStore = defineStore("auth", {
           if (ApiClientService.setToken) {
             ApiClientService.setToken(tok);
           }
+
+          // Try to fetch user profile if we have a token
+          try {
+            const response = await ApiClientService.raw.get("/auth/me");
+            this.me = response.data as UserProfile;
+          } catch (error) {
+            console.warn("[AuthStore] Failed to fetch user profile:", error);
+            // Clear invalid token
+            this.token = null;
+            this.me = null;
+            sessionStorage.removeItem("_auth_token_v1");
+          }
         }
 
-        const rr = new RetryRunner(10, 120);
-        const me = await rr.run(
-          async () => {
-            if (!tok) return null;
-            try {
-              const response = await ApiClientService.raw.get("/api/me");
-              return response.data as UserProfile;
-            } catch (error) {
-              console.warn("[AuthStore] Failed to fetch user data:", error);
-              return null;
-            }
-          },
-          (v) => v !== null,
-        );
-
-        this.me = me;
         this.ready = true;
       } catch (error) {
         console.error("[AuthStore] Bootstrap failed:", error);

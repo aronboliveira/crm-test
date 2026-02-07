@@ -23,7 +23,6 @@ export const useTasksStore = defineStore("tasks", {
 
   getters: {
     rows: (s) => s.ids.map((id) => s.byId[id]).filter(Boolean),
-    prefs: (s) => s.prefs,
     byProject: (s) => (pid: string) =>
       s.ids.map((id) => s.byId[id]).filter((t) => t && t.projectId === pid),
   },
@@ -42,7 +41,7 @@ export const useTasksStore = defineStore("tasks", {
       this.error = null;
 
       try {
-        const limit = this.prefs.pageSize;
+        const limit = this.prefs?.pageSize || DEFAULT_PREFS.pageSize;
         const cursor = reset ? undefined : this.nextCursor || undefined;
 
         const r = await AdminApiService.tasksList({
@@ -74,7 +73,10 @@ export const useTasksStore = defineStore("tasks", {
         const dev =
           typeof import.meta !== "undefined" && !!(import.meta as any).env?.DEV;
         const fallback = dev
-          ? MockRowsFactory.tasks([], this.prefs.pageSize)
+          ? MockRowsFactory.tasks(
+              [],
+              this.prefs?.pageSize || DEFAULT_PREFS.pageSize,
+            )
           : [];
         if (fallback.length) {
           this.byId = {};
