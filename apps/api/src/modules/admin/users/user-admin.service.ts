@@ -22,6 +22,11 @@ import { Actor, RequestCtx } from './types/admin-user.types';
 
 interface CreateUserBody {
   email?: unknown;
+  username?: unknown;
+  firstName?: unknown;
+  lastName?: unknown;
+  phone?: unknown;
+  department?: unknown;
   roleKey?: unknown;
 }
 
@@ -51,6 +56,10 @@ export default class UserAdminService {
   private readonly logger = new Logger(UserAdminService.name);
   private static IDX_READY = false;
   private static readonly EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  private static readonly USERNAME_RE = /^[a-zA-Z][a-zA-Z0-9._-]{2,29}$/;
+  private static readonly NAME_RE = /^[\p{L}\s'-]{2,60}$/u;
+  private static readonly PHONE_RE = /^\+?[0-9\s()-]{7,20}$/;
+  private static readonly DEPARTMENT_RE = /^[\p{L}\p{N}\s&/.,()-]{2,80}$/u;
 
   constructor(
     @InjectRepository(UserEntity)
@@ -96,12 +105,50 @@ export default class UserAdminService {
         throw new BadRequestException('Invalid email');
       }
 
+      // Username validation
+      const username = typeof body?.username === 'string' ? body.username.trim() : '';
+      if (username && !UserAdminService.USERNAME_RE.test(username)) {
+        throw new BadRequestException('Invalid username format');
+      }
+
+      // Optional fields with regex validation
+      const firstName = typeof body?.firstName === 'string' ? body.firstName.trim() : '';
+      if (firstName && !UserAdminService.NAME_RE.test(firstName)) {
+        throw new BadRequestException('Invalid first name format');
+      }
+
+      const lastName = typeof body?.lastName === 'string' ? body.lastName.trim() : '';
+      if (lastName && !UserAdminService.NAME_RE.test(lastName)) {
+        throw new BadRequestException('Invalid last name format');
+      }
+
+      const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
+      if (phone && !UserAdminService.PHONE_RE.test(phone)) {
+        throw new BadRequestException('Invalid phone format');
+      }
+
+      const department = typeof body?.department === 'string' ? body.department.trim() : '';
+      if (department && !UserAdminService.DEPARTMENT_RE.test(department)) {
+        throw new BadRequestException('Invalid department format');
+      }
+
       const exists = await this.usersRepo.findOne({
         where: { email } as any,
       } as any);
       if (exists) {
         this.logger.warn(`Email already exists: ${email}`);
         throw new BadRequestException('Email already exists');
+      }
+
+      // Check username uniqueness if provided
+      if (username) {
+        const usernameExists = await this.usersRepo.findOne({
+          where: { username } as any,
+        } as any);
+        if (usernameExists) {
+          this.logger.warn(`Username already exists: ${username}`);
+          throw new BadRequestException('Username already exists');
+        }
       }
 
       const perms = RolePermissionsRegistry.perms(roleKey);
@@ -112,6 +159,7 @@ export default class UserAdminService {
 
       const u = await this.usersRepo.save({
         email,
+        username: username || email.split('@')[0],
         passwordHash,
         roleKey,
         perms,
@@ -121,6 +169,10 @@ export default class UserAdminService {
         passwordResetRequiredAt: nowIso,
         createdAt: nowIso,
         updatedAt: nowIso,
+        ...(firstName ? { firstName } : {}),
+        ...(lastName ? { lastName } : {}),
+        ...(phone ? { phone } : {}),
+        ...(department ? { department } : {}),
       } as any);
 
       const savedUser = u as UserEntity;
@@ -525,6 +577,40 @@ export default class UserAdminService {
         throw error;
       }
       this.logger.error(`Error reissuing invite for user ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async checkDuplicate(email?: string, username?: string) {
+    try {
+      const result: { emailExists: boolean; usernameExists: boolean } = {
+        emailExists: false,
+        usernameExists: false,
+      };
+
+      if (email) {
+        const normEmail = UserAdminService.normEmail(email);
+        if (normEmail) {
+          const found = await this.usersRepo.findOne({
+            where: { email: normEmail } as any,
+          } as any);
+          result.emailExists = !!found;
+        }
+      }
+
+      if (username) {
+        const normUsername = String(username).trim();
+        if (normUsername) {
+          const found = await this.usersRepo.findOne({
+            where: { username: normUsername } as any,
+          } as any);
+          result.usernameExists = !!found;
+        }
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error('Error checking duplicate:', error);
       throw error;
     }
   }

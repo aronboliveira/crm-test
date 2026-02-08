@@ -33,6 +33,15 @@ const statusClass = (s: string) =>
     archived: "badge--archived",
   })[s] || "";
 
+const statusLabel = (s: string) =>
+  ({
+    planned: "Planejado",
+    active: "Ativo",
+    blocked: "Bloqueado",
+    done: "Concluído",
+    archived: "Arquivado",
+  } as Record<string, string>)[s] || s;
+
 const fmtDate = (d: string | null) => {
   if (!d) return "—";
   try {
@@ -68,7 +77,7 @@ const fmtDate = (d: string | null) => {
             <td>{{ p.name }}</td>
             <td>
               <span :class="['badge', statusClass(p.status)]">{{
-                p.status
+                statusLabel(p.status)
               }}</span>
             </td>
             <td class="td-muted">{{ p.ownerEmail }}</td>

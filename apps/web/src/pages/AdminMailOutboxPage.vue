@@ -21,7 +21,8 @@ const {
       <div class="grid gap-1">
         <h1 class="text-xl font-black">Caixa de Saída Mock</h1>
         <p class="opacity-70">
-          Mensagens escritas pelo gateway mock (use para copiar URLs de redefinição).
+          Mensagens escritas pelo gateway mock (use para copiar URLs de
+          redefinição).
         </p>
       </div>
 
@@ -65,7 +66,11 @@ const {
       role="region"
       aria-label="Tabela da caixa de saída"
     >
-      <table class="min-w-[980px] w-full" role="table" aria-label="Caixa de saída">
+      <table
+        class="min-w-[980px] w-full"
+        role="table"
+        aria-label="Caixa de saída"
+      >
         <thead>
           <tr class="text-left opacity-80">
             <th class="py-2 pr-3">Data</th>

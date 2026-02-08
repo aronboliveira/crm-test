@@ -15,6 +15,11 @@ const {
   busy,
   user,
   audit,
+  userProjects,
+  userTasks,
+  userActivity,
+  userCompetencies,
+  userWorkRole,
   close,
   setRole,
   forceReset,
@@ -22,6 +27,44 @@ const {
   unlockUser,
   reissueInvite,
 } = useAdminUserDetailsDrawer(props, emit);
+
+const statusLabel = (s: string) =>
+  ({
+    planned: "Planejado",
+    active: "Ativo",
+    blocked: "Bloqueado",
+    done: "Concluído",
+    archived: "Arquivado",
+    todo: "A Fazer",
+    doing: "Em Progresso",
+  } as Record<string, string>)[s] || s;
+
+const statusBadge = (s: string) =>
+  ({
+    planned: "drawer-badge--warn",
+    active: "drawer-badge--success",
+    blocked: "drawer-badge--danger",
+    done: "drawer-badge--info",
+    archived: "drawer-badge--muted",
+    todo: "drawer-badge--muted",
+    doing: "drawer-badge--info",
+  } as Record<string, string>)[s] || "";
+
+const priorityLabel = (p: number) =>
+  ({ 1: "Crítica", 2: "Alta", 3: "Média", 4: "Baixa", 5: "Mínima" } as Record<number, string>)[p] || "—";
+
+const fmtDate = (d: string | null) => {
+  if (!d) return "—";
+  try {
+    return new Date(d).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+};
 </script>
 
 <template>
@@ -61,49 +104,28 @@ const {
             class="grid gap-2"
             aria-label="Informações do usuário"
           >
-            <div class="grid gap-1">
-              <div class="opacity-70 text-sm">Perfil</div>
-              <div class="font-semibold">{{ user.roleKey }}</div>
-            </div>
-
-            <div class="grid gap-1">
-              <div class="opacity-70 text-sm">Versão do token</div>
-              <div class="font-semibold">{{ user.tokenVersion }}</div>
-            </div>
-
-            <div class="grid gap-1">
-              <div class="opacity-70 text-sm">Senha atualizada em</div>
-              <div class="font-semibold">
-                {{ user.passwordUpdatedAt || "—" }}
+            <div class="drawer-info-grid">
+              <div class="grid gap-1">
+                <div class="opacity-70 text-sm">Perfil</div>
+                <div class="font-semibold">{{ user.roleKey }}</div>
               </div>
-            </div>
 
-            <div class="flex flex-wrap gap-2 pt-2">
-              <button
-                class="btn btn-ghost"
-                type="button"
-                aria-label="Alterar perfil"
-                @click="setRole(user)"
-              >
-                Alterar perfil
-              </button>
+              <div class="grid gap-1">
+                <div class="opacity-70 text-sm">Cargo</div>
+                <div class="font-semibold">{{ userWorkRole || "—" }}</div>
+              </div>
 
-              <button
-                class="btn btn-ghost"
-                type="button"
-                aria-label="Forçar redefinição"
-                @click="forceReset(user)"
-              >
-                Forçar redefinição
-              </button>
-              <button
-                class="btn btn-ghost"
-                type="button"
-                aria-label="Reenviar convite"
-                @click="reissueInvite(user)"
-              >
-                Reenviar convite
-              </button>
+              <div class="grid gap-1">
+                <div class="opacity-70 text-sm">Versão do token</div>
+                <div class="font-semibold">{{ user.tokenVersion }}</div>
+              </div>
+
+              <div class="grid gap-1">
+                <div class="opacity-70 text-sm">Senha atualizada em</div>
+                <div class="font-semibold">
+                  {{ user.passwordUpdatedAt || "—" }}
+                </div>
+              </div>
             </div>
 
             <div class="grid gap-1" v-if="user">
@@ -116,6 +138,18 @@ const {
               </div>
               <div class="opacity-70 text-sm" v-if="user.lockedReason">
                 {{ user.lockedReason }}
+              </div>
+            </div>
+
+            <!-- Competencies / Skills -->
+            <div class="grid gap-1" v-if="userCompetencies.length">
+              <div class="opacity-70 text-sm">Competências</div>
+              <div class="drawer-tags">
+                <span
+                  v-for="c in userCompetencies"
+                  :key="c"
+                  class="drawer-tag"
+                >{{ c }}</span>
               </div>
             </div>
 
@@ -135,6 +169,14 @@ const {
                 @click="forceReset(user)"
               >
                 Forçar redefinição
+              </button>
+              <button
+                class="btn btn-ghost"
+                type="button"
+                aria-label="Reenviar convite"
+                @click="reissueInvite(user)"
+              >
+                Reenviar convite
               </button>
 
               <button
@@ -159,6 +201,121 @@ const {
             </div>
           </section>
 
+          <!-- Projects Section -->
+          <section class="grid gap-2 pt-3" aria-label="Projetos do usuário">
+            <h3 class="font-black">Projetos Participantes</h3>
+            <div
+              class="card p-2 overflow-auto"
+              role="region"
+              aria-label="Lista de projetos do usuário"
+            >
+              <table
+                v-if="userProjects.length"
+                class="drawer-table"
+                role="table"
+                aria-label="Projetos do usuário"
+              >
+                <thead>
+                  <tr class="text-left opacity-80">
+                    <th class="py-2 pr-3">Código</th>
+                    <th class="py-2 pr-3">Nome</th>
+                    <th class="py-2 pr-3">Status</th>
+                    <th class="py-2 pr-3">Papel</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="p in userProjects"
+                    :key="p.id"
+                    class="border-t border-white/10"
+                  >
+                    <td class="py-2 pr-3 font-semibold">{{ p.code }}</td>
+                    <td class="py-2 pr-3">{{ p.name }}</td>
+                    <td class="py-2 pr-3">
+                      <span
+                        class="drawer-badge"
+                        :class="statusBadge(p.status)"
+                      >{{ statusLabel(p.status) }}</span>
+                    </td>
+                    <td class="py-2 pr-3 opacity-80">{{ p.role }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-else class="py-4 opacity-70 text-center">
+                Nenhum projeto vinculado.
+              </p>
+            </div>
+          </section>
+
+          <!-- Tasks Section -->
+          <section class="grid gap-2 pt-3" aria-label="Tarefas atribuídas">
+            <h3 class="font-black">Tarefas Atribuídas</h3>
+            <div
+              class="card p-2 overflow-auto"
+              role="region"
+              aria-label="Lista de tarefas do usuário"
+            >
+              <table
+                v-if="userTasks.length"
+                class="drawer-table"
+                role="table"
+                aria-label="Tarefas atribuídas ao usuário"
+              >
+                <thead>
+                  <tr class="text-left opacity-80">
+                    <th class="py-2 pr-3">Título</th>
+                    <th class="py-2 pr-3">Status</th>
+                    <th class="py-2 pr-3">Prioridade</th>
+                    <th class="py-2 pr-3">Prazo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="t in userTasks"
+                    :key="t.id"
+                    class="border-t border-white/10"
+                  >
+                    <td class="py-2 pr-3 font-semibold">{{ t.title }}</td>
+                    <td class="py-2 pr-3">
+                      <span
+                        class="drawer-badge"
+                        :class="statusBadge(t.status)"
+                      >{{ statusLabel(t.status) }}</span>
+                    </td>
+                    <td class="py-2 pr-3">{{ priorityLabel(t.priority) }}</td>
+                    <td class="py-2 pr-3 opacity-80">{{ fmtDate(t.dueAt) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-else class="py-4 opacity-70 text-center">
+                Nenhuma tarefa atribuída.
+              </p>
+            </div>
+          </section>
+
+          <!-- Recent Activity -->
+          <section class="grid gap-2 pt-3" aria-label="Atividade recente">
+            <h3 class="font-black">Atividade Recente</h3>
+            <div class="drawer-activity-list" v-if="userActivity.length">
+              <div
+                v-for="a in userActivity"
+                :key="a.id"
+                class="drawer-activity-item"
+              >
+                <span class="drawer-activity-dot"></span>
+                <div class="drawer-activity-content">
+                  <span class="font-semibold">{{ a.action }}</span>
+                  <span class="opacity-80">{{ a.target }}</span>
+                  <span class="opacity-60 text-sm">{{ a.when }}</span>
+                </div>
+              </div>
+            </div>
+            <p v-else class="py-4 opacity-70 text-center">
+              Nenhuma atividade recente.
+            </p>
+          </section>
+
+          <!-- Audit Events -->
           <section
             class="grid gap-2 pt-3"
             aria-label="Eventos de auditoria recentes"
@@ -297,5 +454,101 @@ const {
 
 @supports (position-try: flip-block) {
   @position-try flip-block;
+}
+
+/* Drawer expanded sections */
+.drawer-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.5rem;
+}
+
+.drawer-table {
+  min-width: 500px;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.drawer-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.drawer-badge--success {
+  background: rgba(22, 163, 74, 0.14);
+  color: #16a34a;
+}
+
+.drawer-badge--warn {
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+}
+
+.drawer-badge--danger {
+  background: rgba(239, 68, 68, 0.14);
+  color: #ef4444;
+}
+
+.drawer-badge--info {
+  background: rgba(14, 165, 233, 0.14);
+  color: #0ea5e9;
+}
+
+.drawer-badge--muted {
+  background: rgba(148, 163, 184, 0.14);
+  color: #94a3b8;
+}
+
+.drawer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.drawer-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.13);
+  color: #6366f1;
+  letter-spacing: 0.01em;
+}
+
+.drawer-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid rgba(120, 120, 160, 0.18);
+}
+
+.drawer-activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.5rem 0;
+}
+
+.drawer-activity-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #6366f1;
+  margin-top: 0.35rem;
+}
+
+.drawer-activity-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.8125rem;
 }
 </style>

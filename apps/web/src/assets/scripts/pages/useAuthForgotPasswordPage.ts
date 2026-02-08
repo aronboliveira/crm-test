@@ -21,7 +21,10 @@ export function useAuthForgotPasswordPage() {
     busy.value = true;
     try {
       if (!email.value?.trim()) {
-        await AlertService.error("Falha na solicitação", "O e-mail é obrigatório");
+        await AlertService.error(
+          "Falha na solicitação",
+          "O e-mail é obrigatório",
+        );
         return;
       }
 
@@ -50,7 +53,11 @@ export function useAuthForgotPasswordPage() {
               if (!root) return;
 
               DOMValidator.ensureAttr(root, "role", "dialog");
-              DOMValidator.ensureAttr(root, "aria-label", "Token de redefinição (dev)");
+              DOMValidator.ensureAttr(
+                root,
+                "aria-label",
+                "Token de redefinição (dev)",
+              );
 
               const copyBtn = root.querySelector(
                 "[data-id='copy']",

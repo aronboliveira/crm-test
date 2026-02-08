@@ -142,7 +142,9 @@ const handleStatClick = async (stat: string) => {
     <!-- Page Header -->
     <header class="dashboard-home__header">
       <div class="dashboard-home__branding">
-        <h1 class="dashboard-home__page-title">Painel de Gerenciamento de Projetos</h1>
+        <h1 class="dashboard-home__page-title">
+          Painel de Gerenciamento de Projetos
+        </h1>
         <p class="dashboard-home__page-desc">
           Acompanhe, gerencie e colabore em todos os seus projetos e tarefas em
           um só lugar.
@@ -190,7 +192,9 @@ const handleStatClick = async (stat: string) => {
 
     <!-- Summary Stats Cards -->
     <section class="dashboard-home__section" aria-labelledby="stats-heading">
-      <h3 id="stats-heading" class="dashboard-home__section-title">Visão Geral</h3>
+      <h3 id="stats-heading" class="dashboard-home__section-title">
+        Visão Geral
+      </h3>
       <DashboardSummaryCards
         :projects="stats.projects"
         :tasks="stats.tasks"

@@ -8,7 +8,7 @@ const emit = defineEmits<{
   (e: "invited", email: string): void;
 }>();
 
-const form = reactive({ email: "", role: "member" });
+const form = reactive({ email: "", role: "member", message: "" });
 const sending = ref(false);
 const sent = ref(false);
 const error = ref("");
@@ -68,6 +68,7 @@ async function submit() {
     await ApiClientService.raw.post("/admin/users", {
       email: form.email.trim().toLowerCase(),
       roleKey: form.role,
+      message: form.message.trim() || undefined,
     });
     sent.value = true;
     emit("invited", form.email.trim());
@@ -83,6 +84,7 @@ async function submit() {
 function reset() {
   form.email = "";
   form.role = "member";
+  form.message = "";
   sent.value = false;
   error.value = "";
 }
@@ -149,6 +151,21 @@ watch(
           <small v-if="roleBlocked" class="invite-modal__error">
             Privilégio superior ao seu papel atual ({{ currentUserRole }}).
           </small>
+        </label>
+
+        <label class="invite-modal__field">
+          <span class="invite-modal__label">Mensagem do Convite (opcional)</span>
+          <textarea
+            v-model="form.message"
+            class="invite-modal__textarea"
+            :disabled="sending"
+            placeholder="Escreva uma mensagem personalizada para o convite..."
+            rows="4"
+            maxlength="1000"
+          ></textarea>
+          <small class="invite-modal__hint"
+            >{{ form.message.length }}/1000 caracteres</small
+          >
         </label>
 
         <p v-if="error" class="invite-modal__error">{{ error }}</p>
@@ -258,7 +275,8 @@ watch(
 }
 
 .invite-modal__input,
-.invite-modal__select {
+.invite-modal__select,
+.invite-modal__textarea {
   padding: 0.5rem 0.75rem;
   font-size: 0.9375rem;
   border: 1px solid var(--border-1);
@@ -272,6 +290,20 @@ watch(
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-alpha, rgba(59, 130, 246, 0.18));
   }
+}
+
+.invite-modal__textarea {
+  resize: vertical;
+  min-height: 5rem;
+  max-height: 12rem;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.invite-modal__hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: right;
 }
 
 .invite-modal__error {

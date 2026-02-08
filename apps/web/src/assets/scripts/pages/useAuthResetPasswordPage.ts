@@ -67,7 +67,10 @@ export function useAuthResetPasswordPage() {
     busy.value = true;
     try {
       if (!tokenEffective.value) {
-        await AlertService.error("Falha na redefinição", "Nenhum token fornecido");
+        await AlertService.error(
+          "Falha na redefinição",
+          "Nenhum token fornecido",
+        );
         return;
       }
 

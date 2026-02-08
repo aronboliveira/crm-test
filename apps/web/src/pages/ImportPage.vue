@@ -34,7 +34,8 @@ async function submit() {
     file.value = null;
     if (fileInput.value) fileInput.value.value = "";
   } catch (e: any) {
-    const msg = e?.response?.data?.message || e?.message || "Falha na importação.";
+    const msg =
+      e?.response?.data?.message || e?.message || "Falha na importação.";
     resultMsg.value = msg;
     await AlertService.error("Falha na Importação", msg);
   } finally {
@@ -52,7 +53,11 @@ async function submit() {
       </p>
     </header>
 
-    <div class="card p-4 max-w-xl" role="region" aria-label="Formulário de importação">
+    <div
+      class="card p-4 max-w-xl"
+      role="region"
+      aria-label="Formulário de importação"
+    >
       <div class="mb-3">
         <h2 class="font-semibold text-sm mb-1">Formatos esperados</h2>
         <details class="text-xs opacity-70 mb-2">
@@ -87,7 +92,9 @@ task,My Task,Task desc,todo,2,2025-09-01,api</pre
 
       <form @submit.prevent="submit" class="grid gap-3">
         <div>
-          <label class="block text-sm font-medium mb-1">Selecionar arquivo</label>
+          <label class="block text-sm font-medium mb-1"
+            >Selecionar arquivo</label
+          >
           <input
             ref="fileInput"
             type="file"

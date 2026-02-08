@@ -9,6 +9,29 @@ import type {
 } from "../../../types/admin.types";
 import type { ResetResponse } from "../../../types/auth.types";
 
+export interface UserProjectSummary {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+  role: string;
+}
+
+export interface UserTaskSummary {
+  id: string;
+  title: string;
+  status: string;
+  priority: number;
+  dueAt: string | null;
+}
+
+export interface UserActivityEntry {
+  id: string;
+  action: string;
+  target: string;
+  when: string;
+}
+
 export interface AdminUserDetailsDrawerProps {
   open: boolean;
   userId: string | null;
@@ -19,6 +42,82 @@ export interface AdminUserDetailsDrawerEmits {
   (e: "updated"): void;
 }
 
+/* ---- Mock data generators ---- */
+function mockProjects(email: string): UserProjectSummary[] {
+  const statuses = ["active", "planned", "done", "blocked"];
+  const roles = ["Responsável", "Colaborador", "Revisor"];
+  return Array.from({ length: Math.floor(Math.random() * 4) + 1 }, (_, i) => ({
+    id: `proj-${i}`,
+    code: `PRJ-${String(100 + i).padStart(3, "0")}`,
+    name: `Projeto ${["Alpha", "Beta", "Gamma", "Delta", "Epsilon"][i % 5]}`,
+    status: statuses[i % statuses.length],
+    role: roles[i % roles.length],
+  }));
+}
+
+function mockTasks(email: string): UserTaskSummary[] {
+  const statuses = ["todo", "doing", "done", "blocked"];
+  const titles = [
+    "Implementar autenticação OAuth",
+    "Revisar módulo de relatórios",
+    "Corrigir bug de paginação",
+    "Atualizar documentação da API",
+    "Otimizar consultas do banco",
+  ];
+  return Array.from({ length: Math.floor(Math.random() * 4) + 2 }, (_, i) => ({
+    id: `task-${i}`,
+    title: titles[i % titles.length],
+    status: statuses[i % statuses.length],
+    priority: (i % 5) + 1,
+    dueAt:
+      i % 3 === 0
+        ? null
+        : new Date(Date.now() + (i - 1) * 86400000 * 3).toISOString(),
+  }));
+}
+
+function mockActivity(email: string): UserActivityEntry[] {
+  const actions = [
+    "Criou tarefa",
+    "Atualizou projeto",
+    "Concluiu tarefa",
+    "Comentou em",
+    "Alterou status de",
+    "Atribuiu tarefa para",
+  ];
+  const targets = [
+    "PRJ-101 / Módulo Auth",
+    "TASK-204 / Integração API",
+    "PRJ-103 / Dashboards",
+    "TASK-311 / Testes E2E",
+    "PRJ-105 / Migração DB",
+  ];
+  return Array.from({ length: 5 }, (_, i) => ({
+    id: `act-${i}`,
+    action: actions[i % actions.length],
+    target: targets[i % targets.length],
+    when: new Date(Date.now() - i * 3600000 * (i + 2)).toLocaleString("pt-BR"),
+  }));
+}
+
+const MOCK_COMPETENCIES = [
+  "TypeScript",
+  "Vue.js",
+  "NestJS",
+  "MongoDB",
+  "Docker",
+  "CI/CD",
+  "Testes",
+  "REST APIs",
+];
+
+const MOCK_WORK_ROLES: Record<string, string> = {
+  admin: "Administrador de Sistemas",
+  manager: "Gerente de Projetos",
+  member: "Desenvolvedor Full-Stack",
+  viewer: "Analista / Observador",
+};
+
 export function useAdminUserDetailsDrawer(
   props: AdminUserDetailsDrawerProps,
   emit: AdminUserDetailsDrawerEmits,
@@ -28,6 +127,13 @@ export function useAdminUserDetailsDrawer(
 
   const user = computed(() => details.value?.user || null);
   const audit = computed(() => details.value?.audit || []);
+
+  /* ---- Enriched data for expanded drawer ---- */
+  const userProjects = ref<UserProjectSummary[]>([]);
+  const userTasks = ref<UserTaskSummary[]>([]);
+  const userActivity = ref<UserActivityEntry[]>([]);
+  const userCompetencies = ref<string[]>([]);
+  const userWorkRole = ref("");
 
   const load = async () => {
     try {
@@ -42,6 +148,19 @@ export function useAdminUserDetailsDrawer(
 
       busy.value = true;
       details.value = await AdminApiService.userDetails(id);
+
+      // Load enriched data (mock for portfolio demo)
+      const email = details.value?.user?.email || "";
+      const roleKey = details.value?.user?.roleKey || "member";
+      userProjects.value = mockProjects(email);
+      userTasks.value = mockTasks(email);
+      userActivity.value = mockActivity(email);
+      userCompetencies.value = MOCK_COMPETENCIES.slice(
+        0,
+        Math.floor(Math.random() * 4) + 3,
+      );
+      userWorkRole.value =
+        MOCK_WORK_ROLES[roleKey] || "Colaborador";
     } catch (e) {
       console.error("[AdminUserDetailsDrawer] load failed:", e);
       await AlertService.error("Falha ao carregar detalhes do usuário", e);
@@ -229,6 +348,11 @@ export function useAdminUserDetailsDrawer(
     details,
     user,
     audit,
+    userProjects,
+    userTasks,
+    userActivity,
+    userCompetencies,
+    userWorkRole,
     close,
     setRole,
     forceReset,

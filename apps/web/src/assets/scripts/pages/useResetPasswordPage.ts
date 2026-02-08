@@ -51,12 +51,18 @@ export function useResetPasswordPage() {
     busy.value = true;
     try {
       if (!token.value?.trim()) {
-        await AlertService.error("Falha na redefinição", "O token é obrigatório");
+        await AlertService.error(
+          "Falha na redefinição",
+          "O token é obrigatório",
+        );
         return;
       }
 
       if (!password.value?.trim()) {
-        await AlertService.error("Falha na redefinição", "A senha é obrigatória");
+        await AlertService.error(
+          "Falha na redefinição",
+          "A senha é obrigatória",
+        );
         return;
       }
 
@@ -96,7 +102,11 @@ export function useResetPasswordPage() {
       }
 
       FormFieldPersistenceService.bind(fm, FORM_ID, "session");
-      DOMValidator.ensureAttr(fm, "aria-label", "Formulário de redefinição de senha");
+      DOMValidator.ensureAttr(
+        fm,
+        "aria-label",
+        "Formulário de redefinição de senha",
+      );
     } catch (e) {
       console.error("[ResetPasswordPage] mount failed:", e);
     }

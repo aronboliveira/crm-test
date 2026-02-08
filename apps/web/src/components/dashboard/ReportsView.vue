@@ -647,6 +647,8 @@ const taskTableRows = computed(() =>
   max-width: var(--content-max-width, 1280px);
   width: 100%;
   box-sizing: border-box;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 3vw, 2.5rem);
 }
 
 .reports__header {
@@ -692,11 +694,15 @@ const taskTableRows = computed(() =>
 .kpi-card {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 1rem 1.25rem;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.375rem;
+  padding: 1.125rem 1.25rem;
   background: var(--surface-1);
   border: 1px solid var(--border-1);
   border-radius: var(--radius-lg, 16px);
+  min-height: 5.5rem;
 }
 
 .kpi-card__label {
@@ -705,6 +711,8 @@ const taskTableRows = computed(() =>
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted);
+  text-align: center;
+  line-height: 1.3;
 }
 
 .kpi-card__value {
@@ -712,6 +720,7 @@ const taskTableRows = computed(() =>
   font-weight: 800;
   color: var(--text-1);
   line-height: 1.1;
+  text-align: center;
 }
 
 /* Charts Grid */
@@ -721,6 +730,7 @@ const taskTableRows = computed(() =>
 
   @media (min-width: 1024px) {
     grid-template-columns: 1fr 1fr 1fr;
+    gap: 2rem;
   }
 
   @media (min-width: 640px) and (max-width: 1023px) {
@@ -807,15 +817,15 @@ const taskTableRows = computed(() =>
 .bar-chart {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.875rem;
   width: 100%;
 }
 
 .bar-chart__row {
   display: grid;
-  grid-template-columns: 5rem 1fr 2.5rem;
+  grid-template-columns: 5.5rem 1fr 2.5rem;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .bar-chart__label {
@@ -956,12 +966,13 @@ const taskTableRows = computed(() =>
 
 /* Wider label for workload chart */
 .bar-chart__label--wide {
-  min-width: 9rem;
-  width: 9rem;
+  min-width: 10rem;
+  width: 10rem;
   text-align: right;
   font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-right: 0.25rem;
 }
 </style>

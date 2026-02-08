@@ -118,9 +118,7 @@ import { computed } from "vue";
         <line x1="9" y1="14" x2="15" y2="14" />
       </svg>
       <p class="projects-empty__text">Nenhum projeto ainda</p>
-      <p class="projects-empty__hint">
-        Crie seu primeiro projeto para começar
-      </p>
+      <p class="projects-empty__hint">Crie seu primeiro projeto para começar</p>
     </div>
 
     <!-- Projects List -->

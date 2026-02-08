@@ -4,7 +4,7 @@ import { useCreateUserModal } from "../../assets/scripts/admin/useCreateUserModa
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "created"): void }>();
 
-const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
+const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phoneOk, departmentOk, fieldErrors, duplicateError, canSubmit, close, submit } =
   useCreateUserModal(props, emit);
 </script>
 
@@ -42,24 +42,98 @@ const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
           :aria-label="FORM_ID"
           @submit.prevent="submit"
         >
-          <label class="grid gap-1">
-            <span class="font-semibold">E-mail</span>
-            <input
-              class="table-search-input"
-              v-model="model.email"
-              name="email"
-              autocomplete="off"
-              aria-required="true"
-              :aria-invalid="!emailOk"
-              placeholder="user@corp.local"
-            />
-            <small class="opacity-70" v-if="!emailOk && model.email"
-              >Insira um e-mail válido.</small
-            >
-          </label>
+          <div class="cu-row">
+            <label class="grid gap-1 cu-field">
+              <span class="font-semibold">E-mail <span class="cu-req">*</span></span>
+              <input
+                class="table-search-input"
+                v-model="model.email"
+                name="email"
+                type="email"
+                autocomplete="off"
+                aria-required="true"
+                :aria-invalid="!emailOk && !!model.email"
+                placeholder="user@corp.local"
+              />
+              <small class="cu-error" v-if="fieldErrors.email">{{ fieldErrors.email }}</small>
+              <small class="cu-error" v-else-if="!emailOk && model.email">Insira um e-mail válido.</small>
+            </label>
+
+            <label class="grid gap-1 cu-field">
+              <span class="font-semibold">Nome de Usuário <span class="cu-req">*</span></span>
+              <input
+                class="table-search-input"
+                v-model="model.username"
+                name="username"
+                autocomplete="off"
+                aria-required="true"
+                :aria-invalid="!usernameOk && !!model.username"
+                placeholder="joao.silva"
+              />
+              <small class="cu-error" v-if="fieldErrors.username">{{ fieldErrors.username }}</small>
+              <small class="cu-hint" v-else>3–30 caracteres. Inicie com letra.</small>
+            </label>
+          </div>
+
+          <div class="cu-row">
+            <label class="grid gap-1 cu-field">
+              <span class="font-semibold">Nome</span>
+              <input
+                class="table-search-input"
+                v-model="model.firstName"
+                name="firstName"
+                autocomplete="off"
+                :aria-invalid="!firstNameOk"
+                placeholder="João"
+              />
+              <small class="cu-error" v-if="fieldErrors.firstName">{{ fieldErrors.firstName }}</small>
+            </label>
+
+            <label class="grid gap-1 cu-field">
+              <span class="font-semibold">Sobrenome</span>
+              <input
+                class="table-search-input"
+                v-model="model.lastName"
+                name="lastName"
+                autocomplete="off"
+                :aria-invalid="!lastNameOk"
+                placeholder="Silva"
+              />
+              <small class="cu-error" v-if="fieldErrors.lastName">{{ fieldErrors.lastName }}</small>
+            </label>
+          </div>
+
+          <div class="cu-row">
+            <label class="grid gap-1 cu-field">
+              <span class="font-semibold">Telefone</span>
+              <input
+                class="table-search-input"
+                v-model="model.phone"
+                name="phone"
+                type="tel"
+                autocomplete="off"
+                :aria-invalid="!phoneOk"
+                placeholder="+55 (11) 99999-0000"
+              />
+              <small class="cu-error" v-if="fieldErrors.phone">{{ fieldErrors.phone }}</small>
+            </label>
+
+            <label class="grid gap-1 cu-field">
+              <span class="font-semibold">Departamento</span>
+              <input
+                class="table-search-input"
+                v-model="model.department"
+                name="department"
+                autocomplete="off"
+                :aria-invalid="!departmentOk"
+                placeholder="Engenharia"
+              />
+              <small class="cu-error" v-if="fieldErrors.department">{{ fieldErrors.department }}</small>
+            </label>
+          </div>
 
           <label class="grid gap-1">
-            <span class="font-semibold">Perfil</span>
+            <span class="font-semibold">Perfil <span class="cu-req">*</span></span>
             <select
               class="table-search-input"
               v-model="model.roleKey"
@@ -71,7 +145,10 @@ const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
               <option value="manager">Gerente</option>
               <option value="admin">Administrador</option>
             </select>
+            <small class="cu-error" v-if="fieldErrors.roleKey">{{ fieldErrors.roleKey }}</small>
           </label>
+
+          <p class="cu-dup-error" v-if="duplicateError">{{ duplicateError }}</p>
 
           <div class="flex gap-2 justify-end pt-1">
             <button
@@ -126,20 +203,63 @@ const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
   input::placeholder {
     opacity: 0.75;
   }
-  input:focus {
+  input:focus,
+  select:focus {
     outline: 2px solid rgba(120, 120, 200, 0.35);
     outline-offset: 2px;
   }
-  input:invalid {
+  input[aria-invalid="true"] {
     box-shadow: 0 0 0 2px rgba(220, 80, 80, 0.22);
-  }
-  input:valid {
-    box-shadow: 0 0 0 2px rgba(80, 160, 120, 0.16);
   }
 
   ::selection {
     background: rgba(120, 120, 200, 0.22);
   }
+}
+
+.cu-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@container (max-width: 520px) {
+  .cu-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cu-field {
+  min-width: 0;
+}
+
+.cu-req {
+  color: rgba(220, 80, 80, 0.85);
+}
+
+.cu-error {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ef4444;
+  margin: 0;
+}
+
+.cu-hint {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  opacity: 0.8;
+  margin: 0;
+}
+
+.cu-dup-error {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #ef4444;
+  text-align: center;
+  padding: 0.5rem;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 8px;
+  margin: 0;
 }
 
 .cu-head {

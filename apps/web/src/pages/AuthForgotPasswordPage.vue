@@ -18,7 +18,8 @@ const { formId, busy, email, submit, router } = useAuthForgotPasswordPage();
         @submit.prevent="submit"
       >
         <p class="auth-helper" aria-live="polite">
-          Digite seu e-mail. Se existir, você receberá instruções de redefinição.
+          Digite seu e-mail. Se existir, você receberá instruções de
+          redefinição.
         </p>
 
         <label class="auth-field">

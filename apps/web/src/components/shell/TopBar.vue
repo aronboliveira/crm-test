@@ -52,8 +52,12 @@ const {
         class="btn btn-ghost topbar-action"
         type="button"
         @click="toggleTheme"
-        :title="isDark ? 'Alternar para modo claro' : 'Alternar para modo escuro'"
-        :aria-label="isDark ? 'Alternar para modo claro' : 'Alternar para modo escuro'"
+        :title="
+          isDark ? 'Alternar para modo claro' : 'Alternar para modo escuro'
+        "
+        :aria-label="
+          isDark ? 'Alternar para modo claro' : 'Alternar para modo escuro'
+        "
       >
         <svg
           v-if="isDark"

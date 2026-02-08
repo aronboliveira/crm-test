@@ -30,6 +30,11 @@ interface LockBody {
 
 interface CreateUserBody {
   email: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  department?: string;
   roleKey?: string;
 }
 
@@ -120,6 +125,12 @@ export default class UserAdminController {
     const ip = String(req?.ip || req?.headers?.['x-forwarded-for'] || '');
     const ua = String(req?.headers?.['user-agent'] || '');
     return this.s.createUser(actor, body, { ip, ua });
+  }
+
+  @Post('/check-duplicate')
+  @Permissions('users.manage')
+  async checkDuplicate(@Body() body: { email?: string; username?: string }) {
+    return this.s.checkDuplicate(body?.email, body?.username);
   }
 
   @Post('/:id/reissue-invite')

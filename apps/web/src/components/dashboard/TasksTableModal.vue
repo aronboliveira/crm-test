@@ -22,6 +22,15 @@ const statusClass = (s: string) =>
     archived: "badge--archived",
   })[s] || "";
 
+const statusLabel = (s: string) =>
+  ({
+    todo: "A Fazer",
+    doing: "Em Progresso",
+    blocked: "Bloqueado",
+    done: "Concluído",
+    archived: "Arquivado",
+  } as Record<string, string>)[s] || s;
+
 const priorityLabel = (p: number) =>
   ({ 1: "Crítica", 2: "Alta", 3: "Média", 4: "Baixa", 5: "Mínima" })[p] || "—";
 
@@ -59,7 +68,7 @@ const fmtDate = (d: string | null) => {
             <td class="td-strong">{{ t.title }}</td>
             <td>
               <span :class="['badge', statusClass(t.status)]">{{
-                t.status
+                statusLabel(t.status)
               }}</span>
             </td>
             <td>{{ priorityLabel(t.priority) }}</td>
