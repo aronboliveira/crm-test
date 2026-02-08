@@ -13,13 +13,13 @@ const { rules, okAll } = usePasswordChecklist(props);
   <section
     class="pw-check"
     :class="{ 'is-ok': okAll }"
-    aria-label="Password rules"
+    aria-label="Regras de senha"
   >
-    <h2 class="pw-check__title" aria-label="Password policy">
-      Password policy
+    <h2 class="pw-check__title" aria-label="Política de senha">
+      Política de senha
     </h2>
 
-    <ul class="pw-check__list" role="list" aria-label="Rules checklist">
+    <ul class="pw-check__list" role="list" aria-label="Lista de verificação">
       <li
         v-for="r in rules"
         :key="r.key"

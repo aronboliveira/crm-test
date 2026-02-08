@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent, onMounted } from "vue";
+import { ref, computed, defineAsyncComponent, onMounted, watch } from "vue";
 import { z } from "zod";
 import DOMPurify from "dompurify";
 import type {
@@ -51,6 +51,14 @@ const assigneeEmail = ref(props.task?.assigneeEmail ?? "");
 const milestoneId = ref((props.task as any)?.milestoneId ?? "");
 const tags = ref<string[]>((props.task as any)?.tags ?? []);
 
+// Assignee validation state
+const assigneeError = ref("");
+const assigneeChecking = ref(false);
+const assigneeValid = ref(false);
+
+// Date validation
+const dateError = ref("");
+
 // Load milestones when project changes
 const loadMilestones = async (pid: string) => {
   if (!pid) {
@@ -92,13 +100,82 @@ const pickSuggestion = (s: string) => {
   showSuggestions.value = false;
 };
 
+// Assignee email check (debounced)
+let assigneeCheckTimer: ReturnType<typeof setTimeout> | null = null;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const checkAssigneeExists = async () => {
+  const email = assigneeEmail.value.trim().toLowerCase();
+  if (!email) {
+    assigneeError.value = "";
+    assigneeValid.value = true; // optional field
+    return;
+  }
+  if (!EMAIL_RE.test(email)) {
+    assigneeError.value = "E-mail inválido";
+    assigneeValid.value = false;
+    return;
+  }
+  assigneeChecking.value = true;
+  try {
+    const res = await ApiClientService.raw.get("/admin/users", {
+      params: { q: email, limit: 1 },
+    });
+    const items: any[] = (res.data as any)?.items ?? [];
+    const found = items.some(
+      (u: any) => (u.email || "").toLowerCase() === email,
+    );
+    if (!found) {
+      assigneeError.value = `Usuário "${email}" não encontrado no sistema`;
+      assigneeValid.value = false;
+    } else {
+      assigneeError.value = "";
+      assigneeValid.value = true;
+    }
+  } catch {
+    // If we can't check (non-admin), allow it
+    assigneeError.value = "";
+    assigneeValid.value = true;
+  } finally {
+    assigneeChecking.value = false;
+  }
+};
+
+const onAssigneeInput = () => {
+  const email = assigneeEmail.value.trim();
+  if (!email) {
+    assigneeError.value = "";
+    assigneeValid.value = true;
+    return;
+  }
+  if (!EMAIL_RE.test(email)) {
+    assigneeError.value = "E-mail inválido";
+    assigneeValid.value = false;
+    return;
+  }
+  assigneeError.value = "";
+  if (assigneeCheckTimer) clearTimeout(assigneeCheckTimer);
+  assigneeCheckTimer = setTimeout(checkAssigneeExists, 600);
+};
+
+// Date validation
+const validateDates = () => {
+  if (dueAt.value && deadlineAt.value && dueAt.value > deadlineAt.value) {
+    dateError.value = "A data de entrega não pode ser após o prazo final";
+  } else {
+    dateError.value = "";
+  }
+};
+
+watch([dueAt, deadlineAt], validateDates);
+
 // Zod schema for validation
 const taskSchema = z.object({
   title: z
     .string()
-    .min(2, "Title must be at least 2 characters")
-    .max(200, "Title must be less than 200 characters"),
-  projectId: z.string().min(1, "Project is required"),
+    .min(2, "Título deve ter ao menos 2 caracteres")
+    .max(200, "Título deve ter no máximo 200 caracteres"),
+  projectId: z.string().min(1, "Projeto é obrigatório"),
   status: z.enum(["todo", "doing", "blocked", "done", "archived"]),
   priority: z.number().min(1).max(5),
   dueAt: z.string().optional(),
@@ -109,27 +186,38 @@ const taskSchema = z.object({
 });
 
 const statusOptions: { value: TaskStatus; label: string }[] = [
-  { value: "todo", label: "To Do" },
-  { value: "doing", label: "In Progress" },
-  { value: "blocked", label: "Blocked" },
-  { value: "done", label: "Done" },
-  { value: "archived", label: "Archived" },
+  { value: "todo", label: "A Fazer" },
+  { value: "doing", label: "Em Progresso" },
+  { value: "blocked", label: "Bloqueada" },
+  { value: "done", label: "Concluída" },
+  { value: "archived", label: "Arquivada" },
 ];
 
 const priorityOptions: { value: TaskPriority; label: string }[] = [
-  { value: 1, label: "Critical" },
-  { value: 2, label: "High" },
-  { value: 3, label: "Medium" },
-  { value: 4, label: "Low" },
-  { value: 5, label: "Lowest" },
+  { value: 1, label: "Crítica" },
+  { value: 2, label: "Alta" },
+  { value: 3, label: "Média" },
+  { value: 4, label: "Baixa" },
+  { value: 5, label: "Mínima" },
 ];
 
 const sanitize = (input: string): string => {
   return DOMPurify.sanitize(input.trim(), { ALLOWED_TAGS: [] });
 };
 
+// Form validity
+const formValid = computed(() => {
+  return (
+    title.value.trim().length >= 2 &&
+    !!projectId.value &&
+    !dateError.value &&
+    !assigneeError.value &&
+    !assigneeChecking.value
+  );
+});
+
 const handleSubmit = async () => {
-  if (busy.value) return;
+  if (busy.value || !formValid.value) return;
 
   busy.value = true;
   try {
@@ -150,9 +238,22 @@ const handleSubmit = async () => {
     const result = taskSchema.safeParse(sanitizedData);
     if (!result.success) {
       const firstError = (result.error as any).errors?.[0] ?? {
-        message: "Validation failed",
+        message: "Falha na validação",
       };
-      await AlertService.error("Validation Error", firstError.message);
+      await AlertService.error("Erro de Validação", firstError.message);
+      return;
+    }
+
+    // Date consistency check
+    if (
+      result.data.dueAt &&
+      result.data.deadlineAt &&
+      result.data.dueAt > result.data.deadlineAt
+    ) {
+      await AlertService.error(
+        "Erro de Data",
+        "A data de entrega não pode ser após o prazo final.",
+      );
       return;
     }
 
@@ -177,14 +278,15 @@ const handleSubmit = async () => {
     };
 
     await AlertService.success(
-      isEditing.value ? "Task Updated" : "Task Created",
-      `"${taskData.title}" has been ${isEditing.value ? "updated" : "created"}.`,
+      isEditing.value ? "Tarefa Atualizada" : "Tarefa Criada",
+      `"${taskData.title}" foi ${isEditing.value ? "atualizada" : "criada"} com sucesso.`,
     );
 
     emit("confirm", taskData);
+    emit("close");
   } catch (e) {
     console.error("[TaskFormModal] Submit failed:", e);
-    await AlertService.error("Error", e);
+    await AlertService.error("Erro", e);
   } finally {
     busy.value = false;
   }
@@ -192,15 +294,15 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <form class="task-form" @submit.prevent="handleSubmit">
+  <form class="task-form" novalidate @submit.prevent="handleSubmit">
     <div class="form-field" style="position: relative">
-      <label class="form-label" for="task-title">Task Title</label>
+      <label class="form-label" for="task-title">Título da Tarefa</label>
       <input
         id="task-title"
         v-model="title"
         class="form-input"
         type="text"
-        placeholder="What needs to be done?"
+        placeholder="O que precisa ser feito?"
         required
         minlength="2"
         maxlength="200"
@@ -222,7 +324,7 @@ const handleSubmit = async () => {
     </div>
 
     <div class="form-field">
-      <label class="form-label" for="task-project">Project</label>
+      <label class="form-label" for="task-project">Projeto</label>
       <select
         id="task-project"
         v-model="projectId"
@@ -230,7 +332,7 @@ const handleSubmit = async () => {
         required
         @change="onProjectChange"
       >
-        <option value="" disabled>Select a project</option>
+        <option value="" disabled>Selecione um projeto</option>
         <option v-for="proj in projects" :key="proj?.id" :value="proj?.id">
           {{ proj?.code }} - {{ proj?.name }}
         </option>
@@ -252,7 +354,7 @@ const handleSubmit = async () => {
       </div>
 
       <div class="form-field">
-        <label class="form-label" for="task-priority">Priority</label>
+        <label class="form-label" for="task-priority">Prioridade</label>
         <select id="task-priority" v-model="priority" class="form-select">
           <option
             v-for="opt in priorityOptions"
@@ -266,20 +368,41 @@ const handleSubmit = async () => {
     </div>
 
     <div class="form-field">
-      <label class="form-label" for="task-assignee">Assignee Email</label>
+      <label class="form-label" for="task-assignee"
+        >E-mail do Responsável</label
+      >
       <input
         id="task-assignee"
         v-model="assigneeEmail"
         class="form-input"
+        :class="{
+          'form-input--error': assigneeError,
+          'form-input--valid': assigneeValid && assigneeEmail.trim(),
+        }"
         type="email"
-        placeholder="user@example.com"
+        placeholder="usuario@empresa.com"
+        autocomplete="off"
+        @input="onAssigneeInput"
+        @blur="checkAssigneeExists"
       />
+      <span v-if="assigneeChecking" class="form-hint form-hint--info">
+        Verificando e-mail...
+      </span>
+      <span v-else-if="assigneeError" class="form-hint form-hint--error">
+        {{ assigneeError }}
+      </span>
+      <span
+        v-else-if="assigneeValid && assigneeEmail.trim()"
+        class="form-hint form-hint--success"
+      >
+        Usuário encontrado ✓
+      </span>
     </div>
 
     <div class="form-field" v-if="milestones.length">
-      <label class="form-label" for="task-milestone">Milestone</label>
+      <label class="form-label" for="task-milestone">Marco</label>
       <select id="task-milestone" v-model="milestoneId" class="form-select">
-        <option value="">None</option>
+        <option value="">Nenhum</option>
         <option v-for="m in milestones" :key="m.id" :value="m.id">
           {{ m.title }}
         </option>
@@ -288,12 +411,12 @@ const handleSubmit = async () => {
 
     <div class="form-row">
       <div class="form-field">
-        <label class="form-label" for="task-due">Due Date</label>
+        <label class="form-label" for="task-due">Data de Entrega</label>
         <input id="task-due" v-model="dueAt" class="form-input" type="date" />
       </div>
 
       <div class="form-field">
-        <label class="form-label" for="task-deadline">Deadline</label>
+        <label class="form-label" for="task-deadline">Prazo Final</label>
         <input
           id="task-deadline"
           v-model="deadlineAt"
@@ -302,6 +425,9 @@ const handleSubmit = async () => {
         />
       </div>
     </div>
+    <span v-if="dateError" class="form-hint form-hint--error">{{
+      dateError
+    }}</span>
 
     <div class="form-field">
       <label class="form-label">Tags</label>
@@ -315,15 +441,18 @@ const handleSubmit = async () => {
         :disabled="busy"
         @click="emit('close')"
       >
-        Cancel
+        Cancelar
       </button>
       <button
         class="btn btn-primary"
         type="submit"
-        :disabled="busy"
+        :disabled="busy || !formValid"
         :aria-busy="busy"
+        :aria-disabled="busy || !formValid"
       >
-        {{ busy ? "Saving..." : isEditing ? "Update Task" : "Create Task" }}
+        {{
+          busy ? "Salvando..." : isEditing ? "Atualizar Tarefa" : "Criar Tarefa"
+        }}
       </button>
     </div>
   </form>
@@ -389,6 +518,36 @@ const handleSubmit = async () => {
 
 .form-select {
   cursor: pointer;
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.form-hint--error {
+  color: var(--danger, #ef4444);
+  font-weight: 600;
+}
+
+.form-hint--success {
+  color: var(--success, #16a34a);
+  font-weight: 600;
+}
+
+.form-hint--info {
+  color: var(--info, #0ea5e9);
+  font-style: italic;
+}
+
+.form-input--error {
+  border-color: var(--danger, #ef4444) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
+}
+
+.form-input--valid {
+  border-color: var(--success, #16a34a) !important;
+  box-shadow: 0 0 0 2px rgba(22, 163, 106, 0.15);
 }
 
 .form-actions {

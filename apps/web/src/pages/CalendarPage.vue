@@ -33,7 +33,7 @@ const year = computed(() => currentDate.value.getFullYear());
 const month = computed(() => currentDate.value.getMonth());
 
 const monthLabel = computed(() =>
-  currentDate.value.toLocaleDateString("en-US", {
+  currentDate.value.toLocaleDateString("pt-BR", {
     month: "long",
     year: "numeric",
   }),
@@ -107,35 +107,35 @@ const statusIcons: Record<string, string> = {
 </script>
 
 <template>
-  <section class="cal-page" aria-label="Calendar View">
+  <section class="cal-page" aria-label="Visualização do Calendário">
     <header class="cal-header">
       <div class="grid gap-1">
-        <h1 class="text-xl font-black">Calendar</h1>
-        <p class="opacity-70">Tasks by due date.</p>
+        <h1 class="text-xl font-black">Calendário</h1>
+        <p class="opacity-70">Tarefas por data de entrega.</p>
       </div>
 
       <div class="flex items-center gap-2">
         <button class="btn btn-ghost btn-sm" type="button" @click="prev">
-          ← Prev
+          ← Anterior
         </button>
         <span class="font-semibold text-sm min-w-[150px] text-center">
           {{ monthLabel }}
         </span>
         <button class="btn btn-ghost btn-sm" type="button" @click="next">
-          Next →
+          Próximo →
         </button>
         <button class="btn btn-ghost btn-sm" type="button" @click="today">
-          Today
+          Hoje
         </button>
       </div>
     </header>
 
-    <div v-if="loading" class="text-center opacity-50 py-8">Loading…</div>
+    <div v-if="loading" class="text-center opacity-50 py-8">Carregando…</div>
 
     <div v-else class="cal-grid mt-4">
       <!-- Week day headers -->
       <div
-        v-for="wd in ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']"
+        v-for="wd in ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']"
         :key="wd"
         class="cal-wd"
       >
@@ -175,7 +175,7 @@ const statusIcons: Record<string, string> = {
             v-if="(tasksByDate[dateKey(day)]?.length ?? 0) > 3"
             class="cal-more"
           >
-            +{{ (tasksByDate[dateKey(day)]?.length ?? 0) - 3 }} more
+            +{{ (tasksByDate[dateKey(day)]?.length ?? 0) - 3 }} mais
           </div>
         </div>
       </div>

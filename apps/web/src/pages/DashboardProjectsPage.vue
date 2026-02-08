@@ -68,7 +68,7 @@ const onReset = () => {
 
 const openCreateProject = async () => {
   const result = await ModalService.open(ProjectFormModal, {
-    title: "Create New Project",
+    title: "Criar Novo Projeto",
     size: "md",
   });
   if (result) await load(true);
@@ -76,7 +76,7 @@ const openCreateProject = async () => {
 
 const openEditProject = async (project: ProjectRow) => {
   const result = await ModalService.open(ProjectFormModal, {
-    title: `Edit Project: ${project.name}`,
+    title: `Editar Projeto: ${project.name}`,
     size: "md",
     data: { project },
   });
@@ -85,39 +85,36 @@ const openEditProject = async (project: ProjectRow) => {
 
 const deleteProject = async (project: ProjectRow) => {
   const confirmed = await AlertService.confirm(
-    "Delete Project",
-    `Are you sure you want to delete "${project.name}"? This action cannot be undone.`,
+    "Excluir Projeto",
+    `Tem certeza que deseja excluir "${project.name}"? Esta ação não pode ser desfeita.`,
   );
   if (!confirmed) return;
   try {
     await ApiClientService.projects.remove(project.id);
-    await AlertService.success(
-      "Deleted",
-      `"${project.name}" has been deleted.`,
-    );
+    await AlertService.success("Excluído", `"${project.name}" foi excluído.`);
     selectedProject.value = null;
     await load(true);
   } catch (e) {
     console.error("[DashboardProjectsPage] Delete failed:", e);
-    await AlertService.error("Error", "Failed to delete project.");
+    await AlertService.error("Erro", "Falha ao excluir projeto.");
   }
 };
 
 const projectStatusOptions = [
-  { label: "Planned", value: "planned" },
-  { label: "Active", value: "active" },
-  { label: "Blocked", value: "blocked" },
-  { label: "Done", value: "done" },
-  { label: "Archived", value: "archived" },
+  { label: "Planejado", value: "planned" },
+  { label: "Ativo", value: "active" },
+  { label: "Bloqueado", value: "blocked" },
+  { label: "Concluído", value: "done" },
+  { label: "Arquivado", value: "archived" },
 ];
 </script>
 
 <template>
-  <section class="dp-page" aria-label="Projects">
+  <section class="dp-page" aria-label="Projetos">
     <header class="dp-actions">
       <div class="grid gap-1">
-        <h1 class="text-xl font-black">Projects</h1>
-        <p class="opacity-70">Manage your projects.</p>
+        <h1 class="text-xl font-black">Projetos</h1>
+        <p class="opacity-70">Gerencie seus projetos.</p>
       </div>
 
       <div class="flex gap-2 items-center flex-wrap">
@@ -125,8 +122,8 @@ const projectStatusOptions = [
           class="table-search-input"
           v-model="q"
           name="q"
-          aria-label="Search projects"
-          placeholder="search"
+          aria-label="Buscar projetos"
+          placeholder="buscar"
           @keyup.enter="load(true)"
         />
         <AdvancedFilter
@@ -139,7 +136,7 @@ const projectStatusOptions = [
           type="button"
           @click="openCreateProject"
         >
-          + New
+          + Novo
         </button>
         <button
           class="btn btn-ghost"
@@ -148,7 +145,7 @@ const projectStatusOptions = [
           :aria-disabled="loading"
           @click="load(true)"
         >
-          Reload
+          Recarregar
         </button>
       </div>
     </header>
@@ -158,19 +155,19 @@ const projectStatusOptions = [
       <div
         class="dp-card card p-2 overflow-auto flex-1"
         role="region"
-        aria-label="Projects table"
+        aria-label="Tabela de projetos"
       >
-        <table class="min-w-[1100px] w-full" role="table" aria-label="Projects">
+        <table class="min-w-[1100px] w-full" role="table" aria-label="Projetos">
           <thead>
             <tr class="text-left opacity-80">
-              <th class="py-2 pr-3">Code</th>
-              <th class="py-2 pr-3">Name</th>
-              <th class="py-2 pr-3">Owner</th>
+              <th class="py-2 pr-3">Código</th>
+              <th class="py-2 pr-3">Nome</th>
+              <th class="py-2 pr-3">Responsável</th>
               <th class="py-2 pr-3">Status</th>
               <th class="py-2 pr-3">Tags</th>
-              <th class="py-2 pr-3">Deadline</th>
-              <th class="py-2 pr-3">Due</th>
-              <th class="py-2 pr-3">Actions</th>
+              <th class="py-2 pr-3">Prazo</th>
+              <th class="py-2 pr-3">Entrega</th>
+              <th class="py-2 pr-3">Ações</th>
             </tr>
           </thead>
 
@@ -206,18 +203,18 @@ const projectStatusOptions = [
                   <button
                     class="btn btn-ghost btn-sm"
                     type="button"
-                    aria-label="Edit project"
+                    aria-label="Editar projeto"
                     @click.stop="openEditProject(p!)"
                   >
-                    Edit
+                    Editar
                   </button>
                   <button
                     class="btn btn-ghost btn-sm text-danger"
                     type="button"
-                    aria-label="Delete project"
+                    aria-label="Excluir projeto"
                     @click.stop="deleteProject(p!)"
                   >
-                    Delete
+                    Excluir
                   </button>
                 </div>
               </td>
@@ -225,7 +222,7 @@ const projectStatusOptions = [
 
             <tr v-if="!filteredRows.length && !loading">
               <td colspan="8" class="py-6 opacity-70 text-center">
-                {{ error || "No projects." }}
+                {{ error || "Nenhum projeto." }}
               </td>
             </tr>
           </tbody>
@@ -236,7 +233,7 @@ const projectStatusOptions = [
       <aside
         v-if="selectedProject"
         class="dp-detail card p-3 overflow-y-auto"
-        aria-label="Project detail"
+        aria-label="Detalhes do projeto"
       >
         <div class="flex justify-between items-start mb-2">
           <h2 class="font-bold text-sm">{{ selectedProject.name }}</h2>
@@ -271,12 +268,12 @@ const projectStatusOptions = [
       <button
         class="btn btn-ghost"
         type="button"
-        aria-label="Load more"
+        aria-label="Carregar mais"
         :disabled="!nextCursor || loading"
         :aria-disabled="!nextCursor || loading"
         @click="more"
       >
-        Load more
+        Carregar mais
       </button>
     </div>
   </section>

@@ -16,12 +16,12 @@ const {
 </script>
 
 <template>
-  <section class="page" aria-label="Mock Mail Outbox">
+  <section class="page" aria-label="Caixa de Saída Mock">
     <header class="flex flex-wrap gap-2 items-end justify-between">
       <div class="grid gap-1">
-        <h1 class="text-xl font-black">Mock Mail Outbox</h1>
+        <h1 class="text-xl font-black">Caixa de Saída Mock</h1>
         <p class="opacity-70">
-          Messages written by the mock gateway (use to copy reset URLs).
+          Mensagens escritas pelo gateway mock (use para copiar URLs de redefinição).
         </p>
       </div>
 
@@ -30,8 +30,8 @@ const {
           class="table-search-input"
           v-model="st.q"
           name="q"
-          aria-label="Search mail outbox"
-          placeholder="search by email/subject"
+          aria-label="Buscar na caixa de saída"
+          placeholder="buscar por e-mail/assunto"
           @keyup.enter="load(true)"
         />
 
@@ -39,10 +39,10 @@ const {
           class="table-search-input"
           v-model="st.kind"
           name="kind"
-          aria-label="Filter by kind"
+          aria-label="Filtrar por tipo"
           @change="load(true)"
         >
-          <option value="">all</option>
+          <option value="">todos</option>
           <option value="password_invite">password_invite</option>
           <option value="generic">generic</option>
         </select>
@@ -50,12 +50,12 @@ const {
         <button
           class="btn btn-primary"
           type="button"
-          aria-label="Reload"
+          aria-label="Recarregar"
           :disabled="busy"
           :aria-disabled="busy"
           @click="load(true)"
         >
-          Reload
+          Recarregar
         </button>
       </div>
     </header>
@@ -63,16 +63,16 @@ const {
     <div
       class="card p-2 mt-3 overflow-auto"
       role="region"
-      aria-label="Outbox table"
+      aria-label="Tabela da caixa de saída"
     >
-      <table class="min-w-[980px] w-full" role="table" aria-label="Mail outbox">
+      <table class="min-w-[980px] w-full" role="table" aria-label="Caixa de saída">
         <thead>
           <tr class="text-left opacity-80">
-            <th class="py-2 pr-3">At</th>
-            <th class="py-2 pr-3">To</th>
-            <th class="py-2 pr-3">Kind</th>
-            <th class="py-2 pr-3">Subject</th>
-            <th class="py-2 pr-3">Actions</th>
+            <th class="py-2 pr-3">Data</th>
+            <th class="py-2 pr-3">Para</th>
+            <th class="py-2 pr-3">Tipo</th>
+            <th class="py-2 pr-3">Assunto</th>
+            <th class="py-2 pr-3">Ações</th>
           </tr>
         </thead>
 
@@ -90,17 +90,17 @@ const {
               <button
                 class="btn btn-ghost btn-sm"
                 type="button"
-                aria-label="Open message"
+                aria-label="Abrir mensagem"
                 @click="openRow(m)"
               >
-                Open
+                Abrir
               </button>
             </td>
           </tr>
 
           <tr v-if="!items.length && !busy">
             <td colspan="5" class="py-6 opacity-70 text-center">
-              No messages.
+              Nenhuma mensagem.
             </td>
           </tr>
         </tbody>
@@ -111,12 +111,12 @@ const {
       <button
         class="btn btn-ghost"
         type="button"
-        aria-label="Load more"
+        aria-label="Carregar mais"
         :disabled="!nextCursor || busy"
         :aria-disabled="!nextCursor || busy"
         @click="more"
       >
-        Load more
+        Carregar mais
       </button>
     </div>
 
@@ -126,13 +126,13 @@ const {
         class="mx-overlay"
         role="dialog"
         aria-modal="true"
-        aria-label="Message details"
+        aria-label="Detalhes da mensagem"
         @click.self="close"
       >
         <section class="mx-panel card" @click.stop>
           <header class="mx-head">
             <div class="grid gap-1">
-              <h2 class="text-lg font-black">Message</h2>
+              <h2 class="text-lg font-black">Mensagem</h2>
               <p class="opacity-70">
                 {{ selected?.to }} · {{ selected?.subject }}
               </p>
@@ -140,23 +140,23 @@ const {
             <button
               class="btn btn-ghost"
               type="button"
-              aria-label="Close"
+              aria-label="Fechar"
               @click="close"
             >
-              Close
+              Fechar
             </button>
           </header>
 
           <div class="p-3 grid gap-3">
             <div class="grid gap-1">
-              <div class="opacity-70 text-sm">Text</div>
+              <div class="opacity-70 text-sm">Texto</div>
               <pre class="card p-2 overflow-auto">{{
                 selected?.text || "-"
               }}</pre>
             </div>
 
             <div class="grid gap-1">
-              <div class="opacity-70 text-sm">Meta</div>
+              <div class="opacity-70 text-sm">Metadados</div>
               <pre class="card p-2 overflow-auto">{{
                 selected?.meta ? JSON.stringify(selected.meta, null, 2) : "-"
               }}</pre>

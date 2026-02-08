@@ -21,7 +21,7 @@ const rows = computed<ProjectRow[]>(() => {
 });
 
 const title = computed(() =>
-  props.filter === "active" ? "Active Projects" : "All Projects",
+  props.filter === "active" ? "Projetos Ativos" : "Todos os Projetos",
 );
 
 const statusClass = (s: string) =>
@@ -36,7 +36,7 @@ const statusClass = (s: string) =>
 const fmtDate = (d: string | null) => {
   if (!d) return "—";
   try {
-    return new Date(d).toLocaleDateString("en-US", {
+    return new Date(d).toLocaleDateString("pt-BR", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -55,11 +55,11 @@ const fmtDate = (d: string | null) => {
       <table class="data-table" v-if="rows.length">
         <thead>
           <tr>
-            <th>Code</th>
-            <th>Name</th>
+            <th>Código</th>
+            <th>Nome</th>
             <th>Status</th>
-            <th>Owner</th>
-            <th>Due</th>
+            <th>Responsável</th>
+            <th>Prazo</th>
           </tr>
         </thead>
         <tbody>
@@ -76,12 +76,12 @@ const fmtDate = (d: string | null) => {
           </tr>
         </tbody>
       </table>
-      <p v-else class="ptm__empty">No projects found.</p>
+      <p v-else class="ptm__empty">Nenhum projeto encontrado.</p>
     </div>
 
     <footer class="ptm__footer">
       <button class="btn btn-secondary" type="button" @click="emit('close')">
-        Close
+        Fechar
       </button>
     </footer>
   </div>

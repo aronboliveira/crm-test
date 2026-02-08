@@ -41,8 +41,8 @@ export function useAuthResetPasswordPage() {
       if (!token.value) {
         console.warn("[AuthResetPasswordPage] load: no token available");
         await AlertService.error(
-          "Invalid or expired token",
-          "No token provided",
+          "Token inválido ou expirado",
+          "Nenhum token fornecido",
         );
         return;
       }
@@ -53,11 +53,11 @@ export function useAuthResetPasswordPage() {
       email.value = r.ok ? String(r.email || "") : "";
 
       if (!r.ok) {
-        await AlertService.error("Invalid or expired token");
+        await AlertService.error("Token inválido ou expirado");
       }
     } catch (e) {
       console.error("[AuthResetPasswordPage] load failed:", e);
-      await AlertService.error("Failed to validate token", e);
+      await AlertService.error("Falha ao validar token", e);
     }
   };
 
@@ -67,14 +67,14 @@ export function useAuthResetPasswordPage() {
     busy.value = true;
     try {
       if (!tokenEffective.value) {
-        await AlertService.error("Reset failed", "No token provided");
+        await AlertService.error("Falha na redefinição", "Nenhum token fornecido");
         return;
       }
 
       if (!password.value?.trim() || !confirm.value?.trim()) {
         await AlertService.error(
-          "Reset failed",
-          "Password fields are required",
+          "Falha na redefinição",
+          "Os campos de senha são obrigatórios",
         );
         return;
       }
@@ -87,19 +87,19 @@ export function useAuthResetPasswordPage() {
 
       if (r.ok) {
         await AlertService.success(
-          "Password updated",
-          "You can now login with your new password.",
+          "Senha atualizada",
+          "Agora você pode entrar com sua nova senha.",
         );
         await router.replace("/login");
       } else {
         await AlertService.error(
-          "Reset failed",
-          r.message || "Invalid request",
+          "Falha na redefinição",
+          r.message || "Solicitação inválida",
         );
       }
     } catch (e) {
       console.error("[AuthResetPasswordPage] submit failed:", e);
-      await AlertService.error("Reset failed", e);
+      await AlertService.error("Falha na redefinição", e);
     } finally {
       busy.value = false;
     }

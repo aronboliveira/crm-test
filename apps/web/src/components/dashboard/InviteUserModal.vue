@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
+import { ref, reactive, watch, computed, onMounted } from "vue";
+import ApiClientService from "../../services/ApiClientService";
+import AlertService from "../../services/AlertService";
 
 const emit = defineEmits<{
   (e: "close"): void;
@@ -10,15 +12,49 @@ const form = reactive({ email: "", role: "member" });
 const sending = ref(false);
 const sent = ref(false);
 const error = ref("");
+const currentUserRole = ref("");
+
+// Role hierarchy: higher index = higher privilege
+const ROLE_HIERARCHY = ["viewer", "member", "manager", "admin"] as const;
+
+const roleLevel = (r: string) =>
+  ROLE_HIERARCHY.indexOf(r as (typeof ROLE_HIERARCHY)[number]);
+
+// Fetch current user's role on mount
+onMounted(async () => {
+  try {
+    const me = await ApiClientService.auth.me();
+    currentUserRole.value = me?.roleKey || me?.role || "";
+  } catch {
+    currentUserRole.value = "";
+  }
+});
+
+// Roles the current user can assign (only up to their own level)
+const allowedRoles = computed(() => {
+  const myLevel = roleLevel(currentUserRole.value);
+  return ROLE_HIERARCHY.filter((_, i) => i <= myLevel);
+});
+
+const roleBlocked = computed(() => {
+  const myLevel = roleLevel(currentUserRole.value);
+  const targetLevel = roleLevel(form.role);
+  return targetLevel > myLevel;
+});
 
 function validate(): boolean {
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!form.email.trim()) {
-    error.value = "Email is required.";
+    error.value = "E-mail é obrigatório.";
     return false;
   }
   if (!emailRe.test(form.email.trim())) {
-    error.value = "Enter a valid email address.";
+    error.value = "Informe um endereço de e-mail válido.";
+    return false;
+  }
+  if (roleBlocked.value) {
+    error.value =
+      "Você não pode convidar um usuário com privilégio superior ao seu.";
     return false;
   }
   error.value = "";
@@ -29,12 +65,16 @@ async function submit() {
   if (!validate()) return;
   sending.value = true;
   try {
-    /* simulate API call */
-    await new Promise((r) => setTimeout(r, 900));
+    await ApiClientService.raw.post("/admin/users", {
+      email: form.email.trim().toLowerCase(),
+      roleKey: form.role,
+    });
     sent.value = true;
     emit("invited", form.email.trim());
-  } catch {
-    error.value = "Failed to send invitation. Try again.";
+  } catch (e: any) {
+    const msg =
+      e?.response?.data?.message || "Falha ao enviar convite. Tente novamente.";
+    error.value = msg;
   } finally {
     sending.value = false;
   }
@@ -53,22 +93,34 @@ watch(
     if (error.value) error.value = "";
   },
 );
+
+watch(
+  () => form.role,
+  () => {
+    if (roleBlocked.value) {
+      error.value =
+        "Você não pode convidar um usuário com privilégio superior ao seu.";
+    } else if (error.value.includes("privilégio")) {
+      error.value = "";
+    }
+  },
+);
 </script>
 
 <template>
   <div class="invite-modal">
     <template v-if="!sent">
-      <h2 class="invite-modal__title">Invite a Team Member</h2>
-      <p class="invite-modal__desc">Send an invitation link via email.</p>
+      <h2 class="invite-modal__title">Convidar Membro da Equipe</h2>
+      <p class="invite-modal__desc">Envie um link de convite por e-mail.</p>
 
-      <form class="invite-modal__form" @submit.prevent="submit">
+      <form class="invite-modal__form" novalidate @submit.prevent="submit">
         <label class="invite-modal__field">
-          <span class="invite-modal__label">Email Address</span>
+          <span class="invite-modal__label">Endereço de E-mail</span>
           <input
             v-model="form.email"
             type="email"
             autocomplete="email"
-            placeholder="colleague@company.com"
+            placeholder="colega@empresa.com"
             class="invite-modal__input"
             :disabled="sending"
             required
@@ -76,17 +128,27 @@ watch(
         </label>
 
         <label class="invite-modal__field">
-          <span class="invite-modal__label">Role</span>
+          <span class="invite-modal__label">Papel</span>
           <select
             v-model="form.role"
             class="invite-modal__select"
             :disabled="sending"
           >
-            <option value="viewer">Viewer</option>
-            <option value="member">Member</option>
-            <option value="manager">Manager</option>
-            <option value="admin">Admin</option>
+            <option v-for="r in allowedRoles" :key="r" :value="r">
+              {{
+                r === "viewer"
+                  ? "Visualizador"
+                  : r === "member"
+                    ? "Membro"
+                    : r === "manager"
+                      ? "Gerente"
+                      : "Administrador"
+              }}
+            </option>
           </select>
+          <small v-if="roleBlocked" class="invite-modal__error">
+            Privilégio superior ao seu papel atual ({{ currentUserRole }}).
+          </small>
         </label>
 
         <p v-if="error" class="invite-modal__error">{{ error }}</p>
@@ -98,10 +160,14 @@ watch(
             :disabled="sending"
             @click="emit('close')"
           >
-            Cancel
+            Cancelar
           </button>
-          <button class="btn btn-primary" type="submit" :disabled="sending">
-            {{ sending ? "Sending…" : "Send Invitation" }}
+          <button
+            class="btn btn-primary"
+            type="submit"
+            :disabled="sending || roleBlocked"
+          >
+            {{ sending ? "Enviando…" : "Enviar Convite" }}
           </button>
         </div>
       </form>
@@ -122,17 +188,27 @@ watch(
           <circle cx="12" cy="12" r="10" />
           <polyline points="9,12 11.5,14.5 15.5,9.5" />
         </svg>
-        <h2 class="invite-modal__title">Invitation Sent!</h2>
+        <h2 class="invite-modal__title">Convite Enviado!</h2>
         <p class="invite-modal__desc">
-          An invite has been sent to <strong>{{ form.email }}</strong> with the
-          <strong>{{ form.role }}</strong> role.
+          Um convite foi enviado para <strong>{{ form.email }}</strong> com o
+          papel de
+          <strong>{{
+            form.role === "viewer"
+              ? "Visualizador"
+              : form.role === "member"
+                ? "Membro"
+                : form.role === "manager"
+                  ? "Gerente"
+                  : "Administrador"
+          }}</strong
+          >.
         </p>
         <div class="invite-modal__actions">
           <button class="btn btn-ghost" type="button" @click="emit('close')">
-            Close
+            Fechar
           </button>
           <button class="btn btn-primary" type="button" @click="reset">
-            Invite Another
+            Convidar Outro
           </button>
         </div>
       </div>

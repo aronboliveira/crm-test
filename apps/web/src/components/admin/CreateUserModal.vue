@@ -15,25 +15,25 @@ const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
       class="cu-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label="Create user"
+      aria-label="Criar usuário"
       @click.self="close"
     >
       <section ref="panelRef" class="cu-panel card" @click.stop>
         <header class="cu-head">
           <div class="grid gap-1">
-            <h2 class="text-lg font-black">Create user</h2>
+            <h2 class="text-lg font-black">Criar usuário</h2>
             <p class="opacity-70">
-              Creates an account and issues an invite token (dev).
+              Cria uma conta e emite um token de convite (dev).
             </p>
           </div>
 
           <button
             class="btn btn-ghost"
             type="button"
-            aria-label="Close"
+            aria-label="Fechar"
             @click="close"
           >
-            Close
+            Fechar
           </button>
         </header>
 
@@ -43,7 +43,7 @@ const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
           @submit.prevent="submit"
         >
           <label class="grid gap-1">
-            <span class="font-semibold">Email</span>
+            <span class="font-semibold">E-mail</span>
             <input
               class="table-search-input"
               v-model="model.email"
@@ -54,22 +54,22 @@ const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
               placeholder="user@corp.local"
             />
             <small class="opacity-70" v-if="!emailOk && model.email"
-              >Enter a valid email.</small
+              >Insira um e-mail válido.</small
             >
           </label>
 
           <label class="grid gap-1">
-            <span class="font-semibold">Role</span>
+            <span class="font-semibold">Perfil</span>
             <select
               class="table-search-input"
               v-model="model.roleKey"
               name="roleKey"
               aria-required="true"
             >
-              <option value="viewer">viewer</option>
-              <option value="member">member</option>
-              <option value="manager">manager</option>
-              <option value="admin">admin</option>
+              <option value="viewer">Visualizador</option>
+              <option value="member">Membro</option>
+              <option value="manager">Gerente</option>
+              <option value="admin">Administrador</option>
             </select>
           </label>
 
@@ -81,7 +81,7 @@ const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
               :aria-disabled="busy"
               @click="close"
             >
-              Cancel
+              Cancelar
             </button>
 
             <button
@@ -90,7 +90,7 @@ const { FORM_ID, model, busy, emailOk, canSubmit, close, submit } =
               :disabled="!canSubmit"
               :aria-disabled="!canSubmit"
             >
-              {{ busy ? "Creating..." : "Create" }}
+              {{ busy ? "Criando..." : "Criar" }}
             </button>
           </div>
         </form>

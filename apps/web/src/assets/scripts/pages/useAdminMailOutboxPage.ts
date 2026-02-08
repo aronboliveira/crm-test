@@ -41,7 +41,7 @@ export function useAdminMailOutboxPage() {
       nextCursor.value = r?.nextCursor || null;
     } catch (e) {
       console.error("[AdminMailOutboxPage] load failed:", e);
-      await AlertService.error("Failed to load outbox", e);
+      await AlertService.error("Falha ao carregar a caixa de saída", e);
     } finally {
       busy.value = false;
     }
@@ -72,7 +72,7 @@ export function useAdminMailOutboxPage() {
       selectedOpen.value = true;
     } catch (e) {
       console.error("[AdminMailOutboxPage] openRow failed:", e);
-      await AlertService.error("Failed to read message", e);
+      await AlertService.error("Falha ao ler a mensagem", e);
     }
   };
 

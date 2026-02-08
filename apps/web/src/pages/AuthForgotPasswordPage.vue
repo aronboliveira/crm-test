@@ -5,24 +5,24 @@ const { formId, busy, email, submit, router } = useAuthForgotPasswordPage();
 
 <template>
   <div class="auth-page">
-    <section class="auth-card" aria-label="Password recovery">
+    <section class="auth-card" aria-label="Recuperação de senha">
       <header class="auth-header">
-        <h1 class="auth-title">Forgot password</h1>
+        <h1 class="auth-title">Esqueceu a senha</h1>
       </header>
 
       <form
         ref="formEl"
         :id="formId"
         class="auth-form"
-        aria-label="Forgot password form"
+        aria-label="Formulário de recuperação de senha"
         @submit.prevent="submit"
       >
         <p class="auth-helper" aria-live="polite">
-          Enter your email. If it exists, you will receive reset instructions.
+          Digite seu e-mail. Se existir, você receberá instruções de redefinição.
         </p>
 
         <label class="auth-field">
-          <span class="auth-label">Email</span>
+          <span class="auth-label">E-mail</span>
           <input
             class="auth-input"
             type="email"
@@ -31,7 +31,7 @@ const { formId, busy, email, submit, router } = useAuthForgotPasswordPage();
             required
             v-model="email"
             placeholder="admin@corp.local"
-            aria-label="Email"
+            aria-label="E-mail"
           />
         </label>
 
@@ -42,22 +42,22 @@ const { formId, busy, email, submit, router } = useAuthForgotPasswordPage();
             :disabled="busy"
             :aria-disabled="busy"
           >
-            {{ busy ? "Sending..." : "Send reset link" }}
+            {{ busy ? "Enviando..." : "Enviar link de redefinição" }}
           </button>
 
           <button
             class="btn btn-ghost btn-block"
             type="button"
-            aria-label="Back to login"
+            aria-label="Voltar ao login"
             @click="router.replace('/login')"
           >
-            Back
+            Voltar
           </button>
         </div>
 
         <p class="auth-links">
-          <RouterLink class="auth-link" to="/login" aria-label="Go to login">
-            Return to login
+          <RouterLink class="auth-link" to="/login" aria-label="Ir para login">
+            Voltar ao login
           </RouterLink>
         </p>
       </form>

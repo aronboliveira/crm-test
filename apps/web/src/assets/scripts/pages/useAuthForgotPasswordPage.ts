@@ -21,7 +21,7 @@ export function useAuthForgotPasswordPage() {
     busy.value = true;
     try {
       if (!email.value?.trim()) {
-        await AlertService.error("Request failed", "Email is required");
+        await AlertService.error("Falha na solicitação", "O e-mail é obrigatório");
         return;
       }
 
@@ -32,14 +32,14 @@ export function useAuthForgotPasswordPage() {
         AuthRecoveryService.setLastToken(tok);
 
         await Swal.fire({
-          title: "Dev reset token",
+          title: "Token de redefinição (dev)",
           html: `
       <div class="grid gap-2" style="text-align:left;">
         <div style="font-weight:700;">Token</div>
         <code data-id="token" style="display:block;word-break:break-all;padding:0.6rem;border-radius:0.6rem;background:rgba(0,0,0,0.06)">${tok}</code>
         <div class="grid" style="grid-template-columns:1fr 1fr;gap:0.5rem;">
-          <button type="button" data-id="copy" class="swal2-confirm swal2-styled" style="margin:0;">Copy</button>
-          <button type="button" data-id="go" class="swal2-cancel swal2-styled" style="margin:0;">Go to reset</button>
+          <button type="button" data-id="copy" class="swal2-confirm swal2-styled" style="margin:0;">Copiar</button>
+          <button type="button" data-id="go" class="swal2-cancel swal2-styled" style="margin:0;">Ir para redefinição</button>
         </div>
       </div>
     `,
@@ -50,7 +50,7 @@ export function useAuthForgotPasswordPage() {
               if (!root) return;
 
               DOMValidator.ensureAttr(root, "role", "dialog");
-              DOMValidator.ensureAttr(root, "aria-label", "Dev reset token");
+              DOMValidator.ensureAttr(root, "aria-label", "Token de redefinição (dev)");
 
               const copyBtn = root.querySelector(
                 "[data-id='copy']",
@@ -101,20 +101,20 @@ export function useAuthForgotPasswordPage() {
 
       if (r.ok) {
         await AlertService.success(
-          "Request received",
+          "Solicitação recebida",
           r.message ||
-            "If the email exists, you will receive reset instructions.",
+            "Se o e-mail existir, você receberá instruções de redefinição.",
         );
         await router.replace("/login");
       } else {
         await AlertService.error(
-          "Request failed",
-          r.message || "Invalid request",
+          "Falha na solicitação",
+          r.message || "Solicitação inválida",
         );
       }
     } catch (e) {
       console.error("[AuthForgotPasswordPage] submit failed:", e);
-      await AlertService.error("Request failed", e);
+      await AlertService.error("Falha na solicitação", e);
     } finally {
       busy.value = false;
     }

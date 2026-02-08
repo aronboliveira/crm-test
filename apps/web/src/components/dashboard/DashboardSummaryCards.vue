@@ -31,14 +31,14 @@ const projectActivityRate = computed(() => {
 </script>
 
 <template>
-  <div class="summary-grid" role="list" aria-label="Dashboard statistics">
+  <div class="summary-grid" role="list" aria-label="Estatísticas do painel">
     <!-- Projects Card -->
     <article
       class="stat-card stat-card--projects stat-card--clickable"
       role="listitem"
       tabindex="0"
       :aria-busy="loading"
-      :title="`Total projects: ${projects} — Click to view all`"
+      :title="`Total de projetos: ${projects} — Clique para ver todos`"
       @click="emit('stat-click', 'total-projects')"
       @keydown.enter="emit('stat-click', 'total-projects')"
     >
@@ -58,10 +58,10 @@ const projectActivityRate = computed(() => {
         </svg>
       </div>
       <div class="stat-card__content">
-        <span class="stat-card__label">Total Projects</span>
+        <span class="stat-card__label">Total de Projetos</span>
         <span class="stat-card__value">{{ loading ? "—" : projects }}</span>
         <span v-if="activeProjects > 0" class="stat-card__sub">
-          {{ activeProjects }} active ({{ projectActivityRate }}%)
+          {{ activeProjects }} ativos ({{ projectActivityRate }}%)
         </span>
       </div>
     </article>
@@ -72,7 +72,7 @@ const projectActivityRate = computed(() => {
       role="listitem"
       tabindex="0"
       :aria-busy="loading"
-      :title="`Total tasks: ${tasks} — Click to view all`"
+      :title="`Total de tarefas: ${tasks} — Clique para ver todas`"
       @click="emit('stat-click', 'total-tasks')"
       @keydown.enter="emit('stat-click', 'total-tasks')"
     >
@@ -91,10 +91,10 @@ const projectActivityRate = computed(() => {
         </svg>
       </div>
       <div class="stat-card__content">
-        <span class="stat-card__label">Total Tasks</span>
+        <span class="stat-card__label">Total de Tarefas</span>
         <span class="stat-card__value">{{ loading ? "—" : tasks }}</span>
         <span v-if="completedTasks > 0" class="stat-card__sub">
-          {{ completedTasks }} completed ({{ taskCompletionRate }}%)
+          {{ completedTasks }} concluídas ({{ taskCompletionRate }}%)
         </span>
       </div>
     </article>
@@ -105,7 +105,7 @@ const projectActivityRate = computed(() => {
       role="listitem"
       tabindex="0"
       :aria-busy="loading"
-      :title="`Active projects: ${activeProjects} — Click to view active`"
+      :title="`Projetos ativos: ${activeProjects} — Clique para ver ativos`"
       @click="emit('stat-click', 'active-projects')"
       @keydown.enter="emit('stat-click', 'active-projects')"
     >
@@ -124,7 +124,7 @@ const projectActivityRate = computed(() => {
         </svg>
       </div>
       <div class="stat-card__content">
-        <span class="stat-card__label">Active Projects</span>
+        <span class="stat-card__label">Projetos Ativos</span>
         <span class="stat-card__value">{{
           loading ? "—" : activeProjects
         }}</span>
@@ -132,7 +132,7 @@ const projectActivityRate = computed(() => {
           class="stat-card__sub stat-card__sub--positive"
           v-if="!loading && activeProjects > 0"
         >
-          In progress
+          Em andamento
         </span>
       </div>
     </article>
@@ -143,7 +143,7 @@ const projectActivityRate = computed(() => {
       role="listitem"
       tabindex="0"
       :aria-busy="loading"
-      :title="`Task completion rate: ${taskCompletionRate}% — Click for reports`"
+      :title="`Taxa de conclusão: ${taskCompletionRate}% — Clique para relatórios`"
       @click="emit('stat-click', 'completion-rate')"
       @keydown.enter="emit('stat-click', 'completion-rate')"
     >
@@ -163,7 +163,7 @@ const projectActivityRate = computed(() => {
         </svg>
       </div>
       <div class="stat-card__content">
-        <span class="stat-card__label">Completion Rate</span>
+        <span class="stat-card__label">Taxa de Conclusão</span>
         <span class="stat-card__value">{{
           loading ? "—" : taskCompletionRate + "%"
         }}</span>

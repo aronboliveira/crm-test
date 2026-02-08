@@ -19,73 +19,73 @@ interface NavItem {
 }
 
 const allItems: NavItem[] = [
-  { key: "dashboard", label: "Dashboard", route: "/dashboard", icon: "home" },
+  { key: "dashboard", label: "Painel", route: "/dashboard", icon: "home" },
   {
     key: "projects",
-    label: "Projects",
+    label: "Projetos",
     route: "/dashboard/projects",
     icon: "folder",
     permission: "projects.read",
   },
   {
     key: "tasks",
-    label: "Tasks",
+    label: "Tarefas",
     route: "/dashboard/tasks",
     icon: "check-square",
     permission: "tasks.read",
   },
   {
     key: "calendar",
-    label: "Calendar",
+    label: "Calendário",
     route: "/dashboard/calendar",
     icon: "calendar",
     permission: "tasks.read",
   },
   {
     key: "templates",
-    label: "Templates",
+    label: "Modelos",
     route: "/dashboard/templates",
     icon: "copy",
     permission: "projects.read",
   },
   {
     key: "import",
-    label: "Import",
+    label: "Importar",
     route: "/dashboard/import",
     icon: "upload",
     permission: "projects.manage",
   },
   {
     key: "reports",
-    label: "Reports",
+    label: "Relatórios",
     route: "/dashboard/reports",
     icon: "bar-chart",
     permission: "projects.read",
   },
   {
     key: "settings",
-    label: "Settings",
+    label: "Configurações",
     route: "/dashboard",
     icon: "settings",
     permission: undefined,
   },
   {
     key: "users",
-    label: "Users",
+    label: "Usuários",
     route: "/admin/users",
     icon: "users",
     permission: "users.read",
   },
   {
     key: "audit",
-    label: "Audit Log",
+    label: "Auditoria",
     route: "/admin/audit",
     icon: "shield",
     permission: "audit.read",
   },
   {
     key: "mail",
-    label: "Mail Outbox",
+    label: "Caixa de Saída",
     route: "/admin/mail-outbox",
     icon: "mail",
     permission: "audit.read",
@@ -149,14 +149,14 @@ const getButtonClass = (item: NavItem) => {
         'is-open': layout.isMobileOpen.value,
       }"
       role="navigation"
-      aria-label="Main navigation"
+      aria-label="Navegação principal"
     >
       <!-- Header -->
       <div class="aside-head">
         <div
           class="aside-brand"
           :class="{ 'sr-only': layout.isCollapsed.value }"
-          title="Project Manager CRM"
+          title="CRM de Gerenciamento de Projetos"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -182,13 +182,13 @@ const getButtonClass = (item: NavItem) => {
             type="button"
             :title="
               layout.isCollapsed.value
-                ? 'Expand navigation'
-                : 'Collapse navigation'
+                ? 'Expandir navegação'
+                : 'Recolher navegação'
             "
             :aria-label="
               layout.isCollapsed.value
-                ? 'Expand navigation'
-                : 'Collapse navigation'
+                ? 'Expandir navegação'
+                : 'Recolher navegação'
             "
             :aria-pressed="layout.isCollapsed.value"
             @click="layout.toggleSidebar"
@@ -216,8 +216,8 @@ const getButtonClass = (item: NavItem) => {
           <button
             class="btn btn-ghost aside-close"
             type="button"
-            title="Close navigation"
-            aria-label="Close navigation"
+            title="Fechar navegação"
+            aria-label="Fechar navegação"
             @click="layout.closeMobileSidebar"
           >
             <svg
@@ -239,13 +239,13 @@ const getButtonClass = (item: NavItem) => {
       </div>
 
       <!-- Main Navigation -->
-      <nav class="aside-nav" aria-label="Main views">
+      <nav class="aside-nav" aria-label="Visões principais">
         <span
           v-if="!layout.isCollapsed.value"
           class="aside-section-title"
           id="main-nav-title"
         >
-          Navigation
+          Navegação
         </span>
         <div role="list" aria-labelledby="main-nav-title">
           <button
@@ -378,14 +378,14 @@ const getButtonClass = (item: NavItem) => {
       <nav
         v-if="adminItems.length > 0"
         class="aside-nav aside-nav--admin"
-        aria-label="Admin views"
+        aria-label="Visões administrativas"
       >
         <span
           v-if="!layout.isCollapsed.value"
           class="aside-section-title"
           id="admin-nav-title"
         >
-          Admin
+          Administração
         </span>
         <div role="list" aria-labelledby="admin-nav-title">
           <button
@@ -484,7 +484,7 @@ const getButtonClass = (item: NavItem) => {
         <div
           v-if="!layout.isCollapsed.value"
           class="aside-footer__version"
-          title="Application version"
+          title="Versão do aplicativo"
         >
           v1.0.0
         </div>

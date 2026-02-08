@@ -16,12 +16,12 @@ const {
 </script>
 
 <template>
-  <section class="rp-page" aria-label="Reset password page">
+  <section class="rp-page" aria-label="Página de redefinição de senha">
     <div class="rp-card card">
       <header class="rp-head">
-        <h1 class="text-xl font-black">Reset password</h1>
+        <h1 class="text-xl font-black">Redefinir senha</h1>
         <p class="opacity-70" :id="`${FORM_ID}__help`">
-          Provide the token (from invite/outbox) and set a new password.
+          Forneça o token (do convite/caixa de saída) e defina uma nova senha.
         </p>
       </header>
 
@@ -42,26 +42,26 @@ const {
               autocomplete="off"
               aria-required="true"
               :aria-invalid="!tokenOk"
-              placeholder="paste token here"
+              placeholder="cole o token aqui"
             />
 
             <button
               class="btn btn-ghost"
               type="button"
-              aria-label="Paste token"
+              aria-label="Colar token"
               @click="pasteToken"
             >
-              Paste
+              Colar
             </button>
           </div>
 
           <small class="opacity-70" v-if="token && !tokenOk"
-            >Token format invalid.</small
+            >Formato de token inválido.</small
           >
         </label>
 
         <label class="grid gap-1">
-          <span class="font-semibold">New password</span>
+          <span class="font-semibold">Nova senha</span>
           <input
             class="table-search-input"
             v-model="password"
@@ -69,15 +69,15 @@ const {
             type="password"
             aria-required="true"
             :aria-invalid="!passOk && !!password"
-            placeholder="min 10 chars"
+            placeholder="mín. 10 caracteres"
           />
           <small class="opacity-70" v-if="password && !passOk"
-            >Minimum 10 characters.</small
+            >Mínimo de 10 caracteres.</small
           >
         </label>
 
         <label class="grid gap-1">
-          <span class="font-semibold">Confirm password</span>
+          <span class="font-semibold">Confirmar senha</span>
           <input
             class="table-search-input"
             v-model="confirm"
@@ -85,10 +85,10 @@ const {
             type="password"
             aria-required="true"
             :aria-invalid="!sameOk && !!confirm"
-            placeholder="repeat password"
+            placeholder="repita a senha"
           />
           <small class="opacity-70" v-if="confirm && !sameOk"
-            >Passwords do not match.</small
+            >As senhas não coincidem.</small
           >
         </label>
 
@@ -99,7 +99,7 @@ const {
             :disabled="!canSubmit"
             :aria-disabled="!canSubmit"
           >
-            {{ busy ? "Saving..." : "Save" }}
+            {{ busy ? "Salvando..." : "Salvar" }}
           </button>
         </div>
       </form>

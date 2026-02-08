@@ -20,8 +20,8 @@ async function submit() {
   const ext = file.value.name.split(".").pop()?.toLowerCase();
   if (!["csv", "yml", "yaml", "xml"].includes(ext || "")) {
     await AlertService.error(
-      "Invalid Format",
-      "Only .csv, .yml, and .xml files are supported.",
+      "Formato Inválido",
+      "Somente arquivos .csv, .yml e .xml são suportados.",
     );
     return;
   }
@@ -29,14 +29,14 @@ async function submit() {
   try {
     uploading.value = true;
     const res = await ApiClientService.import.upload(file.value);
-    resultMsg.value = res.message || "Import complete.";
-    await AlertService.success("Import Complete", resultMsg.value);
+    resultMsg.value = res.message || "Importação concluída.";
+    await AlertService.success("Importação Concluída", resultMsg.value);
     file.value = null;
     if (fileInput.value) fileInput.value.value = "";
   } catch (e: any) {
-    const msg = e?.response?.data?.message || e?.message || "Import failed.";
+    const msg = e?.response?.data?.message || e?.message || "Falha na importação.";
     resultMsg.value = msg;
-    await AlertService.error("Import Failed", msg);
+    await AlertService.error("Falha na Importação", msg);
   } finally {
     uploading.value = false;
   }
@@ -44,17 +44,17 @@ async function submit() {
 </script>
 
 <template>
-  <section class="import-page" aria-label="Import Data">
+  <section class="import-page" aria-label="Importar Dados">
     <header class="mb-4">
-      <h1 class="text-xl font-black">Import</h1>
+      <h1 class="text-xl font-black">Importar</h1>
       <p class="opacity-70 mt-1">
-        Upload a CSV, YML, or XML file to bulk-create projects and tasks.
+        Envie um arquivo CSV, YML ou XML para criar projetos e tarefas em massa.
       </p>
     </header>
 
-    <div class="card p-4 max-w-xl" role="region" aria-label="Import form">
+    <div class="card p-4 max-w-xl" role="region" aria-label="Formulário de importação">
       <div class="mb-3">
-        <h2 class="font-semibold text-sm mb-1">Expected formats</h2>
+        <h2 class="font-semibold text-sm mb-1">Formatos esperados</h2>
         <details class="text-xs opacity-70 mb-2">
           <summary class="cursor-pointer">CSV</summary>
           <pre class="mt-1 bg-black/20 p-2 rounded text-xs overflow-x-auto">
@@ -87,7 +87,7 @@ task,My Task,Task desc,todo,2,2025-09-01,api</pre
 
       <form @submit.prevent="submit" class="grid gap-3">
         <div>
-          <label class="block text-sm font-medium mb-1">Select file</label>
+          <label class="block text-sm font-medium mb-1">Selecionar arquivo</label>
           <input
             ref="fileInput"
             type="file"
@@ -106,7 +106,7 @@ task,My Task,Task desc,todo,2,2025-09-01,api</pre
           class="btn btn-primary"
           :disabled="!file || uploading"
         >
-          {{ uploading ? "Importing…" : "Import" }}
+          {{ uploading ? "Importando…" : "Importar" }}
         </button>
 
         <div

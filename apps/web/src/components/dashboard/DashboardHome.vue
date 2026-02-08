@@ -47,7 +47,7 @@ const goToTasks = () => router.push("/dashboard/tasks");
 // Open project details modal
 const viewProject = async (project: ProjectRow) => {
   const result = await ModalService.open(ProjectFormModal, {
-    title: `Edit Project: ${project.name}`,
+    title: `Editar Projeto: ${project.name}`,
     size: "md",
     data: { project },
   });
@@ -60,7 +60,7 @@ const viewProject = async (project: ProjectRow) => {
 // Open task details modal
 const viewTask = async (task: TaskRow) => {
   const result = await ModalService.open(TaskFormModal, {
-    title: `Edit Task: ${task.title}`,
+    title: `Editar Tarefa: ${task.title}`,
     size: "md",
     data: { task },
   });
@@ -75,7 +75,7 @@ const handleQuickAction = async (action: string) => {
   switch (action) {
     case "new-project": {
       const result = await ModalService.open(ProjectFormModal, {
-        title: "Create New Project",
+        title: "Criar Novo Projeto",
         size: "md",
       });
       if (result) {
@@ -85,7 +85,7 @@ const handleQuickAction = async (action: string) => {
     }
     case "new-task": {
       const result = await ModalService.open(TaskFormModal, {
-        title: "Create New Task",
+        title: "Criar Nova Tarefa",
         size: "md",
       });
       if (result) {
@@ -95,7 +95,7 @@ const handleQuickAction = async (action: string) => {
     }
     case "invite-user": {
       await ModalService.open(InviteUserModal, {
-        title: "Invite User",
+        title: "Convidar Usuário",
         size: "sm",
       });
       break;
@@ -112,21 +112,21 @@ const handleStatClick = async (stat: string) => {
   switch (stat) {
     case "total-projects":
       await ModalService.open(ProjectsTableModal, {
-        title: "All Projects",
+        title: "Todos os Projetos",
         size: "xl",
         data: { filter: "all" },
       });
       break;
     case "active-projects":
       await ModalService.open(ProjectsTableModal, {
-        title: "Active Projects",
+        title: "Projetos Ativos",
         size: "xl",
         data: { filter: "active" },
       });
       break;
     case "total-tasks":
       await ModalService.open(TasksTableModal, {
-        title: "All Tasks",
+        title: "Todas as Tarefas",
         size: "xl",
       });
       break;
@@ -142,10 +142,10 @@ const handleStatClick = async (stat: string) => {
     <!-- Page Header -->
     <header class="dashboard-home__header">
       <div class="dashboard-home__branding">
-        <h1 class="dashboard-home__page-title">Project Management Dashboard</h1>
+        <h1 class="dashboard-home__page-title">Painel de Gerenciamento de Projetos</h1>
         <p class="dashboard-home__page-desc">
-          Track, manage, and collaborate on all your projects and tasks in one
-          place.
+          Acompanhe, gerencie e colabore em todos os seus projetos e tarefas em
+          um só lugar.
         </p>
       </div>
     </header>
@@ -153,15 +153,15 @@ const handleStatClick = async (stat: string) => {
     <!-- Welcome Section -->
     <section class="dashboard-home__welcome">
       <div class="dashboard-home__welcome-text">
-        <h2 class="dashboard-home__title">Welcome back!</h2>
+        <h2 class="dashboard-home__title">Bem-vindo(a) de volta!</h2>
         <p class="dashboard-home__subtitle">
-          Here's what's happening with your projects today.
+          Veja o que está acontecendo com seus projetos hoje.
         </p>
       </div>
       <button
         class="btn btn-primary"
         type="button"
-        title="Refresh dashboard data"
+        title="Atualizar dados do painel"
         @click="load"
         :disabled="busy"
         :aria-busy="busy"
@@ -184,13 +184,13 @@ const handleStatClick = async (stat: string) => {
           />
         </svg>
         <span v-if="busy" class="btn__spinner"></span>
-        {{ busy ? "Loading..." : "Refresh" }}
+        {{ busy ? "Carregando..." : "Atualizar" }}
       </button>
     </section>
 
     <!-- Summary Stats Cards -->
     <section class="dashboard-home__section" aria-labelledby="stats-heading">
-      <h3 id="stats-heading" class="dashboard-home__section-title">Overview</h3>
+      <h3 id="stats-heading" class="dashboard-home__section-title">Visão Geral</h3>
       <DashboardSummaryCards
         :projects="stats.projects"
         :tasks="stats.tasks"
@@ -204,7 +204,7 @@ const handleStatClick = async (stat: string) => {
     <!-- Quick Actions -->
     <section class="dashboard-home__section" aria-labelledby="actions-heading">
       <h3 id="actions-heading" class="dashboard-home__section-title">
-        Quick Actions
+        Ações Rápidas
       </h3>
       <QuickActions @action="handleQuickAction" />
     </section>

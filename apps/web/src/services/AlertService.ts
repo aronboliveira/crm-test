@@ -1,5 +1,16 @@
 type AnyError = unknown;
 
+// Ensure the SweetAlert z-index CSS is injected once
+let _styleInjected = false;
+function injectSwalZIndex(): void {
+  if (_styleInjected) return;
+  _styleInjected = true;
+  const s = document.createElement("style");
+  s.textContent = `.swal-over-modal { z-index: 100000 !important; }
+.swal2-container.swal-over-modal-container { z-index: 99999 !important; }`;
+  document.head.appendChild(s);
+}
+
 // Helper to detect dark mode
 function isDarkMode(): boolean {
   return (
@@ -9,8 +20,9 @@ function isDarkMode(): boolean {
   );
 }
 
-// Get theme-aware SweetAlert config
+// Get theme-aware SweetAlert config (z-index always above modals)
 function getThemeConfig() {
+  injectSwalZIndex();
   const dark = isDarkMode();
   return {
     background: dark ? "#18181b" : "#ffffff",
@@ -18,6 +30,10 @@ function getThemeConfig() {
     confirmButtonColor: "#3b82f6",
     cancelButtonColor: dark ? "#3f3f46" : "#e2e8f0",
     iconColor: undefined, // use default per icon type
+    customClass: {
+      container: "swal-over-modal-container",
+      popup: "swal-over-modal",
+    },
   };
 }
 
@@ -46,7 +62,7 @@ export default class AlertService {
   static async error(title: string, err?: AnyError): Promise<void> {
     try {
       if (!title || typeof title !== "string") {
-        title = "An error occurred";
+        title = "Ocorreu um erro";
       }
       const Swal = await AlertService.#swal();
       const detail =
@@ -65,10 +81,10 @@ export default class AlertService {
   static async confirm(title: string, text: string): Promise<boolean> {
     try {
       if (!title || typeof title !== "string") {
-        title = "Confirm action";
+        title = "Confirmar ação";
       }
       if (!text || typeof text !== "string") {
-        text = "Are you sure?";
+        text = "Tem certeza?";
       }
       const Swal = await AlertService.#swal();
       const r = await Swal.fire({
@@ -76,7 +92,8 @@ export default class AlertService {
         title,
         text,
         showCancelButton: true,
-        confirmButtonText: "Confirm",
+        confirmButtonText: "Confirmar",
+        cancelButtonText: "Cancelar",
         ...getThemeConfig(),
       });
       return !!r.isConfirmed;

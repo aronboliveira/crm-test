@@ -23,12 +23,12 @@ const statusClass = (s: string) =>
   })[s] || "";
 
 const priorityLabel = (p: number) =>
-  ({ 1: "Critical", 2: "High", 3: "Medium", 4: "Low", 5: "Lowest" })[p] || "—";
+  ({ 1: "Crítica", 2: "Alta", 3: "Média", 4: "Baixa", 5: "Mínima" })[p] || "—";
 
 const fmtDate = (d: string | null) => {
   if (!d) return "—";
   try {
-    return new Date(d).toLocaleDateString("en-US", {
+    return new Date(d).toLocaleDateString("pt-BR", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -41,17 +41,17 @@ const fmtDate = (d: string | null) => {
 
 <template>
   <div class="ttm">
-    <p class="ttm__count">{{ rows.length }} total tasks</p>
+    <p class="ttm__count">{{ rows.length }} tarefas no total</p>
 
     <div class="ttm__table-wrap">
       <table class="data-table" v-if="rows.length">
         <thead>
           <tr>
-            <th>Title</th>
+            <th>Título</th>
             <th>Status</th>
-            <th>Priority</th>
-            <th>Assignee</th>
-            <th>Due</th>
+            <th>Prioridade</th>
+            <th>Responsável</th>
+            <th>Prazo</th>
           </tr>
         </thead>
         <tbody>
@@ -68,12 +68,12 @@ const fmtDate = (d: string | null) => {
           </tr>
         </tbody>
       </table>
-      <p v-else class="ttm__empty">No tasks found.</p>
+      <p v-else class="ttm__empty">Nenhuma tarefa encontrada.</p>
     </div>
 
     <footer class="ttm__footer">
       <button class="btn btn-secondary" type="button" @click="emit('close')">
-        Close
+        Fechar
       </button>
     </footer>
   </div>

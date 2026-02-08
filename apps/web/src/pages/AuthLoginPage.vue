@@ -39,7 +39,7 @@ void formEl;
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 540px;
   padding: clamp(1.5rem, 5vw, 2.5rem);
   background: var(--surface-1);
   border: 1px solid var(--border-1);
@@ -190,11 +190,11 @@ void formEl;
 
 <template>
   <div class="auth-page">
-    <section class="auth-card" aria-label="Authentication">
+    <section class="auth-card" aria-label="Autenticação">
       <header class="auth-header">
         <div class="auth-brand">
-          <span class="auth-brand-title">Project Management CRM</span>
-          <h1 class="auth-title">Sign in to your account</h1>
+          <span class="auth-brand-title">CRM de Gerenciamento de Projetos</span>
+          <h1 class="auth-title">Entrar na sua conta</h1>
         </div>
       </header>
 
@@ -202,11 +202,11 @@ void formEl;
         ref="formEl"
         :id="formId"
         class="auth-form"
-        aria-label="Login form"
+        aria-label="Formulário de login"
         @submit.prevent="submit"
       >
         <label class="auth-field">
-          <span class="auth-label">Email</span>
+          <span class="auth-label">E-mail</span>
           <input
             class="auth-input"
             type="email"
@@ -215,12 +215,12 @@ void formEl;
             required
             v-model="email"
             placeholder="admin@corp.local"
-            aria-label="Email"
+            aria-label="E-mail"
           />
         </label>
 
         <label class="auth-field">
-          <span class="auth-label">Password</span>
+          <span class="auth-label">Senha</span>
           <input
             class="auth-input"
             type="password"
@@ -229,7 +229,7 @@ void formEl;
             required
             v-model="password"
             placeholder="Admin#123"
-            aria-label="Password"
+            aria-label="Senha"
           />
         </label>
 
@@ -240,7 +240,7 @@ void formEl;
             :disabled="busy"
             :aria-disabled="busy"
           >
-            {{ busy ? "Signing in..." : "Sign in" }}
+            {{ busy ? "Entrando..." : "Entrar" }}
           </button>
         </div>
 
@@ -248,16 +248,16 @@ void formEl;
           <RouterLink
             class="auth-link"
             to="/forgot-password"
-            aria-label="Forgot your password"
+            aria-label="Esqueceu sua senha"
           >
-            Forgot your password?
+            Esqueceu sua senha?
           </RouterLink>
         </p>
 
         <div class="auth-hint">
-          <strong>Mock users (seed):</strong> admin@corp.local / Admin#123,
-          manager@corp.local / Manager#123, member@corp.local / Member#123,
-          viewer@corp.local / Viewer#123
+          <strong>Usuários de teste (seed):</strong> admin@corp.local /
+          Admin#123, manager@corp.local / Manager#123, member@corp.local /
+          Member#123, viewer@corp.local / Viewer#123
         </div>
       </form>
     </section>

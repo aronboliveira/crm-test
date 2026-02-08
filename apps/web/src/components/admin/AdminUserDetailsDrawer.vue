@@ -37,40 +37,44 @@ const {
       <aside class="admin-drawer__panel card" @click.stop>
         <header class="admin-drawer__head">
           <div class="grid gap-1">
-            <h2 class="text-lg font-black">User details</h2>
+            <h2 class="text-lg font-black">Detalhes do Usuário</h2>
             <p class="opacity-70" v-if="user">{{ user.email }}</p>
           </div>
 
           <button
             class="btn btn-ghost"
             type="button"
-            aria-label="Close drawer"
+            aria-label="Fechar"
             @click="close"
           >
-            Close
+            Fechar
           </button>
         </header>
 
         <div v-if="busy" class="p-3 opacity-70" aria-live="polite">
-          Loading...
+          Carregando...
         </div>
 
         <div v-else class="admin-drawer__body">
-          <section v-if="user" class="grid gap-2" aria-label="User info">
+          <section
+            v-if="user"
+            class="grid gap-2"
+            aria-label="Informações do usuário"
+          >
             <div class="grid gap-1">
-              <div class="opacity-70 text-sm">Role</div>
+              <div class="opacity-70 text-sm">Perfil</div>
               <div class="font-semibold">{{ user.roleKey }}</div>
             </div>
 
             <div class="grid gap-1">
-              <div class="opacity-70 text-sm">Token version</div>
+              <div class="opacity-70 text-sm">Versão do token</div>
               <div class="font-semibold">{{ user.tokenVersion }}</div>
             </div>
 
             <div class="grid gap-1">
-              <div class="opacity-70 text-sm">Password updated</div>
+              <div class="opacity-70 text-sm">Senha atualizada em</div>
               <div class="font-semibold">
-                {{ user.passwordUpdatedAt || "-" }}
+                {{ user.passwordUpdatedAt || "—" }}
               </div>
             </div>
 
@@ -78,34 +82,34 @@ const {
               <button
                 class="btn btn-ghost"
                 type="button"
-                aria-label="Change role"
+                aria-label="Alterar perfil"
                 @click="setRole(user)"
               >
-                Change role
+                Alterar perfil
               </button>
 
               <button
                 class="btn btn-ghost"
                 type="button"
-                aria-label="Force reset"
+                aria-label="Forçar redefinição"
                 @click="forceReset(user)"
               >
-                Force reset
+                Forçar redefinição
               </button>
               <button
                 class="btn btn-ghost"
                 type="button"
-                aria-label="Re-issue invite"
+                aria-label="Reenviar convite"
                 @click="reissueInvite(user)"
               >
-                Re-issue invite
+                Reenviar convite
               </button>
             </div>
 
             <div class="grid gap-1" v-if="user">
-              <div class="opacity-70 text-sm">Status</div>
+              <div class="opacity-70 text-sm">Situação</div>
               <div class="font-semibold">
-                {{ user.lockedAt ? "Locked" : "Active" }}
+                {{ user.lockedAt ? "Bloqueado" : "Ativo" }}
                 <span class="opacity-70" v-if="user.lockedAt"
                   >· {{ user.lockedAt }}</span
                 >
@@ -119,61 +123,64 @@ const {
               <button
                 class="btn btn-ghost"
                 type="button"
-                aria-label="Change role"
+                aria-label="Alterar perfil"
                 @click="setRole(user)"
               >
-                Change role
+                Alterar perfil
               </button>
               <button
                 class="btn btn-ghost"
                 type="button"
-                aria-label="Force reset"
+                aria-label="Forçar redefinição"
                 @click="forceReset(user)"
               >
-                Force reset
+                Forçar redefinição
               </button>
 
               <button
                 v-if="!user.lockedAt"
                 class="btn btn-primary"
                 type="button"
-                aria-label="Lock account"
+                aria-label="Bloquear conta"
                 @click="lockUser(user)"
               >
-                Lock
+                Bloquear
               </button>
 
               <button
                 v-else
                 class="btn btn-primary"
                 type="button"
-                aria-label="Unlock account"
+                aria-label="Desbloquear conta"
                 @click="unlockUser(user)"
               >
-                Unlock
+                Desbloquear
               </button>
             </div>
           </section>
 
-          <section class="grid gap-2 pt-3" aria-label="Recent audit events">
-            <h3 class="font-black">Recent audit</h3>
+          <section
+            class="grid gap-2 pt-3"
+            aria-label="Eventos de auditoria recentes"
+          >
+            <h3 class="font-black">Auditoria recente</h3>
 
             <div
               class="card p-2 overflow-auto"
               role="region"
-              aria-label="Audit list"
+              aria-label="Lista de auditoria"
             >
               <table
                 class="min-w-[860px] w-full"
                 role="table"
-                aria-label="User audit events"
+                aria-label="Eventos de auditoria do usuário"
               >
                 <thead>
                   <tr class="text-left opacity-80">
-                    <th class="py-2 pr-3">At</th>
-                    <th class="py-2 pr-3">Kind</th>
-                    <th class="py-2 pr-3">Actor</th>
-                    <th class="py-2 pr-3">Target</th>
+                    <th class="py-2 pr-3">Data</th>
+                    <th class="py-2 pr-3">Tipo</th>
+                    <th class="py-2 pr-3">Ator</th>
+                    <th class="py-2 pr-3">Alvo</th>
                     <th class="py-2 pr-3">Meta</th>
                   </tr>
                 </thead>
@@ -197,7 +204,7 @@ const {
 
                   <tr v-if="!audit.length">
                     <td colspan="5" class="py-6 opacity-70 text-center">
-                      No audit events.
+                      Nenhum evento de auditoria.
                     </td>
                   </tr>
                 </tbody>

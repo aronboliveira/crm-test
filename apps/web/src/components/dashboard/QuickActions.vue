@@ -6,37 +6,37 @@ const emit = defineEmits<{
 const quickActions = [
   {
     id: "new-project",
-    label: "New Project",
+    label: "Novo Projeto",
     icon: "folder-plus",
     color: "action--primary",
-    description: "Create a new project",
+    description: "Criar um novo projeto",
   },
   {
     id: "new-task",
-    label: "New Task",
+    label: "Nova Tarefa",
     icon: "plus-circle",
     color: "action--success",
-    description: "Add a task to a project",
+    description: "Adicionar uma tarefa a um projeto",
   },
   {
     id: "invite-user",
-    label: "Invite User",
+    label: "Convidar Usuário",
     icon: "user-plus",
     color: "action--info",
-    description: "Invite a team member",
+    description: "Convidar um membro da equipe",
   },
   {
     id: "view-reports",
-    label: "View Reports",
+    label: "Ver Relatórios",
     icon: "bar-chart",
     color: "action--warning",
-    description: "Analytics & reports",
+    description: "Análises e relatórios",
   },
 ];
 </script>
 
 <template>
-  <section class="quick-actions card" aria-label="Quick actions">
+  <section class="quick-actions card" aria-label="Ações rápidas">
     <header class="card-head">
       <h3 class="card-title">
         <svg
@@ -51,7 +51,7 @@ const quickActions = [
         >
           <polygon points="13,2 3,14 12,14 11,22 21,10 12,10 13,2" />
         </svg>
-        Quick Actions
+        Ações Rápidas
       </h3>
     </header>
 

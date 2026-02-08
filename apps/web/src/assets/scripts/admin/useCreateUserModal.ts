@@ -55,11 +55,17 @@ export function useCreateUserModal(
     busy.value = true;
     try {
       if (!model.value.email?.trim()) {
-        await AlertService.error("Failed to create user", "Email is required");
+        await AlertService.error(
+          "Falha ao criar usuário",
+          "E-mail é obrigatório",
+        );
         return;
       }
       if (!model.value.roleKey?.trim()) {
-        await AlertService.error("Failed to create user", "Role is required");
+        await AlertService.error(
+          "Falha ao criar usuário",
+          "Perfil é obrigatório",
+        );
         return;
       }
 
@@ -76,25 +82,25 @@ export function useCreateUserModal(
         : "";
       tok
         ? await Swal.fire({
-            title: "User created (dev invite token)",
+            title: "Usuário criado (token dev)",
             html: `<div style="text-align:left">
-                    <div><strong>Email:</strong> ${payload.email}</div>
-                    <div><strong>Role:</strong> ${payload.roleKey}</div>
-                    <div style="margin-top:8px"><strong>Reset token:</strong></div>
+                    <div><strong>E-mail:</strong> ${payload.email}</div>
+                    <div><strong>Perfil:</strong> ${payload.roleKey}</div>
+                    <div style="margin-top:8px"><strong>Token de redefinição:</strong></div>
                     <code style="display:block;word-break:break-all;padding:0.6rem;border-radius:0.6rem;background:rgba(0,0,0,0.06)">${tok}</code>
                   </div>`,
             confirmButtonText: "OK",
           })
         : await AlertService.success(
-            "User created",
-            "In production, deliver the invite via email.",
+            "Usuário criado",
+            "Em produção, envie o convite por e-mail.",
           );
 
       emit("created");
       close();
     } catch (e) {
       console.error("[CreateUserModal] submit failed:", e);
-      await AlertService.error("Failed to create user", e);
+      await AlertService.error("Falha ao criar usuário", e);
     } finally {
       busy.value = false;
     }

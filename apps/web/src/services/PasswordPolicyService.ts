@@ -30,13 +30,13 @@ export default class PasswordPolicyService {
       {
         key: "minLen",
         ok: a,
-        label: `At least ${PasswordPolicyService.#MIN} characters`,
+        label: `Mínimo de ${PasswordPolicyService.#MIN} caracteres`,
       },
-      { key: "lower", ok: b, label: "Contains a lowercase letter" },
-      { key: "upper", ok: d, label: "Contains an uppercase letter" },
-      { key: "digit", ok: e, label: "Contains a number" },
-      { key: "symbol", ok: f, label: "Contains a symbol" },
-      { key: "match", ok: g, label: "Passwords match" },
+      { key: "lower", ok: b, label: "Contém uma letra minúscula" },
+      { key: "upper", ok: d, label: "Contém uma letra maiúscula" },
+      { key: "digit", ok: e, label: "Contém um número" },
+      { key: "symbol", ok: f, label: "Contém um símbolo" },
+      { key: "match", ok: g, label: "As senhas coincidem" },
     ] as const;
   }
 

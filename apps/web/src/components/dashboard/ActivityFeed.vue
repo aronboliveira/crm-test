@@ -73,25 +73,25 @@ const generateMockActivities = (): ActivityItem[] => {
 
     switch (type) {
       case "project_created":
-        title = "New project created";
+        title = "Novo projeto criado";
         description =
           projectNames[Math.floor(Math.random() * projectNames.length)];
         break;
       case "task_completed":
-        title = "Task completed";
+        title = "Tarefa concluída";
         description = taskNames[Math.floor(Math.random() * taskNames.length)];
         break;
       case "task_created":
-        title = "New task added";
+        title = "Nova tarefa adicionada";
         description = taskNames[Math.floor(Math.random() * taskNames.length)];
         break;
       case "project_updated":
-        title = "Project updated";
+        title = "Projeto atualizado";
         description =
           projectNames[Math.floor(Math.random() * projectNames.length)];
         break;
       case "user_joined":
-        title = "User joined team";
+        title = "Usuário entrou na equipe";
         description = user.split("@")[0];
         break;
     }
@@ -119,14 +119,14 @@ const formatTime = (timestamp: string): string => {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 1) return "Agora mesmo";
+    if (diffMins < 60) return `${diffMins}min atrás`;
+    if (diffHours < 24) return `${diffHours}h atrás`;
+    if (diffDays < 7) return `${diffDays}d atrás`;
 
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return date.toLocaleDateString("pt-BR", { month: "short", day: "numeric" });
   } catch {
-    return "Unknown";
+    return "Desconhecido";
   }
 };
 
@@ -148,7 +148,7 @@ const activityColors: Record<ActivityItem["type"], string> = {
 </script>
 
 <template>
-  <section class="activity-feed card" aria-label="Recent activity">
+  <section class="activity-feed card" aria-label="Atividade recente">
     <header class="card-head">
       <h3 class="card-title">
         <svg
@@ -163,7 +163,7 @@ const activityColors: Record<ActivityItem["type"], string> = {
         >
           <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
         </svg>
-        Recent Activity
+        Atividade Recente
       </h3>
     </header>
 
@@ -172,7 +172,7 @@ const activityColors: Record<ActivityItem["type"], string> = {
       v-if="loading"
       class="activity-loading"
       role="status"
-      aria-label="Loading activity"
+      aria-label="Carregando atividade"
     >
       <div v-for="i in 4" :key="i" class="skeleton-activity">
         <div class="skeleton skeleton-icon"></div>
@@ -197,7 +197,7 @@ const activityColors: Record<ActivityItem["type"], string> = {
       >
         <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
       </svg>
-      <p class="activity-empty__text">No recent activity</p>
+      <p class="activity-empty__text">Nenhuma atividade recente</p>
     </div>
 
     <!-- Activity List -->

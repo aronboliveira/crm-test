@@ -20,8 +20,8 @@ const {
       <button
         class="topbar-menu-btn btn btn-ghost"
         type="button"
-        title="Open navigation menu"
-        aria-label="Open navigation"
+        title="Abrir menu de navegação"
+        aria-label="Abrir navegação"
         @click="toggleAside"
       >
         <svg
@@ -41,8 +41,8 @@ const {
       </button>
 
       <div class="topbar-brand">
-        <h1 class="topbar-title">Project Manager</h1>
-        <span class="topbar-subtitle">CRM Dashboard</span>
+        <h1 class="topbar-title">Gerenciador de Projetos</h1>
+        <span class="topbar-subtitle">Painel CRM</span>
       </div>
     </div>
 
@@ -52,8 +52,8 @@ const {
         class="btn btn-ghost topbar-action"
         type="button"
         @click="toggleTheme"
-        :title="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
-        :aria-label="isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+        :title="isDark ? 'Alternar para modo claro' : 'Alternar para modo escuro'"
+        :aria-label="isDark ? 'Alternar para modo claro' : 'Alternar para modo escuro'"
       >
         <svg
           v-if="isDark"
@@ -95,8 +95,8 @@ const {
       <button
         class="topbar-user"
         type="button"
-        title="View your profile"
-        aria-label="View your profile"
+        title="Ver seu perfil"
+        aria-label="Ver seu perfil"
         @click="openProfile"
       >
         <div class="topbar-user__avatar" :title="displayName">
@@ -114,8 +114,8 @@ const {
       <button
         class="btn btn-ghost topbar-action topbar-logout"
         type="button"
-        title="Sign out of your account"
-        aria-label="Sign out"
+        title="Sair da sua conta"
+        aria-label="Sair"
         @click="logout"
       >
         <svg
@@ -132,7 +132,7 @@ const {
           <polyline points="16,17 21,12 16,7" />
           <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
-        <span class="topbar-logout__text">Sign out</span>
+        <span class="topbar-logout__text">Sair</span>
       </button>
     </div>
   </header>

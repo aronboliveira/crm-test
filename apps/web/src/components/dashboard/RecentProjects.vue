@@ -31,16 +31,16 @@ const statusColors: Record<ProjectStatus, string> = {
 };
 
 const formatDate = (dateStr: string | null): string => {
-  if (!dateStr) return "No due date";
+  if (!dateStr) return "Sem data de entrega";
   try {
     const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleDateString("pt-BR", {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
   } catch {
-    return "Invalid date";
+    return "Data inválida";
   }
 };
 
@@ -57,7 +57,7 @@ import { computed } from "vue";
 </script>
 
 <template>
-  <section class="recent-projects card" aria-label="Recent projects">
+  <section class="recent-projects card" aria-label="Projetos recentes">
     <header class="card-head">
       <h3 class="card-title">
         <svg
@@ -74,16 +74,16 @@ import { computed } from "vue";
             d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
           />
         </svg>
-        Recent Projects
+        Projetos Recentes
       </h3>
       <button
         v-if="projects.length > max"
         class="btn btn-ghost btn-sm"
         type="button"
-        title="View all projects"
+        title="Ver todos os projetos"
         @click="emit('view-all')"
       >
-        View All ({{ projects.length }})
+        Ver Todos ({{ projects.length }})
       </button>
     </header>
 
@@ -92,7 +92,7 @@ import { computed } from "vue";
       v-if="loading"
       class="projects-loading"
       role="status"
-      aria-label="Loading projects"
+      aria-label="Carregando projetos"
     >
       <div v-for="i in 3" :key="i" class="skeleton-row">
         <div class="skeleton skeleton-text" style="width: 60%"></div>
@@ -117,9 +117,9 @@ import { computed } from "vue";
         />
         <line x1="9" y1="14" x2="15" y2="14" />
       </svg>
-      <p class="projects-empty__text">No projects yet</p>
+      <p class="projects-empty__text">Nenhum projeto ainda</p>
       <p class="projects-empty__hint">
-        Create your first project to get started
+        Crie seu primeiro projeto para começar
       </p>
     </div>
 
@@ -131,7 +131,7 @@ import { computed } from "vue";
         class="project-item"
         role="listitem"
         tabindex="0"
-        :title="`${project.name} (${project.status}) - Click to view details`"
+        :title="`${project.name} (${project.status}) - Clique para ver detalhes`"
         @click="emit('view-project', project)"
         @keydown.enter="emit('view-project', project)"
       >

@@ -38,8 +38,8 @@ onMounted(async () => {
 
 async function applyTemplate(tmpl: ProjectTemplate) {
   const ok = await AlertService.confirm(
-    "Create from Template",
-    `Create a new project using "${tmpl.name}"? This will create ${tmpl.tasks.length} tasks.`,
+    "Criar a partir do Modelo",
+    `Criar um novo projeto usando "${tmpl.name}"? Serão criadas ${tmpl.tasks.length} tarefas.`,
   );
   if (!ok) return;
 
@@ -71,12 +71,12 @@ async function applyTemplate(tmpl: ProjectTemplate) {
     }
 
     await AlertService.success(
-      "Created",
-      `Project and ${tmpl.tasks.length} tasks created from "${tmpl.name}".`,
+      "Criado",
+      `Projeto e ${tmpl.tasks.length} tarefas criados a partir de "${tmpl.name}".`,
     );
   } catch (e) {
     console.error("[TemplatesPage] Apply failed:", e);
-    await AlertService.error("Error", "Failed to create from template.");
+    await AlertService.error("Erro", "Falha ao criar a partir do modelo.");
   }
 }
 
@@ -86,15 +86,15 @@ function toggle(key: string) {
 </script>
 
 <template>
-  <section class="templates-page" aria-label="Project Templates">
+  <section class="templates-page" aria-label="Modelos de Projeto">
     <header class="mb-4">
-      <h1 class="text-xl font-black">Project Templates</h1>
+      <h1 class="text-xl font-black">Modelos de Projeto</h1>
       <p class="opacity-70 mt-1">
-        Start a new project from a template with pre-defined tasks.
+        Inicie um novo projeto a partir de um modelo com tarefas pré-definidas.
       </p>
     </header>
 
-    <div v-if="loading" class="opacity-50">Loading…</div>
+    <div v-if="loading" class="opacity-50">Carregando…</div>
 
     <div v-else class="grid gap-3 max-w-3xl">
       <div
@@ -112,7 +112,7 @@ function toggle(key: string) {
                 {{ tmpl.category }}
               </span>
               <span class="text-xs bg-white/10 px-1.5 py-0.5 rounded">
-                {{ tmpl.tasks.length }} tasks
+                {{ tmpl.tasks.length }} tarefas
               </span>
               <span
                 v-for="tag in tmpl.defaultTags.slice(0, 3)"
@@ -129,14 +129,14 @@ function toggle(key: string) {
               type="button"
               @click="toggle(tmpl.key)"
             >
-              {{ expanded === tmpl.key ? "Hide" : "Preview" }}
+              {{ expanded === tmpl.key ? "Ocultar" : "Visualizar" }}
             </button>
             <button
               class="btn btn-primary btn-sm"
               type="button"
               @click="applyTemplate(tmpl)"
             >
-              Use
+              Usar
             </button>
           </div>
         </div>
@@ -148,9 +148,9 @@ function toggle(key: string) {
           <table class="w-full text-xs">
             <thead>
               <tr class="opacity-60">
-                <th class="text-left py-1">Task</th>
-                <th class="text-left py-1">Priority</th>
-                <th class="text-left py-1">Offset</th>
+                <th class="text-left py-1">Tarefa</th>
+                <th class="text-left py-1">Prioridade</th>
+                <th class="text-left py-1">Deslocamento</th>
               </tr>
             </thead>
             <tbody>

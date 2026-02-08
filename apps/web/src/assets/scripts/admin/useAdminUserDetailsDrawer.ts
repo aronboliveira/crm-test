@@ -44,7 +44,7 @@ export function useAdminUserDetailsDrawer(
       details.value = await AdminApiService.userDetails(id);
     } catch (e) {
       console.error("[AdminUserDetailsDrawer] load failed:", e);
-      await AlertService.error("Failed to load user details", e);
+      await AlertService.error("Falha ao carregar detalhes do usuário", e);
       details.value = null;
     } finally {
       busy.value = false;
@@ -61,29 +61,29 @@ export function useAdminUserDetailsDrawer(
       }
 
       const { value, isConfirmed } = await Swal.fire({
-        title: "Change role",
+        title: "Alterar perfil",
         input: "select",
         inputOptions: {
-          viewer: "viewer",
-          member: "member",
-          manager: "manager",
-          admin: "admin",
+          viewer: "Visualizador",
+          member: "Membro",
+          manager: "Gerente",
+          admin: "Administrador",
         },
         inputValue: u.roleKey || "viewer",
         showCancelButton: true,
-        confirmButtonText: "Apply",
-        cancelButtonText: "Cancel",
+        confirmButtonText: "Aplicar",
+        cancelButtonText: "Cancelar",
       });
 
       if (!isConfirmed) return;
 
       await AdminApiService.userSetRole(u.id, String(value || "viewer"));
-      await AlertService.success("Role updated");
+      await AlertService.success("Perfil atualizado");
       emit("updated");
       await load();
     } catch (e) {
       console.error("[AdminUserDetailsDrawer] setRole failed:", e);
-      await AlertService.error("Failed to update role", e);
+      await AlertService.error("Falha ao atualizar perfil", e);
     }
   };
 
@@ -97,12 +97,12 @@ export function useAdminUserDetailsDrawer(
       }
 
       const { isConfirmed } = await Swal.fire({
-        title: "Force password reset?",
-        text: `This will invalidate sessions for "${u.email}".`,
+        title: "Forçar redefinição de senha?",
+        text: `Isso invalidará as sessões de "${u.email}".`,
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "Force reset",
-        cancelButtonText: "Cancel",
+        confirmButtonText: "Forçar redefinição",
+        cancelButtonText: "Cancelar",
       });
 
       if (!isConfirmed) return;
@@ -111,19 +111,19 @@ export function useAdminUserDetailsDrawer(
 
       if (r?.devResetToken) {
         await Swal.fire({
-          title: "Dev reset token",
+          title: "Token de redefinição (dev)",
           html: `<code style="display:block;word-break:break-all;padding:0.6rem;border-radius:0.6rem;background:rgba(0,0,0,0.06)">${String(r.devResetToken)}</code>`,
           confirmButtonText: "OK",
         });
       } else {
-        await AlertService.success("Force reset applied");
+        await AlertService.success("Redefinição forçada aplicada");
       }
 
       emit("updated");
       await load();
     } catch (e) {
       console.error("[AdminUserDetailsDrawer] forceReset failed:", e);
-      await AlertService.error("Failed to force reset", e);
+      await AlertService.error("Falha ao forçar redefinição", e);
     }
   };
 
@@ -134,56 +134,56 @@ export function useAdminUserDetailsDrawer(
 
   const lockUser = async (u: AdminUserRow) => {
     const { value, isConfirmed } = await Swal.fire({
-      title: "Lock account",
+      title: "Bloquear conta",
       input: "text",
-      inputLabel: "Reason (optional)",
-      inputPlaceholder: "e.g. suspected compromised account",
+      inputLabel: "Motivo (opcional)",
+      inputPlaceholder: "ex.: conta possivelmente comprometida",
       showCancelButton: true,
-      confirmButtonText: "Lock",
-      cancelButtonText: "Cancel",
+      confirmButtonText: "Bloquear",
+      cancelButtonText: "Cancelar",
     });
 
     if (!isConfirmed) return;
 
     try {
-      await AdminApiService.userLock(u.id, String(value || "locked"));
-      await AlertService.success("User locked");
+      await AdminApiService.userLock(u.id, String(value || "bloqueado"));
+      await AlertService.success("Usuário bloqueado");
       emit("updated");
       await load();
     } catch (e) {
-      await AlertService.error("Failed to lock user", e);
+      await AlertService.error("Falha ao bloquear usuário", e);
     }
   };
 
   const unlockUser = async (u: AdminUserRow) => {
     const { isConfirmed } = await Swal.fire({
-      title: "Unlock account?",
+      title: "Desbloquear conta?",
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: "Unlock",
-      cancelButtonText: "Cancel",
+      confirmButtonText: "Desbloquear",
+      cancelButtonText: "Cancelar",
     });
 
     if (!isConfirmed) return;
 
     try {
       await AdminApiService.userUnlock(u.id);
-      await AlertService.success("User unlocked");
+      await AlertService.success("Usuário desbloqueado");
       emit("updated");
       await load();
     } catch (e) {
-      await AlertService.error("Failed to unlock user", e);
+      await AlertService.error("Falha ao desbloquear usuário", e);
     }
   };
 
   const reissueInvite = async (u: AdminUserRow) => {
     const { isConfirmed } = await Swal.fire({
-      title: "Re-issue invite?",
-      text: `A new reset token will be generated for "${u.email}" (rate-limited).`,
+      title: "Reenviar convite?",
+      text: `Um novo token de redefinição será gerado para "${u.email}" (limitado por taxa).`,
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: "Re-issue",
-      cancelButtonText: "Cancel",
+      confirmButtonText: "Reenviar",
+      cancelButtonText: "Cancelar",
     });
 
     if (!isConfirmed) return;
@@ -194,22 +194,22 @@ export function useAdminUserDetailsDrawer(
 
       url
         ? await Swal.fire({
-            title: "Invite issued",
+            title: "Convite enviado",
             html: `<div style="text-align:left">
-                    <div><strong>Reset URL:</strong></div>
+                    <div><strong>URL de redefinição:</strong></div>
                     <code style="display:block;word-break:break-all;padding:0.6rem;border-radius:0.6rem;background:rgba(0,0,0,0.06)">${url}</code>
                   </div>`,
             confirmButtonText: "OK",
           })
         : await AlertService.success(
-            "Invite issued",
-            "Open Admin → Mock Mail to copy the URL.",
+            "Convite enviado",
+            "Abra Admin → E-mails Mock para copiar a URL.",
           );
 
       emit("updated");
       await load();
     } catch (e) {
-      await AlertService.error("Failed to re-issue invite", e);
+      await AlertService.error("Falha ao reenviar convite", e);
     }
   };
 

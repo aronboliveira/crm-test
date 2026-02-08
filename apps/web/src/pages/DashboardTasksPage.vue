@@ -73,7 +73,7 @@ const onReset = () => {
 
 const openCreateTask = async () => {
   const result = await ModalService.open(TaskFormModal, {
-    title: "Create New Task",
+    title: "Criar Nova Tarefa",
     size: "md",
   });
   if (result) await load(true);
@@ -81,7 +81,7 @@ const openCreateTask = async () => {
 
 const openEditTask = async (task: TaskRow) => {
   const result = await ModalService.open(TaskFormModal, {
-    title: `Edit Task: ${task.title}`,
+    title: `Editar Tarefa: ${task.title}`,
     size: "md",
     data: { task },
   });
@@ -90,43 +90,43 @@ const openEditTask = async (task: TaskRow) => {
 
 const deleteTask = async (task: TaskRow) => {
   const confirmed = await AlertService.confirm(
-    "Delete Task",
-    `Are you sure you want to delete "${task.title}"? This action cannot be undone.`,
+    "Excluir Tarefa",
+    `Tem certeza que deseja excluir "${task.title}"? Esta ação não pode ser desfeita.`,
   );
   if (!confirmed) return;
   try {
     await ApiClientService.tasks.remove(task.id);
-    await AlertService.success("Deleted", `"${task.title}" has been deleted.`);
+    await AlertService.success("Excluída", `"${task.title}" foi excluída.`);
     selectedTask.value = null;
     await load(true);
   } catch (e) {
     console.error("[DashboardTasksPage] Delete failed:", e);
-    await AlertService.error("Error", "Failed to delete task.");
+    await AlertService.error("Erro", "Falha ao excluir tarefa.");
   }
 };
 
 const taskStatusOptions = [
-  { label: "To Do", value: "todo" },
-  { label: "In Progress", value: "doing" },
-  { label: "Done", value: "done" },
-  { label: "Blocked", value: "blocked" },
+  { label: "A Fazer", value: "todo" },
+  { label: "Em Progresso", value: "doing" },
+  { label: "Concluído", value: "done" },
+  { label: "Bloqueado", value: "blocked" },
 ];
 
 const taskPriorityOptions = [
-  { label: "P1 — Critical", value: "1" },
-  { label: "P2 — High", value: "2" },
-  { label: "P3 — Medium", value: "3" },
-  { label: "P4 — Low", value: "4" },
-  { label: "P5 — Trivial", value: "5" },
+  { label: "P1 — Crítica", value: "1" },
+  { label: "P2 — Alta", value: "2" },
+  { label: "P3 — Média", value: "3" },
+  { label: "P4 — Baixa", value: "4" },
+  { label: "P5 — Mínima", value: "5" },
 ];
 </script>
 
 <template>
-  <section class="dt-page" aria-label="Tasks">
+  <section class="dt-page" aria-label="Tarefas">
     <header class="dt-actions">
       <div class="grid gap-1">
-        <h1 class="text-xl font-black">Tasks</h1>
-        <p class="opacity-70">Manage tasks across projects.</p>
+        <h1 class="text-xl font-black">Tarefas</h1>
+        <p class="opacity-70">Gerencie tarefas em todos os projetos.</p>
       </div>
 
       <div class="flex gap-2 items-center flex-wrap">
@@ -134,8 +134,8 @@ const taskPriorityOptions = [
           class="table-search-input"
           v-model="q"
           name="q"
-          aria-label="Search tasks"
-          placeholder="search"
+          aria-label="Buscar tarefas"
+          placeholder="buscar"
           @keyup.enter="load(true)"
         />
         <AdvancedFilter
@@ -146,7 +146,7 @@ const taskPriorityOptions = [
           @reset="onReset"
         />
         <button class="btn btn-primary" type="button" @click="openCreateTask">
-          + New
+          + Nova
         </button>
         <button
           class="btn btn-ghost"
@@ -155,7 +155,7 @@ const taskPriorityOptions = [
           :aria-disabled="loading"
           @click="load(true)"
         >
-          Reload
+          Recarregar
         </button>
       </div>
     </header>
@@ -165,19 +165,19 @@ const taskPriorityOptions = [
       <div
         class="dt-card card p-2 overflow-auto flex-1"
         role="region"
-        aria-label="Tasks table"
+        aria-label="Tabela de tarefas"
       >
-        <table class="min-w-[1200px] w-full" role="table" aria-label="Tasks">
+        <table class="min-w-[1200px] w-full" role="table" aria-label="Tarefas">
           <thead>
             <tr class="text-left opacity-80">
-              <th class="py-2 pr-3">Title</th>
-              <th class="py-2 pr-3">Project</th>
-              <th class="py-2 pr-3">Assignee</th>
+              <th class="py-2 pr-3">Título</th>
+              <th class="py-2 pr-3">Projeto</th>
+              <th class="py-2 pr-3">Responsável</th>
               <th class="py-2 pr-3">Status</th>
-              <th class="py-2 pr-3">Priority</th>
+              <th class="py-2 pr-3">Prioridade</th>
               <th class="py-2 pr-3">Tags</th>
-              <th class="py-2 pr-3">Due</th>
-              <th class="py-2 pr-3">Actions</th>
+              <th class="py-2 pr-3">Entrega</th>
+              <th class="py-2 pr-3">Ações</th>
             </tr>
           </thead>
 
@@ -211,18 +211,18 @@ const taskPriorityOptions = [
                   <button
                     class="btn btn-ghost btn-sm"
                     type="button"
-                    aria-label="Edit task"
+                    aria-label="Editar tarefa"
                     @click.stop="openEditTask(t!)"
                   >
-                    Edit
+                    Editar
                   </button>
                   <button
                     class="btn btn-ghost btn-sm text-danger"
                     type="button"
-                    aria-label="Delete task"
+                    aria-label="Excluir tarefa"
                     @click.stop="deleteTask(t!)"
                   >
-                    Delete
+                    Excluir
                   </button>
                 </div>
               </td>
@@ -230,7 +230,7 @@ const taskPriorityOptions = [
 
             <tr v-if="!filteredRows.length && !loading">
               <td colspan="8" class="py-6 opacity-70 text-center">
-                {{ error || "No tasks." }}
+                {{ error || "Nenhuma tarefa." }}
               </td>
             </tr>
           </tbody>
@@ -241,7 +241,7 @@ const taskPriorityOptions = [
       <aside
         v-if="selectedTask"
         class="dt-detail card p-3 overflow-y-auto"
-        aria-label="Task detail"
+        aria-label="Detalhes da tarefa"
       >
         <div class="flex justify-between items-start mb-2">
           <h2 class="font-bold text-sm">{{ selectedTask.title }}</h2>
@@ -270,12 +270,12 @@ const taskPriorityOptions = [
       <button
         class="btn btn-ghost"
         type="button"
-        aria-label="Load more"
+        aria-label="Carregar mais"
         :disabled="!nextCursor || loading"
         :aria-disabled="!nextCursor || loading"
         @click="more"
       >
-        Load more
+        Carregar mais
       </button>
     </div>
   </section>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent, onMounted } from "vue";
+import { ref, computed, defineAsyncComponent, onMounted, watch } from "vue";
 import { z } from "zod";
 import DOMPurify from "dompurify";
 import type {
@@ -30,6 +30,9 @@ const busy = ref(false);
 // Templates
 const templates = ref<{ key: string; name: string }[]>([]);
 
+// All available tag labels for datalist
+const allTagLabels = ref<string[]>([]);
+
 // Smart autocomplete
 const nameAutocomplete = new SmartAutocompleteService("project-name");
 const nameSuggestions = ref<string[]>([]);
@@ -44,15 +47,33 @@ const deadlineAt = ref((props.project as any)?.deadlineAt?.split("T")[0] ?? "");
 const tags = ref<string[]>((props.project as any)?.tags ?? []);
 const templateKey = ref((props.project as any)?.templateKey ?? "");
 
+// Code validation state
+const codeError = ref("");
+const codeChecking = ref(false);
+const codeValid = ref(false);
+
+// Date validation
+const dateError = ref("");
+
 onMounted(async () => {
   try {
-    const res = await ApiClientService.templates.list();
-    templates.value = (res.data ?? []).map((t: any) => ({
+    const [tplRes, tagRes] = await Promise.all([
+      ApiClientService.templates.list().catch(() => ({ data: [] })),
+      ApiClientService.tags.list().catch(() => []),
+    ]);
+    templates.value = ((tplRes as any).data ?? tplRes ?? []).map((t: any) => ({
       key: t.key,
       name: t.name,
     }));
+    const tagArr = Array.isArray(tagRes)
+      ? tagRes
+      : ((tagRes as any)?.data ?? []);
+    allTagLabels.value = tagArr
+      .map((t: any) => t.label || t.key || "")
+      .filter(Boolean);
   } catch {
     templates.value = [];
+    allTagLabels.value = [];
   }
 });
 
@@ -71,19 +92,99 @@ const pickSuggestion = (s: string) => {
   showSuggestions.value = false;
 };
 
+// Validate code format client-side
+const CODE_RE = /^[A-Z0-9_-]+$/i;
+
+const validateCode = () => {
+  const v = code.value.trim();
+  if (!v) {
+    codeError.value = "Código é obrigatório";
+    codeValid.value = false;
+    return;
+  }
+  if (v.length < 2) {
+    codeError.value = "Código deve ter ao menos 2 caracteres";
+    codeValid.value = false;
+    return;
+  }
+  if (v.length > 20) {
+    codeError.value = "Código deve ter no máximo 20 caracteres";
+    codeValid.value = false;
+    return;
+  }
+  if (!CODE_RE.test(v)) {
+    codeError.value = "Apenas letras, números, hifens e underscores";
+    codeValid.value = false;
+    return;
+  }
+  codeError.value = "";
+  codeValid.value = true;
+};
+
+// Check if code already exists in DB (debounced)
+let codeCheckTimer: ReturnType<typeof setTimeout> | null = null;
+const checkCodeExists = async () => {
+  validateCode();
+  if (codeError.value) return;
+  const upperCode = code.value.trim().toUpperCase();
+  // Skip check when editing the same project
+  if (isEditing.value && props.project?.code?.toUpperCase() === upperCode) {
+    codeValid.value = true;
+    return;
+  }
+  codeChecking.value = true;
+  try {
+    const res = await ApiClientService.projects.list();
+    const items: any[] = Array.isArray(res) ? res : ((res as any)?.data ?? []);
+    const existing = items.find(
+      (p: any) => (p.code || "").toUpperCase() === upperCode,
+    );
+    if (existing) {
+      codeError.value = `Código "${upperCode}" já existe. Deseja editar o projeto existente?`;
+      codeValid.value = false;
+    } else {
+      codeValid.value = true;
+    }
+  } catch {
+    // Network error, allow submission anyway
+    codeValid.value = true;
+  } finally {
+    codeChecking.value = false;
+  }
+};
+
+const onCodeInput = () => {
+  validateCode();
+  if (codeCheckTimer) clearTimeout(codeCheckTimer);
+  if (!codeError.value) {
+    codeCheckTimer = setTimeout(checkCodeExists, 600);
+  }
+};
+
+// Date validation
+const validateDates = () => {
+  if (dueAt.value && deadlineAt.value && dueAt.value > deadlineAt.value) {
+    dateError.value = "A data de entrega não pode ser após o prazo final";
+  } else {
+    dateError.value = "";
+  }
+};
+
+watch([dueAt, deadlineAt], validateDates);
+
 // Zod schema for validation
 const projectSchema = z.object({
   name: z
     .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(100, "Name must be less than 100 characters"),
+    .min(2, "Nome deve ter ao menos 2 caracteres")
+    .max(100, "Nome deve ter no máximo 100 caracteres"),
   code: z
     .string()
-    .min(2, "Code must be at least 2 characters")
-    .max(20, "Code must be less than 20 characters")
+    .min(2, "Código deve ter ao menos 2 caracteres")
+    .max(20, "Código deve ter no máximo 20 caracteres")
     .regex(
       /^[A-Z0-9_-]+$/i,
-      "Code must be alphanumeric with dashes/underscores",
+      "Código deve conter apenas letras, números, hifens e underscores",
     ),
   status: z.enum(["planned", "active", "blocked", "done", "archived"]),
   dueAt: z.string().optional(),
@@ -93,19 +194,31 @@ const projectSchema = z.object({
 });
 
 const statusOptions: { value: ProjectStatus; label: string }[] = [
-  { value: "planned", label: "Planned" },
-  { value: "active", label: "Active" },
-  { value: "blocked", label: "Blocked" },
-  { value: "done", label: "Done" },
-  { value: "archived", label: "Archived" },
+  { value: "planned", label: "Planejado" },
+  { value: "active", label: "Ativo" },
+  { value: "blocked", label: "Bloqueado" },
+  { value: "done", label: "Concluído" },
+  { value: "archived", label: "Arquivado" },
 ];
 
 const sanitize = (input: string): string => {
   return DOMPurify.sanitize(input.trim(), { ALLOWED_TAGS: [] });
 };
 
+// Form validity computed
+const formValid = computed(() => {
+  return (
+    name.value.trim().length >= 2 &&
+    code.value.trim().length >= 2 &&
+    CODE_RE.test(code.value.trim()) &&
+    !codeError.value &&
+    !dateError.value &&
+    !codeChecking.value
+  );
+});
+
 const handleSubmit = async () => {
-  if (busy.value) return;
+  if (busy.value || !formValid.value) return;
 
   busy.value = true;
   try {
@@ -124,17 +237,28 @@ const handleSubmit = async () => {
     const result = projectSchema.safeParse(sanitizedData);
     if (!result.success) {
       const firstError = (result.error as any).errors?.[0] ?? {
-        message: "Validation failed",
+        message: "Falha na validação",
       };
-      await AlertService.error("Validation Error", firstError.message);
+      await AlertService.error("Erro de Validação", firstError.message);
+      return;
+    }
+
+    // Date consistency check
+    if (
+      result.data.dueAt &&
+      result.data.deadlineAt &&
+      result.data.dueAt > result.data.deadlineAt
+    ) {
+      await AlertService.error(
+        "Erro de Data",
+        "A data de entrega não pode ser após o prazo final.",
+      );
       return;
     }
 
     if (isEditing.value && props.project?.id) {
-      // Update existing project via API
       await ApiClientService.projects.update(props.project.id, result.data);
     } else {
-      // Create new project via API
       await ApiClientService.projects.create(result.data);
     }
 
@@ -151,14 +275,15 @@ const handleSubmit = async () => {
     };
 
     await AlertService.success(
-      isEditing.value ? "Project Updated" : "Project Created",
-      `"${projectData.name}" has been ${isEditing.value ? "updated" : "created"}.`,
+      isEditing.value ? "Projeto Atualizado" : "Projeto Criado",
+      `"${projectData.name}" foi ${isEditing.value ? "atualizado" : "criado"} com sucesso.`,
     );
 
     emit("confirm", projectData);
+    emit("close");
   } catch (e) {
     console.error("[ProjectFormModal] Submit failed:", e);
-    await AlertService.error("Error", e);
+    await AlertService.error("Erro", e);
   } finally {
     busy.value = false;
   }
@@ -166,15 +291,15 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <form class="project-form" @submit.prevent="handleSubmit">
+  <form class="project-form" novalidate @submit.prevent="handleSubmit">
     <div class="form-field" style="position: relative">
-      <label class="form-label" for="project-name">Project Name</label>
+      <label class="form-label" for="project-name">Nome do Projeto</label>
       <input
         id="project-name"
         v-model="name"
         class="form-input"
         type="text"
-        placeholder="My Awesome Project"
+        placeholder="Meu Projeto Incrível"
         required
         minlength="2"
         maxlength="100"
@@ -196,19 +321,40 @@ const handleSubmit = async () => {
     </div>
 
     <div class="form-field">
-      <label class="form-label" for="project-code">Project Code</label>
+      <label class="form-label" for="project-code">Código do Projeto</label>
       <input
         id="project-code"
         v-model="code"
         class="form-input"
+        :class="{
+          'form-input--error': codeError,
+          'form-input--valid':
+            codeValid && !codeError && code.trim().length >= 2,
+        }"
         type="text"
         placeholder="PROJ-001"
         required
         minlength="2"
         maxlength="20"
-        pattern="[A-Za-z0-9_-]+"
+        autocomplete="off"
+        @input="onCodeInput"
+        @blur="checkCodeExists"
       />
-      <span class="form-hint">Alphanumeric, dashes, underscores only</span>
+      <span v-if="codeChecking" class="form-hint form-hint--info">
+        Verificando código...
+      </span>
+      <span v-else-if="codeError" class="form-hint form-hint--error">
+        {{ codeError }}
+      </span>
+      <span
+        v-else-if="codeValid && code.trim().length >= 2"
+        class="form-hint form-hint--success"
+      >
+        Código disponível ✓
+      </span>
+      <span v-else class="form-hint"
+        >Apenas letras, números, hifens e underscores</span
+      >
     </div>
 
     <div class="form-field">
@@ -225,19 +371,19 @@ const handleSubmit = async () => {
     </div>
 
     <div class="form-field" v-if="templates.length && !isEditing">
-      <label class="form-label" for="project-template">Template</label>
+      <label class="form-label" for="project-template">Modelo</label>
       <select id="project-template" v-model="templateKey" class="form-select">
-        <option value="">None</option>
+        <option value="">Nenhum</option>
         <option v-for="t in templates" :key="t.key" :value="t.key">
           {{ t.name }}
         </option>
       </select>
-      <span class="form-hint">Pre-fills project from a template blueprint</span>
+      <span class="form-hint">Preenche o projeto a partir de um modelo</span>
     </div>
 
     <div class="form-row">
       <div class="form-field">
-        <label class="form-label" for="project-due">Due Date</label>
+        <label class="form-label" for="project-due">Data de Entrega</label>
         <input
           id="project-due"
           v-model="dueAt"
@@ -247,7 +393,7 @@ const handleSubmit = async () => {
       </div>
 
       <div class="form-field">
-        <label class="form-label" for="project-deadline">Deadline</label>
+        <label class="form-label" for="project-deadline">Prazo Final</label>
         <input
           id="project-deadline"
           v-model="deadlineAt"
@@ -256,10 +402,16 @@ const handleSubmit = async () => {
         />
       </div>
     </div>
+    <span v-if="dateError" class="form-hint form-hint--error">{{
+      dateError
+    }}</span>
 
     <div class="form-field">
       <label class="form-label">Tags</label>
       <TagPicker v-model="tags" />
+      <datalist id="tag-suggestions">
+        <option v-for="t in allTagLabels" :key="t" :value="t" />
+      </datalist>
     </div>
 
     <div class="form-actions">
@@ -269,16 +421,21 @@ const handleSubmit = async () => {
         :disabled="busy"
         @click="emit('close')"
       >
-        Cancel
+        Cancelar
       </button>
       <button
         class="btn btn-primary"
         type="submit"
-        :disabled="busy"
+        :disabled="busy || !formValid"
         :aria-busy="busy"
+        :aria-disabled="busy || !formValid"
       >
         {{
-          busy ? "Saving..." : isEditing ? "Update Project" : "Create Project"
+          busy
+            ? "Salvando..."
+            : isEditing
+              ? "Atualizar Projeto"
+              : "Criar Projeto"
         }}
       </button>
     </div>
@@ -340,6 +497,31 @@ const handleSubmit = async () => {
 .form-hint {
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.form-hint--error {
+  color: var(--danger, #ef4444);
+  font-weight: 600;
+}
+
+.form-hint--success {
+  color: var(--success, #16a34a);
+  font-weight: 600;
+}
+
+.form-hint--info {
+  color: var(--info, #0ea5e9);
+  font-style: italic;
+}
+
+.form-input--error {
+  border-color: var(--danger, #ef4444) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
+}
+
+.form-input--valid {
+  border-color: var(--success, #16a34a) !important;
+  box-shadow: 0 0 0 2px rgba(22, 163, 106, 0.15);
 }
 
 .form-row {

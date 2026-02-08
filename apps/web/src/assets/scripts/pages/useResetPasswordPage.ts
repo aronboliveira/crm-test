@@ -41,7 +41,7 @@ export function useResetPasswordPage() {
       }
     } catch (e) {
       console.error("[ResetPasswordPage] pasteToken failed:", e);
-      await AlertService.error("Clipboard read failed", e);
+      await AlertService.error("Falha ao ler a área de transferência", e);
     }
   };
 
@@ -51,12 +51,12 @@ export function useResetPasswordPage() {
     busy.value = true;
     try {
       if (!token.value?.trim()) {
-        await AlertService.error("Reset failed", "Token is required");
+        await AlertService.error("Falha na redefinição", "O token é obrigatório");
         return;
       }
 
       if (!password.value?.trim()) {
-        await AlertService.error("Reset failed", "Password is required");
+        await AlertService.error("Falha na redefinição", "A senha é obrigatória");
         return;
       }
 
@@ -66,16 +66,16 @@ export function useResetPasswordPage() {
       FormFieldPersistenceService.clear(FORM_ID, "session");
 
       await Swal.fire({
-        title: "Password updated",
-        text: "You can now login with the new password.",
+        title: "Senha atualizada",
+        text: "Agora você pode entrar com a nova senha.",
         icon: "success",
-        confirmButtonText: "Go to login",
+        confirmButtonText: "Ir para login",
       });
 
       await router.push("/login");
     } catch (e) {
       console.error("[ResetPasswordPage] submit failed:", e);
-      await AlertService.error("Reset failed", e);
+      await AlertService.error("Falha na redefinição", e);
     } finally {
       busy.value = false;
     }
@@ -96,7 +96,7 @@ export function useResetPasswordPage() {
       }
 
       FormFieldPersistenceService.bind(fm, FORM_ID, "session");
-      DOMValidator.ensureAttr(fm, "aria-label", "Reset password form");
+      DOMValidator.ensureAttr(fm, "aria-label", "Formulário de redefinição de senha");
     } catch (e) {
       console.error("[ResetPasswordPage] mount failed:", e);
     }

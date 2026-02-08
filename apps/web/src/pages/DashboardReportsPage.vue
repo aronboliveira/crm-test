@@ -16,7 +16,7 @@ const goBack = () => router.push("/dashboard");
       <button
         class="reports-page__back btn btn-ghost"
         type="button"
-        aria-label="Back to dashboard"
+        aria-label="Voltar ao painel"
         @click="goBack"
       >
         <svg
@@ -32,15 +32,15 @@ const goBack = () => router.push("/dashboard");
           <line x1="19" y1="12" x2="5" y2="12" />
           <polyline points="12 19 5 12 12 5" />
         </svg>
-        Back to Dashboard
+        Voltar ao Painel
       </button>
-      <h1 class="reports-page__title">Reports &amp; Analytics</h1>
+      <h1 class="reports-page__title">Relatórios &amp; Análises</h1>
     </header>
 
     <Suspense>
       <ReportsView />
       <template #fallback>
-        <p class="reports-page__loading">Loading reports…</p>
+        <p class="reports-page__loading">Carregando relatórios…</p>
       </template>
     </Suspense>
   </div>

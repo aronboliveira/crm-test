@@ -45,18 +45,18 @@ export function useAuthLoginPage() {
     busy.value = true;
     try {
       if (!email.value?.trim()) {
-        await AlertService.error("Login failed", "Email is required");
+        await AlertService.error("Falha no login", "O e-mail é obrigatório");
         return;
       }
       if (!password.value?.trim()) {
-        await AlertService.error("Login failed", "Password is required");
+        await AlertService.error("Falha no login", "A senha é obrigatória");
         return;
       }
 
       await authStore.login({ email: email.value, password: password.value });
 
       if (!authStore.isLoggedIn) {
-        await AlertService.error("Login failed", "Token not received");
+        await AlertService.error("Falha no login", "Token não recebido");
         return;
       }
 
@@ -65,7 +65,7 @@ export function useAuthLoginPage() {
       await router.replace(next);
     } catch (e) {
       console.error("[AuthLoginPage] submit failed:", e);
-      await AlertService.error("Login failed", e);
+      await AlertService.error("Falha no login", e);
     } finally {
       busy.value = false;
     }

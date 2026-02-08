@@ -33,11 +33,11 @@ const statusColors: Record<TaskStatus, string> = {
 };
 
 const priorityLabels: Record<TaskPriority, string> = {
-  1: "Critical",
-  2: "High",
-  3: "Medium",
-  4: "Low",
-  5: "Lowest",
+  1: "Crítica",
+  2: "Alta",
+  3: "Média",
+  4: "Baixa",
+  5: "Mínima",
 };
 
 const priorityClasses: Record<TaskPriority, string> = {
@@ -49,24 +49,24 @@ const priorityClasses: Record<TaskPriority, string> = {
 };
 
 const formatDate = (dateStr: string | null): string => {
-  if (!dateStr) return "No due date";
+  if (!dateStr) return "Sem data de entrega";
   try {
     const date = new Date(dateStr);
     const now = new Date();
     const diffMs = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return `${Math.abs(diffDays)}d overdue`;
-    if (diffDays === 0) return "Due today";
-    if (diffDays === 1) return "Due tomorrow";
-    if (diffDays <= 7) return `Due in ${diffDays}d`;
+    if (diffDays < 0) return `${Math.abs(diffDays)}d atrasada`;
+    if (diffDays === 0) return "Vence hoje";
+    if (diffDays === 1) return "Vence amanhã";
+    if (diffDays <= 7) return `Vence em ${diffDays}d`;
 
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleDateString("pt-BR", {
       month: "short",
       day: "numeric",
     });
   } catch {
-    return "Invalid date";
+    return "Data inválida";
   }
 };
 
@@ -81,7 +81,7 @@ const isOverdue = (dueAt: string | null, status: TaskStatus): boolean => {
 </script>
 
 <template>
-  <section class="recent-tasks card" aria-label="Recent tasks">
+  <section class="recent-tasks card" aria-label="Tarefas recentes">
     <header class="card-head">
       <h3 class="card-title">
         <svg
@@ -97,16 +97,16 @@ const isOverdue = (dueAt: string | null, status: TaskStatus): boolean => {
           <path d="M9 11l3 3L22 4" />
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
         </svg>
-        Recent Tasks
+        Tarefas Recentes
       </h3>
       <button
         v-if="tasks.length > max"
         class="btn btn-ghost btn-sm"
         type="button"
-        title="View all tasks"
+        title="Ver todas as tarefas"
         @click="emit('view-all')"
       >
-        View All ({{ tasks.length }})
+        Ver Todas ({{ tasks.length }})
       </button>
     </header>
 
@@ -115,7 +115,7 @@ const isOverdue = (dueAt: string | null, status: TaskStatus): boolean => {
       v-if="loading"
       class="tasks-loading"
       role="status"
-      aria-label="Loading tasks"
+      aria-label="Carregando tarefas"
     >
       <div v-for="i in 3" :key="i" class="skeleton-row">
         <div class="skeleton-row__left">
@@ -141,8 +141,8 @@ const isOverdue = (dueAt: string | null, status: TaskStatus): boolean => {
         <path d="M9 11l3 3L22 4" />
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
-      <p class="tasks-empty__text">No tasks yet</p>
-      <p class="tasks-empty__hint">Create tasks to track your work</p>
+      <p class="tasks-empty__text">Nenhuma tarefa ainda</p>
+      <p class="tasks-empty__hint">Crie tarefas para acompanhar seu trabalho</p>
     </div>
 
     <!-- Tasks List -->
@@ -154,7 +154,7 @@ const isOverdue = (dueAt: string | null, status: TaskStatus): boolean => {
         :class="{ 'task-item--done': task.status === 'done' }"
         role="listitem"
         tabindex="0"
-        :title="`${task.title} (${priorityLabels[task.priority]}) - Click to view details`"
+        :title="`${task.title} (${priorityLabels[task.priority]}) - Clique para ver detalhes`"
         @click="emit('view-task', task)"
         @keydown.enter="emit('view-task', task)"
       >

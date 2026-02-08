@@ -62,6 +62,72 @@ const completionRate = computed(() => {
   );
 });
 
+/* ---- Extra KPIs ---- */
+const blockedTasks = computed(
+  () => tasks.value.filter((t) => t.status === "blocked").length,
+);
+
+const overdueTasks = computed(() => {
+  const now = new Date().toISOString().split("T")[0];
+  return tasks.value.filter(
+    (t) => t.dueAt && t.dueAt.split("T")[0] < now && t.status !== "done",
+  ).length;
+});
+
+const avgTasksPerProject = computed(() => {
+  const pCount = projects.value.length;
+  if (!pCount) return 0;
+  return Math.round((tasks.value.length / pCount) * 10) / 10;
+});
+
+const uniqueAssignees = computed(() => {
+  const set = new Set<string>();
+  for (const t of tasks.value) {
+    if (t.assigneeEmail) set.add(t.assigneeEmail.toLowerCase());
+  }
+  return set.size;
+});
+
+const projectCompletionRates = computed(() => {
+  const map: Record<string, { total: number; done: number }> = {};
+  for (const t of tasks.value) {
+    if (!t.projectId) continue;
+    if (!map[t.projectId]) map[t.projectId] = { total: 0, done: 0 };
+    map[t.projectId].total++;
+    if (t.status === "done") map[t.projectId].done++;
+  }
+  return map;
+});
+
+/* ---- Assignee workload ---- */
+const assigneeWorkload = computed(() => {
+  const map: Record<string, number> = {};
+  for (const t of tasks.value) {
+    const email = t.assigneeEmail || "Não atribuído";
+    map[email] = (map[email] || 0) + 1;
+  }
+  return Object.entries(map)
+    .map(([email, count]) => ({ email, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+});
+
+/* ---- Due this week ---- */
+const dueThisWeek = computed(() => {
+  const now = new Date();
+  const weekEnd = new Date(now);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  const nowStr = now.toISOString().split("T")[0];
+  const endStr = weekEnd.toISOString().split("T")[0];
+  return tasks.value.filter(
+    (t) =>
+      t.dueAt &&
+      t.dueAt.split("T")[0] >= nowStr &&
+      t.dueAt.split("T")[0] <= endStr &&
+      t.status !== "done",
+  ).length;
+});
+
 /* ---- Chart helpers ---- */
 const statusColors: Record<string, string> = {
   planned: "#f59e0b",
@@ -73,6 +139,16 @@ const statusColors: Record<string, string> = {
   doing: "#0ea5e9",
 };
 
+const statusLabels: Record<string, string> = {
+  planned: "Planejado",
+  active: "Ativo",
+  blocked: "Bloqueado",
+  done: "Concluído",
+  archived: "Arquivado",
+  todo: "A Fazer",
+  doing: "Em Progresso",
+};
+
 const priorityColors: Record<number, string> = {
   1: "#ef4444",
   2: "#f97316",
@@ -82,11 +158,11 @@ const priorityColors: Record<number, string> = {
 };
 
 const priorityLabels: Record<number, string> = {
-  1: "Critical",
-  2: "High",
-  3: "Medium",
-  4: "Low",
-  5: "Lowest",
+  1: "Crítica",
+  2: "Alta",
+  3: "Média",
+  4: "Baixa",
+  5: "Mínima",
 };
 
 /* ---- Donut arcs ---- */
@@ -95,12 +171,13 @@ type Slice = { label: string; value: number; color: string; pct: number };
 function makeSlices(
   map: Record<string, number>,
   colors: Record<string, string>,
+  labels?: Record<string, string>,
 ): Slice[] {
   const total = Object.values(map).reduce((s, v) => s + v, 0) || 1;
   return Object.entries(map)
     .filter(([, v]) => v > 0)
     .map(([k, v]) => ({
-      label: k,
+      label: labels?.[k] || k,
       value: v,
       color: colors[k] || "#64748b",
       pct: Math.round((v / total) * 100),
@@ -143,10 +220,10 @@ function buildArcs(slices: Slice[]) {
 }
 
 const projectArcs = computed(() =>
-  buildArcs(makeSlices(projectStatusCounts.value, statusColors)),
+  buildArcs(makeSlices(projectStatusCounts.value, statusColors, statusLabels)),
 );
 const taskArcs = computed(() =>
-  buildArcs(makeSlices(taskStatusCounts.value, statusColors)),
+  buildArcs(makeSlices(taskStatusCounts.value, statusColors, statusLabels)),
 );
 
 /* ---- Bar chart data ---- */
@@ -163,36 +240,61 @@ const priorityBars = computed(() => {
   }));
 });
 
+const workloadBars = computed(() => {
+  const max = Math.max(...assigneeWorkload.value.map((a) => a.count), 1);
+  return assigneeWorkload.value.map((a) => ({
+    label: a.email.length > 22 ? a.email.slice(0, 20) + "…" : a.email,
+    count: a.count,
+    pct: Math.round((a.count / max) * 100),
+    color: "#6366f1",
+  }));
+});
+
+/* ---- Date formatting ---- */
+const fmtDate = (iso: string | null) => {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+};
+
 /* ---- Summary table data ---- */
 const projectTableRows = computed(() =>
-  projects.value.map((p) => ({
-    code: p.code,
-    name: p.name,
-    status: p.status,
-    owner: p.ownerEmail,
-    due: p.dueAt
-      ? new Date(p.dueAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "—",
-  })),
+  projects.value.map((p) => {
+    const stats = projectCompletionRates.value[p.id] || {
+      total: 0,
+      done: 0,
+    };
+    const pctDone = stats.total
+      ? Math.round((stats.done / stats.total) * 100)
+      : 0;
+    return {
+      code: p.code,
+      name: p.name,
+      status: p.status,
+      statusLabel: statusLabels[p.status] || p.status,
+      owner: p.ownerEmail,
+      due: fmtDate(p.dueAt),
+      tasks: stats.total,
+      pctDone,
+    };
+  }),
 );
 
 const taskTableRows = computed(() =>
   tasks.value.map((t) => ({
     title: t.title,
     status: t.status,
+    statusLabel: statusLabels[t.status] || t.status,
     priority: priorityLabels[t.priority] || "—",
-    assignee: t.assigneeEmail,
-    due: t.dueAt
-      ? new Date(t.dueAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : "—",
+    assignee: t.assigneeEmail || "—",
+    due: fmtDate(t.dueAt),
   })),
 );
 </script>
@@ -204,7 +306,7 @@ const taskTableRows = computed(() =>
       <button
         class="btn btn-ghost reports__back"
         type="button"
-        title="Back to dashboard"
+        title="Voltar ao painel"
         @click="goBack"
       >
         <svg
@@ -219,12 +321,12 @@ const taskTableRows = computed(() =>
         >
           <polyline points="15,18 9,12 15,6" />
         </svg>
-        Back
+        Voltar
       </button>
       <div>
-        <h1 class="reports__title">Reports &amp; Analytics</h1>
+        <h1 class="reports__title">Relatórios &amp; Análises</h1>
         <p class="reports__subtitle">
-          Overview of your project and task management metrics.
+          Visão geral das métricas de gerenciamento de projetos e tarefas.
         </p>
       </div>
     </header>
@@ -232,22 +334,48 @@ const taskTableRows = computed(() =>
     <!-- KPI row -->
     <section class="reports__kpis">
       <div class="kpi-card">
-        <span class="kpi-card__label">Total Projects</span>
+        <span class="kpi-card__label">Total de Projetos</span>
         <span class="kpi-card__value">{{ projects.length }}</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-card__label">Total Tasks</span>
+        <span class="kpi-card__label">Total de Tarefas</span>
         <span class="kpi-card__value">{{ tasks.length }}</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-card__label">Completion Rate</span>
+        <span class="kpi-card__label">Taxa de Conclusão</span>
         <span class="kpi-card__value">{{ completionRate }}%</span>
       </div>
       <div class="kpi-card">
-        <span class="kpi-card__label">Active Projects</span>
+        <span class="kpi-card__label">Projetos Ativos</span>
         <span class="kpi-card__value">{{
           projectStatusCounts["active"] || 0
         }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Tarefas Bloqueadas</span>
+        <span class="kpi-card__value kpi-card__value--danger">{{
+          blockedTasks
+        }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Tarefas Atrasadas</span>
+        <span class="kpi-card__value kpi-card__value--danger">{{
+          overdueTasks
+        }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Vencem esta Semana</span>
+        <span class="kpi-card__value kpi-card__value--warn">{{
+          dueThisWeek
+        }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Membros Ativos</span>
+        <span class="kpi-card__value">{{ uniqueAssignees }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-card__label">Média Tarefas/Projeto</span>
+        <span class="kpi-card__value">{{ avgTasksPerProject }}</span>
       </div>
     </section>
 
@@ -255,13 +383,13 @@ const taskTableRows = computed(() =>
     <section class="reports__charts">
       <!-- Project Status Donut -->
       <div class="chart-card card">
-        <h3 class="chart-card__title">Project Status</h3>
+        <h3 class="chart-card__title">Status dos Projetos</h3>
         <div class="chart-card__body">
           <svg
             viewBox="0 0 180 180"
             class="donut-chart"
             role="img"
-            aria-label="Project status distribution"
+            aria-label="Distribuição de status dos projetos"
           >
             <circle
               cx="90"
@@ -296,7 +424,7 @@ const taskTableRows = computed(() =>
               text-anchor="middle"
               class="donut-chart__center-label"
             >
-              projects
+              projetos
             </text>
           </svg>
           <ul class="chart-legend">
@@ -318,13 +446,13 @@ const taskTableRows = computed(() =>
 
       <!-- Task Status Donut -->
       <div class="chart-card card">
-        <h3 class="chart-card__title">Task Status</h3>
+        <h3 class="chart-card__title">Status das Tarefas</h3>
         <div class="chart-card__body">
           <svg
             viewBox="0 0 180 180"
             class="donut-chart"
             role="img"
-            aria-label="Task status distribution"
+            aria-label="Distribuição de status das tarefas"
           >
             <circle
               cx="90"
@@ -359,7 +487,7 @@ const taskTableRows = computed(() =>
               text-anchor="middle"
               class="donut-chart__center-label"
             >
-              tasks
+              tarefas
             </text>
           </svg>
           <ul class="chart-legend">
@@ -381,7 +509,7 @@ const taskTableRows = computed(() =>
 
       <!-- Task Priority Bar Chart -->
       <div class="chart-card card">
-        <h3 class="chart-card__title">Tasks by Priority</h3>
+        <h3 class="chart-card__title">Tarefas por Prioridade</h3>
         <div class="bar-chart">
           <div
             v-for="bar in priorityBars"
@@ -398,7 +526,33 @@ const taskTableRows = computed(() =>
             <span class="bar-chart__count">{{ bar.count }}</span>
           </div>
           <p v-if="!priorityBars.length" class="bar-chart__empty">
-            No task data
+            Sem dados de tarefas
+          </p>
+        </div>
+      </div>
+
+      <!-- Assignee Workload Bar Chart -->
+      <div class="chart-card card">
+        <h3 class="chart-card__title">Carga por Responsável</h3>
+        <div class="bar-chart">
+          <div
+            v-for="bar in workloadBars"
+            :key="bar.label"
+            class="bar-chart__row"
+          >
+            <span class="bar-chart__label bar-chart__label--wide">{{
+              bar.label
+            }}</span>
+            <div class="bar-chart__track">
+              <div
+                class="bar-chart__fill"
+                :style="{ width: bar.pct + '%', background: bar.color }"
+              ></div>
+            </div>
+            <span class="bar-chart__count">{{ bar.count }}</span>
+          </div>
+          <p v-if="!workloadBars.length" class="bar-chart__empty">
+            Nenhum responsável atribuído
           </p>
         </div>
       </div>
@@ -407,16 +561,18 @@ const taskTableRows = computed(() =>
     <!-- Data Tables -->
     <section class="reports__tables">
       <div class="table-section card">
-        <h3 class="chart-card__title">Projects</h3>
+        <h3 class="chart-card__title">Projetos</h3>
         <div class="table-section__wrap">
           <table class="data-table" v-if="projectTableRows.length">
             <thead>
               <tr>
-                <th>Code</th>
-                <th>Name</th>
+                <th>Código</th>
+                <th>Nome</th>
                 <th>Status</th>
-                <th>Owner</th>
-                <th>Due</th>
+                <th>Responsável</th>
+                <th>Entrega</th>
+                <th>Tarefas</th>
+                <th>Progresso</th>
               </tr>
             </thead>
             <tbody>
@@ -425,29 +581,41 @@ const taskTableRows = computed(() =>
                 <td>{{ p.name }}</td>
                 <td>
                   <span class="badge" :class="'badge--' + p.status">{{
-                    p.status
+                    p.statusLabel
                   }}</span>
                 </td>
                 <td class="td-muted">{{ p.owner }}</td>
                 <td class="td-muted">{{ p.due }}</td>
+                <td class="td-muted">{{ p.tasks }}</td>
+                <td>
+                  <div class="progress-cell">
+                    <div class="progress-cell__track">
+                      <div
+                        class="progress-cell__fill"
+                        :style="{ width: p.pctDone + '%' }"
+                      ></div>
+                    </div>
+                    <span class="progress-cell__text">{{ p.pctDone }}%</span>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
-          <p v-else class="table-section__empty">No projects.</p>
+          <p v-else class="table-section__empty">Nenhum projeto.</p>
         </div>
       </div>
 
       <div class="table-section card">
-        <h3 class="chart-card__title">Tasks</h3>
+        <h3 class="chart-card__title">Tarefas</h3>
         <div class="table-section__wrap">
           <table class="data-table" v-if="taskTableRows.length">
             <thead>
               <tr>
-                <th>Title</th>
+                <th>Título</th>
                 <th>Status</th>
-                <th>Priority</th>
-                <th>Assignee</th>
-                <th>Due</th>
+                <th>Prioridade</th>
+                <th>Responsável</th>
+                <th>Entrega</th>
               </tr>
             </thead>
             <tbody>
@@ -455,7 +623,7 @@ const taskTableRows = computed(() =>
                 <td class="td-strong">{{ t.title }}</td>
                 <td>
                   <span class="badge" :class="'badge--' + t.status">{{
-                    t.status
+                    t.statusLabel
                   }}</span>
                 </td>
                 <td>{{ t.priority }}</td>
@@ -464,7 +632,7 @@ const taskTableRows = computed(() =>
               </tr>
             </tbody>
           </table>
-          <p v-else class="table-section__empty">No tasks.</p>
+          <p v-else class="table-section__empty">Nenhuma tarefa.</p>
         </div>
       </div>
     </section>
@@ -744,5 +912,56 @@ const taskTableRows = computed(() =>
 .badge--doing {
   background: var(--info-soft);
   color: var(--info);
+}
+
+/* Progress cell */
+.progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.progress-cell__track {
+  flex: 1;
+  height: 0.5rem;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.progress-cell__fill {
+  height: 100%;
+  background: var(--accent, #6366f1);
+  border-radius: 4px;
+  transition: width 400ms ease;
+}
+
+.progress-cell__text {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-1);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+/* KPI value variants */
+.kpi-card__value--danger {
+  color: var(--danger, #ef4444);
+}
+
+.kpi-card__value--warn {
+  color: var(--warning, #f59e0b);
+}
+
+/* Wider label for workload chart */
+.bar-chart__label--wide {
+  min-width: 9rem;
+  width: 9rem;
+  text-align: right;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

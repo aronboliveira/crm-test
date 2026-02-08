@@ -19,24 +19,24 @@ const {
   <div class="auth-page min-h-[100dvh] grid place-items-center p-4">
     <section
       class="auth-card card max-w-[620px] w-full"
-      aria-label="Reset password"
+      aria-label="Redefinir senha"
     >
       <header class="card-head">
-        <h1 class="card-title">Reset password</h1>
+        <h1 class="card-title">Redefinir senha</h1>
       </header>
 
       <form
         ref="formEl"
         :id="formId"
         class="grid gap-3"
-        aria-label="Reset password form"
+        aria-label="Formulário de redefinição de senha"
         @submit.prevent="submit"
       >
         <p class="auth-helper" aria-live="polite">
           <span v-if="email"
-            >For: <strong>{{ email }}</strong></span
+            >Para: <strong>{{ email }}</strong></span
           >
-          <span v-else>Provide a valid token to reset your password.</span>
+          <span v-else>Forneça um token válido para redefinir sua senha.</span>
         </p>
 
         <label v-if="!tokenEffective" class="grid gap-1">
@@ -47,13 +47,13 @@ const {
             name="token"
             required
             v-model="token"
-            aria-label="Reset token"
-            placeholder="Paste token here"
+            aria-label="Token de redefinição"
+            placeholder="Cole o token aqui"
           />
         </label>
 
         <label class="grid gap-1">
-          <span class="font-semibold">New password</span>
+          <span class="font-semibold">Nova senha</span>
           <input
             class="auth-input table-search-input"
             type="password"
@@ -61,13 +61,13 @@ const {
             autocomplete="new-password"
             required
             v-model="password"
-            aria-label="New password"
-            placeholder="At least 10 chars with upper/lower/number/symbol"
+            aria-label="Nova senha"
+            placeholder="Mín. 10 caracteres com maiúscula/minúscula/número/símbolo"
           />
         </label>
 
         <label class="grid gap-1">
-          <span class="font-semibold">Confirm password</span>
+          <span class="font-semibold">Confirmar senha</span>
           <input
             class="auth-input table-search-input"
             type="password"
@@ -75,7 +75,7 @@ const {
             autocomplete="new-password"
             required
             v-model="confirm"
-            aria-label="Confirm password"
+            aria-label="Confirmar senha"
           />
         </label>
 
@@ -83,8 +83,8 @@ const {
           <RouterLink
             class="btn btn-ghost"
             to="/login"
-            aria-label="Back to login"
-            >Back</RouterLink
+            aria-label="Voltar ao login"
+            >Voltar</RouterLink
           >
           <PasswordChecklist :password="password" :confirm="confirm" />
 
@@ -94,7 +94,7 @@ const {
             :disabled="!canSubmit"
             :aria-disabled="!canSubmit"
           >
-            {{ busy ? "Saving..." : "Save password" }}
+            {{ busy ? "Salvando..." : "Salvar senha" }}
           </button>
         </div>
 
@@ -102,9 +102,9 @@ const {
           <RouterLink
             class="auth-link"
             to="/forgot-password"
-            aria-label="Request a new reset link"
+            aria-label="Solicitar novo link de redefinição"
           >
-            Request a new reset link
+            Solicitar novo link de redefinição
           </RouterLink>
         </p>
       </form>

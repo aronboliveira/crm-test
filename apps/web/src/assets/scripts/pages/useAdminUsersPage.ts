@@ -91,7 +91,7 @@ export function useAdminUsersPage() {
       saveState();
     } catch (e) {
       console.error("[AdminUsersPage] load failed:", e);
-      await AlertService.error("Failed to load users", e);
+      await AlertService.error("Falha ao carregar usuários", e);
     } finally {
       busy.value = false;
     }
@@ -107,28 +107,28 @@ export function useAdminUsersPage() {
       }
 
       const { value, isConfirmed } = await Swal.fire({
-        title: "Change role",
+        title: "Alterar perfil",
         input: "select",
         inputOptions: {
-          viewer: "viewer",
-          member: "member",
-          manager: "manager",
-          admin: "admin",
+          viewer: "Visualizador",
+          member: "Membro",
+          manager: "Gerente",
+          admin: "Administrador",
         },
         inputValue: u.roleKey || "viewer",
         showCancelButton: true,
-        confirmButtonText: "Apply",
-        cancelButtonText: "Cancel",
+        confirmButtonText: "Aplicar",
+        cancelButtonText: "Cancelar",
       });
 
       if (!isConfirmed) return;
 
       await AdminApiService.userSetRole(u.id, String(value || "viewer"));
-      await AlertService.success("Role updated");
+      await AlertService.success("Perfil atualizado");
       await load(true);
     } catch (e) {
       console.error("[AdminUsersPage] setRole failed:", e);
-      await AlertService.error("Failed to update role", e);
+      await AlertService.error("Falha ao atualizar perfil", e);
     }
   };
 
@@ -142,12 +142,12 @@ export function useAdminUsersPage() {
       }
 
       const { isConfirmed } = await Swal.fire({
-        title: "Force password reset?",
-        text: `This will invalidate sessions for "${u.email}".`,
+        title: "Forçar redefinição de senha?",
+        text: `Isso invalidará as sessões de "${u.email}".`,
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "Force reset",
-        cancelButtonText: "Cancel",
+        confirmButtonText: "Forçar redefinição",
+        cancelButtonText: "Cancelar",
       });
 
       if (!isConfirmed) return;
@@ -157,21 +157,21 @@ export function useAdminUsersPage() {
       if (r?.devResetToken) {
         const tok = String(r.devResetToken);
         await Swal.fire({
-          title: "Dev reset token",
+          title: "Token de redefinição (dev)",
           html: `<code style="display:block;word-break:break-all;padding:0.6rem;border-radius:0.6rem;background:rgba(0,0,0,0.06)">${tok}</code>`,
           confirmButtonText: "OK",
         });
       } else {
         await AlertService.success(
-          "Force reset applied",
-          "If in production, an email delivery should be used.",
+          "Redefinição forçada aplicada",
+          "Em produção, um e-mail de recuperação deve ser enviado.",
         );
       }
 
       await load(true);
     } catch (e) {
       console.error("[AdminUsersPage] forceReset failed:", e);
-      await AlertService.error("Failed to force reset", e);
+      await AlertService.error("Falha ao forçar redefinição", e);
     }
   };
 
