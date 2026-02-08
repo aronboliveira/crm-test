@@ -8,6 +8,7 @@ import {
   Body,
   Req,
   UseGuards,
+  HttpCode,
 } from '@nestjs/common';
 import { Permissions } from '../../rbac/permissions.decorator';
 import JwtAuthGuard from '../../auth/guards/jwt-auth.guard';
@@ -128,6 +129,7 @@ export default class UserAdminController {
   }
 
   @Post('/check-duplicate')
+  @HttpCode(200)
   @Permissions('users.manage')
   async checkDuplicate(@Body() body: { email?: string; username?: string }) {
     return this.s.checkDuplicate(body?.email, body?.username);

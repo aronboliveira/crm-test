@@ -159,8 +159,7 @@ export function useAdminUserDetailsDrawer(
         0,
         Math.floor(Math.random() * 4) + 3,
       );
-      userWorkRole.value =
-        MOCK_WORK_ROLES[roleKey] || "Colaborador";
+      userWorkRole.value = MOCK_WORK_ROLES[roleKey] || "Colaborador";
     } catch (e) {
       console.error("[AdminUserDetailsDrawer] load failed:", e);
       await AlertService.error("Falha ao carregar detalhes do usuário", e);

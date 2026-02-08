@@ -23,13 +23,15 @@ const statusClass = (s: string) =>
   })[s] || "";
 
 const statusLabel = (s: string) =>
-  ({
-    todo: "A Fazer",
-    doing: "Em Progresso",
-    blocked: "Bloqueado",
-    done: "Concluído",
-    archived: "Arquivado",
-  } as Record<string, string>)[s] || s;
+  (
+    ({
+      todo: "A Fazer",
+      doing: "Em Progresso",
+      blocked: "Bloqueado",
+      done: "Concluído",
+      archived: "Arquivado",
+    }) as Record<string, string>
+  )[s] || s;
 
 const priorityLabel = (p: number) =>
   ({ 1: "Crítica", 2: "Alta", 3: "Média", 4: "Baixa", 5: "Mínima" })[p] || "—";

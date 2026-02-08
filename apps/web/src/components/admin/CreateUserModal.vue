@@ -4,8 +4,22 @@ import { useCreateUserModal } from "../../assets/scripts/admin/useCreateUserModa
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: "close"): void; (e: "created"): void }>();
 
-const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phoneOk, departmentOk, fieldErrors, duplicateError, canSubmit, close, submit } =
-  useCreateUserModal(props, emit);
+const {
+  FORM_ID,
+  model,
+  busy,
+  emailOk,
+  usernameOk,
+  firstNameOk,
+  lastNameOk,
+  phoneOk,
+  departmentOk,
+  fieldErrors,
+  duplicateError,
+  canSubmit,
+  close,
+  submit,
+} = useCreateUserModal(props, emit);
 </script>
 
 <template>
@@ -44,7 +58,9 @@ const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phon
         >
           <div class="cu-row">
             <label class="grid gap-1 cu-field">
-              <span class="font-semibold">E-mail <span class="cu-req">*</span></span>
+              <span class="font-semibold"
+                >E-mail <span class="cu-req">*</span></span
+              >
               <input
                 class="table-search-input"
                 v-model="model.email"
@@ -55,12 +71,18 @@ const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phon
                 :aria-invalid="!emailOk && !!model.email"
                 placeholder="user@corp.local"
               />
-              <small class="cu-error" v-if="fieldErrors.email">{{ fieldErrors.email }}</small>
-              <small class="cu-error" v-else-if="!emailOk && model.email">Insira um e-mail válido.</small>
+              <small class="cu-error" v-if="fieldErrors.email">{{
+                fieldErrors.email
+              }}</small>
+              <small class="cu-error" v-else-if="!emailOk && model.email"
+                >Insira um e-mail válido.</small
+              >
             </label>
 
             <label class="grid gap-1 cu-field">
-              <span class="font-semibold">Nome de Usuário <span class="cu-req">*</span></span>
+              <span class="font-semibold"
+                >Nome de Usuário <span class="cu-req">*</span></span
+              >
               <input
                 class="table-search-input"
                 v-model="model.username"
@@ -70,8 +92,12 @@ const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phon
                 :aria-invalid="!usernameOk && !!model.username"
                 placeholder="joao.silva"
               />
-              <small class="cu-error" v-if="fieldErrors.username">{{ fieldErrors.username }}</small>
-              <small class="cu-hint" v-else>3–30 caracteres. Inicie com letra.</small>
+              <small class="cu-error" v-if="fieldErrors.username">{{
+                fieldErrors.username
+              }}</small>
+              <small class="cu-hint" v-else
+                >3–30 caracteres. Inicie com letra.</small
+              >
             </label>
           </div>
 
@@ -86,7 +112,9 @@ const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phon
                 :aria-invalid="!firstNameOk"
                 placeholder="João"
               />
-              <small class="cu-error" v-if="fieldErrors.firstName">{{ fieldErrors.firstName }}</small>
+              <small class="cu-error" v-if="fieldErrors.firstName">{{
+                fieldErrors.firstName
+              }}</small>
             </label>
 
             <label class="grid gap-1 cu-field">
@@ -99,7 +127,9 @@ const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phon
                 :aria-invalid="!lastNameOk"
                 placeholder="Silva"
               />
-              <small class="cu-error" v-if="fieldErrors.lastName">{{ fieldErrors.lastName }}</small>
+              <small class="cu-error" v-if="fieldErrors.lastName">{{
+                fieldErrors.lastName
+              }}</small>
             </label>
           </div>
 
@@ -115,7 +145,9 @@ const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phon
                 :aria-invalid="!phoneOk"
                 placeholder="+55 (11) 99999-0000"
               />
-              <small class="cu-error" v-if="fieldErrors.phone">{{ fieldErrors.phone }}</small>
+              <small class="cu-error" v-if="fieldErrors.phone">{{
+                fieldErrors.phone
+              }}</small>
             </label>
 
             <label class="grid gap-1 cu-field">
@@ -128,12 +160,16 @@ const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phon
                 :aria-invalid="!departmentOk"
                 placeholder="Engenharia"
               />
-              <small class="cu-error" v-if="fieldErrors.department">{{ fieldErrors.department }}</small>
+              <small class="cu-error" v-if="fieldErrors.department">{{
+                fieldErrors.department
+              }}</small>
             </label>
           </div>
 
           <label class="grid gap-1">
-            <span class="font-semibold">Perfil <span class="cu-req">*</span></span>
+            <span class="font-semibold"
+              >Perfil <span class="cu-req">*</span></span
+            >
             <select
               class="table-search-input"
               v-model="model.roleKey"
@@ -145,7 +181,9 @@ const { FORM_ID, model, busy, emailOk, usernameOk, firstNameOk, lastNameOk, phon
               <option value="manager">Gerente</option>
               <option value="admin">Administrador</option>
             </select>
-            <small class="cu-error" v-if="fieldErrors.roleKey">{{ fieldErrors.roleKey }}</small>
+            <small class="cu-error" v-if="fieldErrors.roleKey">{{
+              fieldErrors.roleKey
+            }}</small>
           </label>
 
           <p class="cu-dup-error" v-if="duplicateError">{{ duplicateError }}</p>

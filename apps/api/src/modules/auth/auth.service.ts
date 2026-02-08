@@ -84,7 +84,8 @@ export default class AuthService {
         tv: typeof user.tokenVersion === 'number' ? user.tokenVersion : 1,
       };
 
-      return { accessToken: this.jwt.sign(payload), user };
+      const { passwordHash: _, ...safeUser } = user._doc ?? user;
+      return { accessToken: this.jwt.sign(payload), user: safeUser };
     } catch (error) {
       this.logger.error('Error creating login token:', error);
       throw error;

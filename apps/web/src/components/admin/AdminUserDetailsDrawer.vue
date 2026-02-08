@@ -29,29 +29,41 @@ const {
 } = useAdminUserDetailsDrawer(props, emit);
 
 const statusLabel = (s: string) =>
-  ({
-    planned: "Planejado",
-    active: "Ativo",
-    blocked: "Bloqueado",
-    done: "Concluído",
-    archived: "Arquivado",
-    todo: "A Fazer",
-    doing: "Em Progresso",
-  } as Record<string, string>)[s] || s;
+  (
+    ({
+      planned: "Planejado",
+      active: "Ativo",
+      blocked: "Bloqueado",
+      done: "Concluído",
+      archived: "Arquivado",
+      todo: "A Fazer",
+      doing: "Em Progresso",
+    }) as Record<string, string>
+  )[s] || s;
 
 const statusBadge = (s: string) =>
-  ({
-    planned: "drawer-badge--warn",
-    active: "drawer-badge--success",
-    blocked: "drawer-badge--danger",
-    done: "drawer-badge--info",
-    archived: "drawer-badge--muted",
-    todo: "drawer-badge--muted",
-    doing: "drawer-badge--info",
-  } as Record<string, string>)[s] || "";
+  (
+    ({
+      planned: "drawer-badge--warn",
+      active: "drawer-badge--success",
+      blocked: "drawer-badge--danger",
+      done: "drawer-badge--info",
+      archived: "drawer-badge--muted",
+      todo: "drawer-badge--muted",
+      doing: "drawer-badge--info",
+    }) as Record<string, string>
+  )[s] || "";
 
 const priorityLabel = (p: number) =>
-  ({ 1: "Crítica", 2: "Alta", 3: "Média", 4: "Baixa", 5: "Mínima" } as Record<number, string>)[p] || "—";
+  (
+    ({
+      1: "Crítica",
+      2: "Alta",
+      3: "Média",
+      4: "Baixa",
+      5: "Mínima",
+    }) as Record<number, string>
+  )[p] || "—";
 
 const fmtDate = (d: string | null) => {
   if (!d) return "—";
@@ -149,7 +161,8 @@ const fmtDate = (d: string | null) => {
                   v-for="c in userCompetencies"
                   :key="c"
                   class="drawer-tag"
-                >{{ c }}</span>
+                  >{{ c }}</span
+                >
               </div>
             </div>
 
@@ -235,7 +248,8 @@ const fmtDate = (d: string | null) => {
                       <span
                         class="drawer-badge"
                         :class="statusBadge(p.status)"
-                      >{{ statusLabel(p.status) }}</span>
+                        >{{ statusLabel(p.status) }}</span
+                      >
                     </td>
                     <td class="py-2 pr-3 opacity-80">{{ p.role }}</td>
                   </tr>
@@ -280,7 +294,8 @@ const fmtDate = (d: string | null) => {
                       <span
                         class="drawer-badge"
                         :class="statusBadge(t.status)"
-                      >{{ statusLabel(t.status) }}</span>
+                        >{{ statusLabel(t.status) }}</span
+                      >
                     </td>
                     <td class="py-2 pr-3">{{ priorityLabel(t.priority) }}</td>
                     <td class="py-2 pr-3 opacity-80">{{ fmtDate(t.dueAt) }}</td>

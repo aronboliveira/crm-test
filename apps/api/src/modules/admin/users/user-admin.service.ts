@@ -106,18 +106,21 @@ export default class UserAdminService {
       }
 
       // Username validation
-      const username = typeof body?.username === 'string' ? body.username.trim() : '';
+      const username =
+        typeof body?.username === 'string' ? body.username.trim() : '';
       if (username && !UserAdminService.USERNAME_RE.test(username)) {
         throw new BadRequestException('Invalid username format');
       }
 
       // Optional fields with regex validation
-      const firstName = typeof body?.firstName === 'string' ? body.firstName.trim() : '';
+      const firstName =
+        typeof body?.firstName === 'string' ? body.firstName.trim() : '';
       if (firstName && !UserAdminService.NAME_RE.test(firstName)) {
         throw new BadRequestException('Invalid first name format');
       }
 
-      const lastName = typeof body?.lastName === 'string' ? body.lastName.trim() : '';
+      const lastName =
+        typeof body?.lastName === 'string' ? body.lastName.trim() : '';
       if (lastName && !UserAdminService.NAME_RE.test(lastName)) {
         throw new BadRequestException('Invalid last name format');
       }
@@ -127,7 +130,8 @@ export default class UserAdminService {
         throw new BadRequestException('Invalid phone format');
       }
 
-      const department = typeof body?.department === 'string' ? body.department.trim() : '';
+      const department =
+        typeof body?.department === 'string' ? body.department.trim() : '';
       if (department && !UserAdminService.DEPARTMENT_RE.test(department)) {
         throw new BadRequestException('Invalid department format');
       }

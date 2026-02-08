@@ -34,13 +34,15 @@ const statusClass = (s: string) =>
   })[s] || "";
 
 const statusLabel = (s: string) =>
-  ({
-    planned: "Planejado",
-    active: "Ativo",
-    blocked: "Bloqueado",
-    done: "Concluído",
-    archived: "Arquivado",
-  } as Record<string, string>)[s] || s;
+  (
+    ({
+      planned: "Planejado",
+      active: "Ativo",
+      blocked: "Bloqueado",
+      done: "Concluído",
+      archived: "Arquivado",
+    }) as Record<string, string>
+  )[s] || s;
 
 const fmtDate = (d: string | null) => {
   if (!d) return "—";

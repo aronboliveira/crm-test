@@ -154,7 +154,9 @@ watch(
         </label>
 
         <label class="invite-modal__field">
-          <span class="invite-modal__label">Mensagem do Convite (opcional)</span>
+          <span class="invite-modal__label"
+            >Mensagem do Convite (opcional)</span
+          >
           <textarea
             v-model="form.message"
             class="invite-modal__textarea"

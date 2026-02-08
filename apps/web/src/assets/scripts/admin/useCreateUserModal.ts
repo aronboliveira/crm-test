@@ -116,11 +116,17 @@ export function useCreateUserModal(
     try {
       const email = model.value.email.trim().toLowerCase();
       const username = model.value.username.trim();
-      const res = await ApiClientService.raw.post("/admin/users/check-duplicate", {
-        email,
-        username,
-      });
-      const data = res.data as { emailExists?: boolean; usernameExists?: boolean };
+      const res = await ApiClientService.raw.post(
+        "/admin/users/check-duplicate",
+        {
+          email,
+          username,
+        },
+      );
+      const data = res.data as {
+        emailExists?: boolean;
+        usernameExists?: boolean;
+      };
       if (data.emailExists) {
         duplicateError.value = "Já existe um usuário com este e-mail.";
         return false;
@@ -193,8 +199,7 @@ export function useCreateUserModal(
         payload.firstName = model.value.firstName.trim();
       if (model.value.lastName.trim())
         payload.lastName = model.value.lastName.trim();
-      if (model.value.phone.trim())
-        payload.phone = model.value.phone.trim();
+      if (model.value.phone.trim()) payload.phone = model.value.phone.trim();
       if (model.value.department.trim())
         payload.department = model.value.department.trim();
 
