@@ -104,21 +104,21 @@ const toggleExpand = (id: string) => {
 const isExpanded = (id: string) => expandedCards.value.has(id);
 
 const connectedCount = computed(
-  () => integrations.value.filter((i) => i.status === "connected").length
+  () => integrations.value.filter((i) => i.status === "connected").length,
 );
 
 const openConfig = (integration: Integration) => {
   // Placeholder for opening configuration modal
   console.log(`[Integrations] Opening config for: ${integration.name}`);
   alert(
-    `Configuração de ${integration.name} será implementada em breve.\n\nEsta é uma versão de demonstração do portfólio.`
+    `Configuração de ${integration.name} será implementada em breve.\n\nEsta é uma versão de demonstração do portfólio.`,
   );
 };
 
 const testConnection = async (integration: Integration) => {
   console.log(`[Integrations] Testing connection for: ${integration.name}`);
   alert(
-    `Teste de conexão para ${integration.name} será implementado em breve.\n\nEsta é uma versão de demonstração do portfólio.`
+    `Teste de conexão para ${integration.name} será implementado em breve.\n\nEsta é uma versão de demonstração do portfólio.`,
   );
 };
 </script>

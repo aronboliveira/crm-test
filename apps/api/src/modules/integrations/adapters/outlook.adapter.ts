@@ -58,9 +58,7 @@ export class OutlookAdapter implements IntegrationAdapter {
 
     // Portfolio demo - simulate connection test
     // In production: OAuth2 flow + GET /me endpoint
-    this.logger.log(
-      'Outlook connection test (mock): would call /me endpoint',
-    );
+    this.logger.log('Outlook connection test (mock): would call /me endpoint');
     return false;
   }
 

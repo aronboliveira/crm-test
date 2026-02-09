@@ -179,7 +179,9 @@ const getIcon = (iconName: string) => {
   border: 1px solid var(--color-border, #e5e7eb);
   border-radius: 0.75rem;
   overflow: hidden;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .integration-card:hover {
@@ -366,7 +368,9 @@ const getIcon = (iconName: string) => {
   border-radius: 0.375rem;
   border: none;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
 }
 
 .btn:active {
