@@ -84,12 +84,10 @@ export function useAuthLoginPage() {
       if (formEl.value) {
         FormPersistenceService.bind(formEl.value, formId);
 
-        // Check for autofill after a short delay (browser behavior)
         setTimeout(syncAutofill, 100);
         setTimeout(syncAutofill, 500);
         setTimeout(syncAutofill, 1000);
 
-        // Listen for animation events (Chrome autofill detection)
         formEl.value.addEventListener("animationstart", (e) => {
           if (e.animationName === "onAutoFillStart") {
             syncAutofill();
@@ -99,6 +97,9 @@ export function useAuthLoginPage() {
     } catch (e) {
       console.error("[AuthLoginPage] mount failed:", e);
     }
+  });
+
+  return {
     formId,
     formEl,
     busy,
@@ -106,8 +107,5 @@ export function useAuthLoginPage() {
     password,
     submit,
     passwordVisibility,
- 
-  });
-
-  return { formId, formEl, busy, email, password, submit };
+  };
 }
