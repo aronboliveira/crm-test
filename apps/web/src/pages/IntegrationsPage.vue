@@ -1,10 +1,4 @@
 <script setup lang="ts">
-/**
- * Integrations Dashboard Page
- *
- * Central hub for managing external system integrations.
- * Currently supports shell/scaffold for: GLPI, SAT, Zimbra Mail, Microsoft Outlook
- */
 import { ref, computed } from "vue";
 import IntegrationCard from "../components/integrations/IntegrationCard.vue";
 
@@ -108,7 +102,6 @@ const connectedCount = computed(
 );
 
 const openConfig = (integration: Integration) => {
-  // Placeholder for opening configuration modal
   console.log(`[Integrations] Opening config for: ${integration.name}`);
   alert(
     `Configuração de ${integration.name} será implementada em breve.\n\nEsta é uma versão de demonstração do portfólio.`,
@@ -124,10 +117,10 @@ const testConnection = async (integration: Integration) => {
 </script>
 
 <template>
-  <div class="integrations-page">
+  <main class="integrations-page" aria-labelledby="integrations-title">
     <header class="page-header">
       <div class="header-content">
-        <h1 class="page-title">
+        <h1 id="integrations-title" class="page-title">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -152,19 +145,19 @@ const testConnection = async (integration: Integration) => {
         </p>
       </div>
 
-      <div class="header-stats">
-        <div class="stat-card">
-          <span class="stat-value">{{ integrations.length }}</span>
+      <div class="header-stats" role="group" aria-label="Estatísticas de integrações">
+        <div class="stat-card" title="Total de integrações disponíveis">
+          <span class="stat-value" aria-label="Disponíveis">{{ integrations.length }}</span>
           <span class="stat-label">Disponíveis</span>
         </div>
-        <div class="stat-card stat-connected">
-          <span class="stat-value">{{ connectedCount }}</span>
+        <div class="stat-card stat-connected" title="Integrações conectadas">
+          <span class="stat-value" aria-label="Conectadas">{{ connectedCount }}</span>
           <span class="stat-label">Conectadas</span>
         </div>
       </div>
     </header>
 
-    <div class="integrations-notice">
+    <div class="integrations-notice" role="note" aria-live="polite">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
@@ -187,7 +180,10 @@ const testConnection = async (integration: Integration) => {
       </p>
     </div>
 
-    <div class="integrations-grid">
+    <section 
+      class="integrations-grid" 
+      aria-label="Lista de integrações disponíveis"
+    >
       <IntegrationCard
         v-for="integration in integrations"
         :key="integration.id"
@@ -197,138 +193,10 @@ const testConnection = async (integration: Integration) => {
         @configure="openConfig(integration)"
         @test="testConnection(integration)"
       />
-    </div>
-  </div>
+    </section>
+  </main>
 </template>
 
-<style scoped>
-.integrations-page {
-  padding: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.header-content {
-  flex: 1;
-  min-width: 280px;
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: var(--color-text, #1f2937);
-  margin: 0 0 0.5rem;
-}
-
-.title-icon {
-  width: 2rem;
-  height: 2rem;
-  color: var(--color-primary, #3b82f6);
-}
-
-.page-subtitle {
-  color: var(--color-text-muted, #6b7280);
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.header-stats {
-  display: flex;
-  gap: 1rem;
-}
-
-.stat-card {
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  text-align: center;
-  min-width: 100px;
-}
-
-.stat-card.stat-connected {
-  border-color: var(--color-success, #10b981);
-  background: rgba(16, 185, 129, 0.05);
-}
-
-.stat-value {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text, #1f2937);
-}
-
-.stat-connected .stat-value {
-  color: var(--color-success, #10b981);
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--color-text-muted, #6b7280);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.integrations-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 0.5rem;
-  padding: 1rem 1.25rem;
-  margin-bottom: 1.5rem;
-}
-
-.notice-icon {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--color-primary, #3b82f6);
-  flex-shrink: 0;
-  margin-top: 0.125rem;
-}
-
-.integrations-notice p {
-  margin: 0;
-  font-size: 0.9rem;
-  color: var(--color-text, #1f2937);
-  line-height: 1.5;
-}
-
-.integrations-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.25rem;
-}
-
-@media (max-width: 640px) {
-  .integrations-page {
-    padding: 1rem;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
-  }
-
-  .header-stats {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .integrations-grid {
-    grid-template-columns: 1fr;
-  }
-}
+<style lang="scss">
+@use "../styles/components/integrations/integrations-page";
 </style>

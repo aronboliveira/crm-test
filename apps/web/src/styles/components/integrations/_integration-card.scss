@@ -1,0 +1,573 @@
+// ============================================================================
+// Integration Card Component Styles
+// ============================================================================
+// Modular styles for the IntegrationCard component with enhanced
+// dark mode support, animations, and accessibility features.
+
+@use "../../tokens" as *;
+@use "../../mixins" as *;
+@use "../../animations" as *;
+
+// CSS Custom Properties for the card
+.integration-card {
+  --card-bg: var(--surface-1);
+  --card-border: var(--border-1);
+  --card-shadow: var(--shadow-1);
+  --card-radius: var(--radius-md);
+  --accent: var(--accent-color, var(--primary));
+  --header-hover-bg: color-mix(in oklab, var(--text-1) 4%, transparent);
+  --body-border: var(--border-1);
+  --feature-bg: color-mix(in oklab, var(--text-1) 5%, transparent);
+  --transition-base: var(--transition-fast) var(--easing-standard);
+  --transition-smooth: var(--transition-mid) var(--easing-smooth);
+}
+
+// Dark mode overrides
+html.dark-mode .integration-card,
+[data-theme="dark"] .integration-card {
+  --card-bg: var(--surface-1);
+  --card-border: var(--border-1);
+  --card-shadow: var(--shadow-2);
+  --header-hover-bg: color-mix(in oklab, var(--text-1) 8%, transparent);
+  --feature-bg: color-mix(in oklab, var(--text-1) 10%, transparent);
+}
+
+// ============================================================================
+// Base Card Styles
+// ============================================================================
+
+.integration-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+  position: relative;
+  transition:
+    box-shadow var(--transition-smooth),
+    border-color var(--transition-smooth),
+    transform var(--transition-base);
+  will-change: transform, box-shadow;
+
+  // Entrance animation with @starting-style
+  @starting-style {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  animation: card-enter 0.4s var(--easing-standard) forwards;
+
+  &:hover {
+    box-shadow: var(--shadow-3);
+    transform: translateY(-2px);
+    border-color: color-mix(in oklab, var(--accent) 30%, var(--card-border));
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  &.is-expanded {
+    border-color: var(--accent);
+    box-shadow:
+      var(--shadow-2),
+      0 0 0 1px color-mix(in oklab, var(--accent) 20%, transparent);
+  }
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// ============================================================================
+// Header Styles
+// ============================================================================
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transition-base);
+  position: relative;
+
+  // Subtle ripple effect on click
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+      color-mix(in oklab, var(--accent) 15%, transparent) 0%,
+      transparent 70%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  &:hover {
+    background: var(--header-hover-bg);
+  }
+
+  &:active::after {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.icon-wrapper {
+  --icon-size: 2.5rem;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--text-inverse);
+  flex-shrink: 0;
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
+
+  :deep(svg) {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .integration-card:hover & {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.card-title {
+  font-size: 1rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-1);
+  margin: 0;
+  line-height: 1.3;
+  transition: color var(--transition-base);
+
+  .integration-card:hover & {
+    color: var(--accent);
+  }
+}
+
+.card-type {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.02em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+// ============================================================================
+// Status Badge
+// ============================================================================
+
+.status-badge {
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition:
+    background-color var(--transition-base),
+    transform var(--transition-base);
+  position: relative;
+  overflow: hidden;
+
+  // Shimmer effect for connected status
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    animation: none;
+  }
+
+  &:hover {
+    transform: scale(1.02);
+  }
+
+  &.status-connected {
+    background: var(--success-soft);
+    color: var(--success);
+
+    &::before {
+      animation: shimmer 2s infinite;
+    }
+  }
+
+  &.status-disconnected {
+    background: color-mix(in oklab, var(--text-3) 15%, transparent);
+    color: var(--text-3);
+  }
+
+  &.status-error {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  &.status-pending {
+    background: var(--warning-soft);
+    color: var(--warning);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  50%,
+  100% {
+    left: 100%;
+  }
+}
+
+// ============================================================================
+// Expand Button
+// ============================================================================
+
+.expand-btn {
+  background: transparent;
+  border: none;
+  padding: var(--space-2);
+  cursor: pointer;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--transition-base),
+    background-color var(--transition-base),
+    transform var(--transition-base);
+
+  &:hover {
+    color: var(--text-1);
+    background: var(--header-hover-bg);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.chevron-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform var(--transition-smooth);
+
+  &.rotated {
+    transform: rotate(180deg);
+  }
+}
+
+// ============================================================================
+// Card Body (Expandable Content)
+// ============================================================================
+
+.card-body {
+  padding: 0 var(--space-5) var(--space-5);
+  border-top: 1px solid var(--body-border);
+
+  @starting-style {
+    opacity: 0;
+    max-height: 0;
+  }
+}
+
+.card-description {
+  margin: var(--space-4) 0;
+  font-size: 0.9rem;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+// ============================================================================
+// Features Section
+// ============================================================================
+
+.features-section {
+  margin-bottom: var(--space-4);
+}
+
+.features-title {
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  margin: 0 0 var(--space-3);
+}
+
+.features-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.feature-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8rem;
+  color: var(--text-2);
+  background: var(--feature-bg);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  transition:
+    background-color var(--transition-base),
+    transform var(--transition-base);
+
+  &:hover {
+    background: color-mix(in oklab, var(--accent) 10%, var(--feature-bg));
+    transform: translateY(-1px);
+  }
+}
+
+.check-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+// ============================================================================
+// Card Actions
+// ============================================================================
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--body-border);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: 0.85rem;
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color var(--transition-base),
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
+  position: relative;
+  overflow: hidden;
+
+  // Ripple effect
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.3) 0%,
+      transparent 70%
+    );
+    transform: scale(0);
+    transition: transform 0.4s ease;
+  }
+
+  &:active::before {
+    transform: scale(2);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+}
+
+.btn-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+  box-shadow: 0 2px 4px color-mix(in oklab, var(--accent) 30%, transparent);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--accent), black 10%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+.btn-secondary {
+  background: var(--surface-1);
+  color: var(--text-2);
+  border: 1px solid var(--border-1);
+
+  &:hover:not(:disabled) {
+    background: var(--surface-2);
+    border-color: var(--border-2);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+// ============================================================================
+// Collapse Transition
+// ============================================================================
+
+.collapse-enter-active,
+.collapse-leave-active {
+  transition:
+    opacity var(--transition-mid) var(--easing-smooth),
+    max-height var(--transition-mid) var(--easing-smooth),
+    padding var(--transition-mid) var(--easing-smooth);
+  overflow: hidden;
+}
+
+.collapse-enter-from,
+.collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+// ============================================================================
+// Responsive Adjustments
+// ============================================================================
+
+@media (max-width: 640px) {
+  .integration-card {
+    --card-radius: var(--radius-sm);
+  }
+
+  .card-header {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .icon-wrapper {
+    --icon-size: 2rem;
+
+    :deep(svg) {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+
+  .card-title {
+    font-size: 0.9rem;
+  }
+
+  .card-body {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+
+  .features-list {
+    gap: var(--space-1);
+  }
+
+  .feature-item {
+    font-size: 0.75rem;
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .card-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+// ============================================================================
+// Reduced Motion Support
+// ============================================================================
+
+@media (prefers-reduced-motion: reduce) {
+  .integration-card,
+  .card-header,
+  .icon-wrapper,
+  .status-badge,
+  .expand-btn,
+  .chevron-icon,
+  .feature-item,
+  .btn {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .status-badge::before {
+    animation: none !important;
+  }
+}

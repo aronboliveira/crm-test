@@ -849,6 +849,9 @@ table:not([class]) tbody tr:last-child td {
 // SCOPED STYLES
 // ============================================================================
 
+// Import component-specific styles
+@use "./components/integrations";
+
 @supports (selector(:scope)) {
   @scope (.card) {
     :scope > :last-child {

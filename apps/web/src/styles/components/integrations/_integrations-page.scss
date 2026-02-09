@@ -1,0 +1,330 @@
+// ============================================================================
+// Integrations Page Styles
+// ============================================================================
+
+@use "../../tokens" as *;
+@use "../../mixins" as *;
+
+.integrations-page {
+  --page-max-width: 1400px;
+  --page-gutter: var(--space-6);
+
+  padding: var(--page-gutter);
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  min-height: 100%;
+
+  @starting-style {
+    opacity: 0;
+  }
+
+  animation: page-fade-in 0.5s var(--easing-standard) forwards;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// ============================================================================
+// Page Header
+// ============================================================================
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.header-content {
+  flex: 1;
+  min-width: 280px;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 1.75rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-1);
+  margin: 0 0 var(--space-2);
+  line-height: 1.2;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+
+  animation: slide-in-left 0.4s var(--easing-snappy) forwards;
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.title-icon {
+  width: 2rem;
+  height: 2rem;
+  color: var(--primary);
+  flex-shrink: 0;
+  animation: icon-pulse 2s ease-in-out infinite;
+}
+
+@keyframes icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.page-subtitle {
+  color: var(--text-3);
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+// ============================================================================
+// Header Stats
+// ============================================================================
+
+.header-stats {
+  display: flex;
+  gap: var(--space-4);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  animation: fade-slide-down 0.4s var(--easing-snappy) 0.1s forwards;
+  opacity: 0;
+}
+
+@keyframes fade-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stat-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-5);
+  text-align: center;
+  min-width: 100px;
+  transition:
+    transform var(--transition-fast) var(--easing-standard),
+    box-shadow var(--transition-fast) var(--easing-standard),
+    border-color var(--transition-fast);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  &.stat-connected {
+    border-color: var(--success);
+    background: var(--success-soft);
+
+    .stat-value {
+      color: var(--success);
+    }
+  }
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-1);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: var(--font-weight-medium);
+}
+
+// ============================================================================
+// Notice Banner
+// ============================================================================
+
+.integrations-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  background: var(--info-soft);
+  border: 1px solid color-mix(in oklab, var(--info) 25%, transparent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-6);
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  animation: fade-slide-in 0.4s var(--easing-standard) 0.15s forwards;
+  opacity: 0;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notice-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--info);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.integrations-notice p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-2);
+  line-height: 1.5;
+
+  strong {
+    color: var(--text-1);
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+// ============================================================================
+// Integrations Grid
+// ============================================================================
+
+.integrations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-5);
+
+  // Staggered entrance animation for cards
+  > * {
+    @for $i from 1 through 8 {
+      &:nth-child(#{$i}) {
+        animation-delay: calc(0.2s + (#{$i} * 0.08s));
+      }
+    }
+  }
+}
+
+// ============================================================================
+// Responsive Adjustments
+// ============================================================================
+
+@media (max-width: 768px) {
+  .integrations-page {
+    --page-gutter: var(--space-4);
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .title-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .header-stats {
+    justify-content: center;
+  }
+
+  .integrations-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 480px) {
+  .integrations-page {
+    --page-gutter: var(--space-3);
+  }
+
+  .stat-card {
+    min-width: 80px;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+  }
+
+  .integrations-notice {
+    flex-direction: column;
+    text-align: center;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .notice-icon {
+    align-self: center;
+  }
+}
+
+// ============================================================================
+// Reduced Motion
+// ============================================================================
+
+@media (prefers-reduced-motion: reduce) {
+  .integrations-page,
+  .page-title,
+  .header-stats,
+  .integrations-notice,
+  .title-icon {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .stat-card:hover {
+    transform: none;
+  }
+}
