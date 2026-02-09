@@ -104,6 +104,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import("../pages/AdminMailOutboxPage.vue"),
         meta: { perm: "audit.read" } satisfies RouteMetaGuard,
       },
+      {
+        path: "integrations",
+        name: "Integrations",
+        component: () => import("../pages/IntegrationsPage.vue"),
+        meta: { perm: "projects.manage" } satisfies RouteMetaGuard,
+      },
     ],
   },
   { path: "/:pathMatch(.*)*", redirect: "/dashboard" },

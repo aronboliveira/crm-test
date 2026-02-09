@@ -76,6 +76,13 @@ const allItems: NavItem[] = [
     permission: "projects.read",
   },
   {
+    key: "integrations",
+    label: "Integrações",
+    route: "/integrations",
+    icon: "link",
+    permission: "projects.manage",
+  },
+  {
     key: "settings",
     label: "Configurações",
     route: "/dashboard",
@@ -123,6 +130,7 @@ const mainItems = computed(() =>
         "templates",
         "import",
         "reports",
+        "integrations",
       ].includes(it.key) && hasAccess(it),
   ),
 );

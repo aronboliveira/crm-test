@@ -42,6 +42,7 @@ import { ClientsModule } from './modules/clients/clients.module';
 import ClientEntity from './entities/ClientEntity';
 import { LeadsModule } from './modules/leads/leads.module';
 import LeadEntity from './entities/LeadEntity';
+import { IntegrationsModule } from './modules/integrations/integrations.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import LeadEntity from './entities/LeadEntity';
     ImportModule,
     MockSeedModule,
     ClientsModule,
+    IntegrationsModule,
     LeadsModule,
   ],
   controllers: [AppController],
