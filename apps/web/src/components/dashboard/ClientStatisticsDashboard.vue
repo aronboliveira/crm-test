@@ -283,9 +283,9 @@ const conversionBars = computed(() =>
       <div class="chart-card card">
         <h3 class="chart-title">Novos Clientes por Mês (Últimos 12 meses)</h3>
         <div v-if="timelineBars.length > 0" class="chart-content">
-          <BarChart 
-            :bars="timelineBars" 
-            :horizontal="false" 
+          <BarChart
+            :bars="timelineBars"
+            :horizontal="false"
             :max-bar-width="60"
             :show-axis-labels="true"
           />

@@ -42,7 +42,7 @@ const gridLines = computed(() => {
   for (let i = 0; i <= 5; i++) {
     lines.push({
       value: i * step,
-      position: (i * 20),
+      position: i * 20,
     });
   }
   return lines;
@@ -52,12 +52,9 @@ const gridLines = computed(() => {
 <template>
   <div class="bar-chart-wrapper">
     <!-- Y-axis labels for vertical charts -->
-    <div 
-      v-if="!horizontal && showAxisLabels" 
-      class="y-axis"
-    >
-      <div 
-        v-for="line in gridLines" 
+    <div v-if="!horizontal && showAxisLabels" class="y-axis">
+      <div
+        v-for="line in gridLines"
         :key="line.value"
         class="y-axis-label"
         :style="{ bottom: `${line.position}%` }"
@@ -68,12 +65,9 @@ const gridLines = computed(() => {
 
     <div class="bar-chart" :class="{ 'bar-chart--horizontal': horizontal }">
       <!-- Grid lines for vertical charts -->
-      <div 
-        v-if="!horizontal && showAxisLabels" 
-        class="grid-lines"
-      >
-        <div 
-          v-for="line in gridLines" 
+      <div v-if="!horizontal && showAxisLabels" class="grid-lines">
+        <div
+          v-for="line in gridLines"
           :key="line.value"
           class="grid-line"
           :style="{ bottom: `${line.position}%` }"
@@ -87,7 +81,9 @@ const gridLines = computed(() => {
             class="bar-fill"
             :style="{
               [horizontal ? 'width' : 'height']: `${bar.pct}%`,
-              [horizontal ? 'maxWidth' : 'maxWidth']: horizontal ? '100%' : `${maxBarWidth}px`,
+              [horizontal ? 'maxWidth' : 'maxWidth']: horizontal
+                ? '100%'
+                : `${maxBarWidth}px`,
               backgroundColor: bar.color,
             }"
           >

@@ -4,6 +4,7 @@ import AlertService from "../../../services/AlertService";
 import FormPersistenceService from "../../../services/FormPersistenceService";
 import AuthRecoveryService from "../../../services/AuthRecoveryService";
 import { useAuthStore } from "../../../pinia/stores/auth.store";
+import { usePasswordVisibility } from "../auth/usePasswordVisibility";
 
 export function useAuthLoginPage() {
   const router = useRouter();
@@ -16,6 +17,8 @@ export function useAuthLoginPage() {
   const busy = ref(false);
   const email = ref("");
   const password = ref("");
+
+  const passwordVisibility = usePasswordVisibility();
 
   // Sync autofilled values from DOM
   const syncAutofill = () => {
@@ -96,6 +99,14 @@ export function useAuthLoginPage() {
     } catch (e) {
       console.error("[AuthLoginPage] mount failed:", e);
     }
+    formId,
+    formEl,
+    busy,
+    email,
+    password,
+    submit,
+    passwordVisibility,
+ 
   });
 
   return { formId, formEl, busy, email, password, submit };
