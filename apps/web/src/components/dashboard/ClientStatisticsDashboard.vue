@@ -7,6 +7,7 @@ import ClientStatisticsService from "../../services/ClientStatisticsService";
 import DonutChart from "../charts/DonutChart.vue";
 import BarChart from "../charts/BarChart.vue";
 import StatCard from "../charts/StatCard.vue";
+import ClientHighlightsModal from "../modal/ClientHighlightsModal.vue";
 
 interface Props {
   clients: ClientRow[];
@@ -20,6 +21,10 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
 });
 
+const emit = defineEmits<{
+  selectClient: [clientId: string];
+}>();
+
 type DashboardSection =
   | "overview"
   | "projects"
@@ -30,6 +35,8 @@ type DashboardSection =
 const activeFilters = ref<Set<DashboardSection>>(
   new Set(["overview", "projects", "companies", "timeline"]),
 );
+
+const showHighlightsModal = ref(false);
 
 const sections: Array<{ id: DashboardSection; label: string; icon: string }> = [
   { id: "overview", label: "Visão Geral", icon: "📊" },
@@ -56,6 +63,18 @@ const showAllSections = () => {
 
 const hideAllSections = () => {
   activeFilters.value.clear();
+};
+
+const openHighlightsModal = () => {
+  showHighlightsModal.value = true;
+};
+
+const closeHighlightsModal = () => {
+  showHighlightsModal.value = false;
+};
+
+const handleSelectClient = (clientId: string) => {
+  emit("selectClient", clientId);
 };
 
 // Computed statistics
@@ -146,6 +165,9 @@ const conversionBars = computed(() =>
       <div class="filters-header">
         <h3 class="filters-title">Filtros do Dashboard</h3>
         <div class="filters-actions">
+          <button class="btn btn-sm btn-primary" @click="openHighlightsModal">
+            ✨ Ver Destaques
+          </button>
           <button class="btn btn-xs btn-ghost" @click="showAllSections">
             Todos
           </button>
@@ -167,6 +189,16 @@ const conversionBars = computed(() =>
         </button>
       </div>
     </div>
+
+    <!-- Highlights Modal -->
+    <ClientHighlightsModal
+      :is-open="showHighlightsModal"
+      :clients="clients"
+      :projects="projects"
+      :leads="leads"
+      @close="closeHighlightsModal"
+      @select-client="handleSelectClient"
+    />
 
     <!-- Loading State -->
     <div v-if="loading" class="dashboard-loading">
@@ -419,9 +451,10 @@ const conversionBars = computed(() =>
 .section-title {
   font-size: 1.25rem;
   font-weight: 700;
-  margin: 0;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid #e2e8f0;
+  margin: 0 0 0.5rem 0;
+  padding: 0 0 0.5rem 0.75rem;
+  border-left: 4px solid #3b82f6;
+  color: var(--text-1);
 }
 
 /* Stats Grid */
@@ -429,6 +462,7 @@ const conversionBars = computed(() =>
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
+  padding-left: 1rem;
 }
 
 /* Chart Grid */
@@ -436,6 +470,7 @@ const conversionBars = computed(() =>
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1rem;
+  padding-left: 1rem;
 }
 
 .chart-card {

@@ -1,5 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { GlpiAdapter } from './adapters/glpi.adapter';
+import { GlpiAdapter } from './adapters/glpi';
 import { SatAdapter } from './adapters/sat.adapter';
 import { ZimbraAdapter } from './adapters/zimbra.adapter';
 import { OutlookAdapter } from './adapters/outlook.adapter';
@@ -9,12 +9,6 @@ import type {
   IntegrationAdapter,
 } from './types';
 
-/**
- * Service for managing external system integrations.
- *
- * @remarks
- * Portfolio demonstration - uses mock data and shell adapters.
- */
 @Injectable()
 export class IntegrationsService {
   private readonly logger = new Logger(IntegrationsService.name);

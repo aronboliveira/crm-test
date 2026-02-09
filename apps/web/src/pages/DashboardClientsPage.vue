@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, ref } from "vue";
 import { useDashboardClientsPage } from "../assets/scripts/pages/useDashboardClientsPage";
+import { useClientQuery } from "../composables/useClientQuery";
 import ModalService from "../services/ModalService";
 import ApiClientService from "../services/ApiClientService";
 import AlertService from "../services/AlertService";
@@ -8,16 +9,43 @@ import { useProjectsStore } from "../pinia/stores/projects.store";
 import { useLeadsStore } from "../pinia/stores/leads.store";
 import type { ClientRow } from "../pinia/types/clients.types";
 import ClientStatisticsDashboard from "../components/dashboard/ClientStatisticsDashboard.vue";
+import ClientDetailView from "../components/client/ClientDetailView.vue";
 
 const { rows, loading, error, load } = useDashboardClientsPage();
 const projectsStore = useProjectsStore();
 const leadsStore = useLeadsStore();
+const { selectedClientId, setClientQuery, clearClientQuery } = useClientQuery();
 
-// Load projects and leads for statistics
+const expandedClientId = ref<string | null>(null);
+
 onMounted(async () => {
   if (!projectsStore.rows.length) await projectsStore.list();
   if (!leadsStore.rows.length) await leadsStore.list();
+
+  if (selectedClientId.value) {
+    expandedClientId.value = selectedClientId.value;
+  }
 });
+
+const toggleClientExpand = async (clientId: string) => {
+  if (expandedClientId.value === clientId) {
+    expandedClientId.value = null;
+    await clearClientQuery();
+  } else {
+    expandedClientId.value = clientId;
+    await setClientQuery(clientId);
+  }
+};
+
+const handleSelectClientFromHighlights = async (clientId: string) => {
+  expandedClientId.value = clientId;
+  await setClientQuery(clientId);
+
+  const element = document.getElementById(`client-row-${clientId}`);
+  if (element) {
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+};
 
 const sortKey = ref<"name" | "company" | "email" | "phone">("name");
 const sortDir = ref<"asc" | "desc">("asc");
@@ -123,6 +151,7 @@ const handleDelete = async (client: ClientRow) => {
       :projects="projectsStore.rows"
       :leads="leadsStore.rows"
       :loading="loading"
+      @select-client="handleSelectClientFromHighlights"
     />
 
     <div v-if="loading" class="p-8 text-center opacity-70">
@@ -146,6 +175,7 @@ const handleDelete = async (client: ClientRow) => {
       <table class="data-table">
         <thead>
           <tr>
+            <th style="width: 40px"></th>
             <th>
               <button class="th-button" @click="setSort('name')">
                 Nome <span class="th-sort">{{ sortIndicator("name") }}</span>
@@ -173,7 +203,17 @@ const handleDelete = async (client: ClientRow) => {
         </thead>
         <tbody>
           <template v-for="c in sortedRows" :key="c?.id || 'unknown'">
-            <tr v-if="c">
+            <tr v-if="c" :id="`client-row-${c.id}`" class="client-row">
+              <td>
+                <button
+                  class="btn-expand"
+                  :class="{ 'btn-expand--active': expandedClientId === c.id }"
+                  title="Ver detalhes"
+                  @click="toggleClientExpand(c.id)"
+                >
+                  {{ expandedClientId === c.id ? "▼" : "▶" }}
+                </button>
+              </td>
               <td class="font-medium">{{ c.name }}</td>
               <td>{{ c.company || "—" }}</td>
               <td>{{ c.email || "—" }}</td>
@@ -203,9 +243,19 @@ const handleDelete = async (client: ClientRow) => {
                 </div>
               </td>
             </tr>
+            <tr v-if="c && expandedClientId === c.id" class="detail-row">
+              <td colspan="6">
+                <ClientDetailView
+                  :client="c"
+                  :projects="projectsStore.rows"
+                  :leads="leadsStore.rows"
+                  @close="toggleClientExpand(c.id)"
+                />
+              </td>
+            </tr>
           </template>
           <tr v-if="rows && rows.length === 0">
-            <td colspan="5" class="text-center py-8 opacity-60">
+            <td colspan="6" class="text-center py-8 opacity-60">
               Nenhum cliente encontrado.
             </td>
           </tr>
@@ -274,27 +324,99 @@ const handleDelete = async (client: ClientRow) => {
 
 .data-table th:nth-child(1),
 .data-table td:nth-child(1) {
-  width: 18%;
+  width: 40px;
 }
 
 .data-table th:nth-child(2),
 .data-table td:nth-child(2) {
-  width: 20%;
+  width: 18%;
 }
 
 .data-table th:nth-child(3),
 .data-table td:nth-child(3) {
-  width: 26%;
+  width: 20%;
 }
 
 .data-table th:nth-child(4),
 .data-table td:nth-child(4) {
-  width: 20%;
+  width: 26%;
 }
 
 .data-table th:nth-child(5),
 .data-table td:nth-child(5) {
+  width: 20%;
+}
+
+.data-table th:nth-child(6),
+.data-table td:nth-child(6) {
   width: 16%;
+}
+
+.btn-expand {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: var(--text-2);
+  font-size: 0.75rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-expand:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.btn-expand--active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn-expand {
+    border-color: #475569;
+  }
+
+  .btn-expand:hover {
+    background: #334155;
+    border-color: #64748b;
+  }
+
+  .btn-expand--active {
+    background: #60a5fa;
+    border-color: #60a5fa;
+  }
+}
+
+.client-row {
+  transition: background 0.2s;
+}
+
+.client-row:hover {
+  background: #f8fafc;
+}
+
+@media (prefers-color-scheme: dark) {
+  .client-row:hover {
+    background: #1e293b;
+  }
+}
+
+.detail-row td {
+  padding: 0;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .detail-row td {
+    border-bottom-color: #334155;
+  }
 }
 
 .th-button {

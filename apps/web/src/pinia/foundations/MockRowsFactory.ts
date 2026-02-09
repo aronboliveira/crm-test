@@ -8,7 +8,7 @@ export default class MockRowsFactory {
 
   static clients(count: number): readonly ClientRow[] {
     try {
-      const n = MockRowsFactory.#clamp(count, 18, 1, 120);
+      const n = MockRowsFactory.#clamp(count, 50, 1, 150);
       const firstNames = [
         "Ana",
         "Bruno",
@@ -30,6 +30,16 @@ export default class MockRowsFactory {
         "Sofia",
         "Thiago",
         "Viviane",
+        "Gabriel",
+        "Júlia",
+        "Ricardo",
+        "Fernanda",
+        "Marcelo",
+        "Amanda",
+        "Diego",
+        "Letícia",
+        "Rodrigo",
+        "Patrícia",
       ];
       const lastNames = [
         "Almeida",
@@ -46,6 +56,12 @@ export default class MockRowsFactory {
         "Silva",
         "Souza",
         "Teixeira",
+        "Costa",
+        "Martins",
+        "Rocha",
+        "Ribeiro",
+        "Carvalho",
+        "Araújo",
       ];
       const companyPrefixes = [
         "Nova",
@@ -58,6 +74,16 @@ export default class MockRowsFactory {
         "Nexo",
         "Sigma",
         "Bridge",
+        "Quantum",
+        "Apex",
+        "Zenith",
+        "Omega",
+        "Delta",
+        "Horizon",
+        "Fusion",
+        "Catalyst",
+        "Velocity",
+        "Infinity",
       ];
       const companySuffixes = [
         "Tech",
@@ -70,20 +96,35 @@ export default class MockRowsFactory {
         "Studio",
         "Group",
         "Works",
+        "Innovation",
+        "Ventures",
+        "Partners",
+        "Consulting",
+        "Services",
       ];
       const domains = [
-        "empresa.local",
-        "corp.local",
-        "tech.local",
-        "solutions.local",
+        "empresa.com.br",
+        "corp.com.br",
+        "tech.io",
+        "solutions.com",
+        "business.net",
+        "digital.com.br",
+        "group.com",
+        "global.net",
       ];
       const notesPool = [
-        "Cliente estratégico",
-        "Renovação prevista este trimestre",
-        "Time técnico dedicado",
-        "Onboarding em andamento",
-        "Contrato anual",
-        "Expansão planejada",
+        "Cliente estratégico com alto potencial de crescimento",
+        "Renovação prevista este trimestre - prioridade alta",
+        "Time técnico dedicado ao projeto",
+        "Onboarding em andamento - acompanhamento próximo",
+        "Contrato anual com cláusula de expansão",
+        "Expansão planejada para Q3 2026",
+        "Interessado em novas funcionalidades premium",
+        "Feedback muito positivo sobre suporte técnico",
+        "Solicitou reunião para discutir upsell",
+        "Empresa em rápido crescimento no mercado",
+        "Referência importante no setor",
+        "Projeto piloto sendo avaliado",
       ];
       const out: ClientRow[] = [];
       for (let i = 0; i < n; i++) {
@@ -103,10 +144,10 @@ export default class MockRowsFactory {
         out.push({
           id: `c_${seed.slice(0, 10)}`,
           name,
-          company: i % 8 === 0 ? undefined : company,
-          email: i % 10 === 0 ? undefined : email,
-          phone: i % 7 === 0 ? undefined : phone,
-          notes: i % 3 === 0 ? notesPool[s % notesPool.length] : undefined,
+          company: i % 9 === 0 ? undefined : company,
+          email: i % 12 === 0 ? undefined : email,
+          phone: i % 10 === 0 ? undefined : phone,
+          notes: i % 2 === 0 ? notesPool[s % notesPool.length] : undefined,
           createdAt,
           updatedAt,
         });
