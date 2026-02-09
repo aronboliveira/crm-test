@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CRM Application
 
 > **📝 Portfolio Project Notice:** This is a portfolio demonstration project showcasing full-stack development skills. It is not intended for production use.
@@ -563,3 +564,7 @@ crm/
 MIT
 
 </details>
+=======
+# crm-test
+Test project for project management features
+>>>>>>> bbe086a40757cb0e6909ad33a74e1f71098acaa4
