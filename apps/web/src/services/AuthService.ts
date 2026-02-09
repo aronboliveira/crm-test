@@ -2,14 +2,28 @@ import StorageService from "./StorageService";
 import ApiClientService from "./ApiClientService";
 import type { SessionUser, LoginResponse } from "../types/auth.types";
 
+/**
+ * Authentication service for managing user sessions.
+ * Handles login, logout, token storage, and session state.
+ *
+ * @example
+ * ```typescript
+ * await AuthService.login('user@example.com', 'password');
+ * const user = AuthService.me();
+ * AuthService.logout();
+ * ```
+ */
 export default class AuthService {
   static #TK = "auth.token";
   static #ME = "auth.me";
   static #ready = false;
 
+  /**
+   * Initializes the authentication service on app startup.
+   * Validates existing session data and sets ready state.
+   */
   static async bootstrap(): Promise<void> {
     try {
-      // Check if user has valid auth token and session data
       const token = AuthService.token();
       const user = AuthService.me();
       AuthService.#ready = !!(token && user);
@@ -19,10 +33,18 @@ export default class AuthService {
     }
   }
 
+  /**
+   * Checks if the auth service has been bootstrapped.
+   * @returns True if service is ready for use
+   */
   static isReady(): boolean {
     return AuthService.#ready;
   }
 
+  /**
+   * Retrieves the current authentication token.
+   * @returns The JWT token or null if not authenticated
+   */
   static token(): string | null {
     try {
       const t = StorageService.session.getStr(AuthService.#TK, "");
@@ -33,17 +55,24 @@ export default class AuthService {
     }
   }
 
+  /**
+   * Checks if the user is currently authenticated.
+   * @returns True if a valid token exists
+   */
   static isAuthed(): boolean {
     return !!AuthService.token();
   }
 
+  /**
+   * Retrieves the current authenticated user's data.
+   * @returns The session user object or null if not authenticated
+   */
   static me(): SessionUser | null {
     try {
       const stored = StorageService.session.getJson<SessionUser>(
         AuthService.#ME,
         {} as SessionUser,
       );
-      // Check if the stored value is a valid SessionUser
       if (stored && typeof stored === "object" && "email" in stored) {
         return stored;
       }
@@ -54,6 +83,12 @@ export default class AuthService {
     }
   }
 
+  /**
+   * Authenticates a user with email and password.
+   * @param email - The user's email address
+   * @param password - The user's password
+   * @throws Error if credentials are invalid or request fails
+   */
   static async login(email: string, password: string): Promise<void> {
     try {
       if (!email || typeof email !== "string") {
@@ -91,6 +126,9 @@ export default class AuthService {
     }
   }
 
+  /**
+   * Logs out the current user by clearing session data.
+   */
   static logout(): void {
     try {
       StorageService.session.del(AuthService.#TK);

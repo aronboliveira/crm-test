@@ -1,3 +1,10 @@
+/**
+ * @packageDocumentation
+ * Foundation utilities for the CRM application.
+ * Provides browser compatibility checks, DOM utilities, and helper functions.
+ * @module @crm/foundations
+ */
+
 export { default as CompatibilityValidator } from "./CompatibilityValidator";
 export { default as DomGuard } from "./dom/DomGuard";
 export { default as DeepFreeze } from "./globals/deepFreeze";

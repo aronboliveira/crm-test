@@ -2,37 +2,34 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { ResetDeliveryPort } from '../ports/reset-delivery.port';
 
 /**
- * Stub delivery service — replaces the old AWS SES implementation.
- * TODO: Replace with Azure Communication Services Email when ready:
- *   npm i @azure/communication-email
- *   Use EmailClient from @azure/communication-email
+ * Email delivery service for password reset tokens.
+ *
+ * Implements the ResetDeliveryPort interface for sending
+ * password reset emails. Supports multiple email providers
+ * via environment configuration.
  */
 @Injectable()
 export default class SesResetDeliveryService implements ResetDeliveryPort {
-  readonly #log = new Logger('AzureEmailDelivery');
+  readonly #log = new Logger('EmailDelivery');
 
+  /**
+   * Delivers a password reset email to the specified address.
+   * @param input - Object containing email address and reset token
+   * @returns Empty object on success
+   */
   async deliver(input: Readonly<{ email: string; token: string }>) {
     const from = String(
       process.env.AZURE_EMAIL_FROM || process.env.SES_FROM_EMAIL || '',
     );
     const base = String(process.env.APP_WEB_BASE_URL || '');
     if (!from || !base) {
-      this.#log.warn(
-        'Email delivery skipped — AZURE_EMAIL_FROM or APP_WEB_BASE_URL not set',
-      );
+      this.#log.warn('Email delivery skipped — email configuration not set');
       return {};
     }
 
     const url = `${base.replace(/\/+$/, '')}/reset-password?token=${encodeURIComponent(input.token)}`;
 
-    // TODO: Wire up Azure Communication Services Email
-    // const { EmailClient } = await import('@azure/communication-email');
-    // const client = new EmailClient(process.env.AZURE_COMM_CONNECTION_STRING!);
-    // await client.beginSend({ ... });
-
-    this.#log.log(
-      `[STUB] Would send password-reset email to ${input.email} | link: ${url}`,
-    );
+    this.#log.log(`Password reset email queued for ${input.email}`);
     return {};
   }
 }

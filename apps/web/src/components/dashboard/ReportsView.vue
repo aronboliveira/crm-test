@@ -69,9 +69,13 @@ const blockedTasks = computed(
 
 const overdueTasks = computed(() => {
   const now = new Date().toISOString().split("T")[0];
-  return tasks.value.filter(
-    (t) => t.dueAt && t.dueAt.split("T")[0] < now && t.status !== "done",
-  ).length;
+  return !now
+    ? 0
+    : tasks.value.filter((t) => {
+        const dueDate = t.dueAt?.split("T")?.[0];
+        if (!dueDate) return false;
+        return dueDate < now && t.status !== "done";
+      }).length;
 });
 
 const avgTasksPerProject = computed(() => {
@@ -93,8 +97,11 @@ const projectCompletionRates = computed(() => {
   for (const t of tasks.value) {
     if (!t.projectId) continue;
     if (!map[t.projectId]) map[t.projectId] = { total: 0, done: 0 };
-    map[t.projectId].total++;
-    if (t.status === "done") map[t.projectId].done++;
+    const entry = map[t.projectId];
+    if (entry) {
+      entry.total++;
+      if (t.status === "done") entry.done++;
+    }
   }
   return map;
 });
@@ -119,13 +126,13 @@ const dueThisWeek = computed(() => {
   weekEnd.setDate(weekEnd.getDate() + 7);
   const nowStr = now.toISOString().split("T")[0];
   const endStr = weekEnd.toISOString().split("T")[0];
-  return tasks.value.filter(
-    (t) =>
-      t.dueAt &&
-      t.dueAt.split("T")[0] >= nowStr &&
-      t.dueAt.split("T")[0] <= endStr &&
-      t.status !== "done",
-  ).length;
+
+  return tasks.value.filter((t) => {
+    if (!t.dueAt || t.status === "done") return false;
+    const dueDate = t.dueAt.split("T")[0];
+    if (!dueDate || !nowStr || !endStr) return false;
+    return dueDate >= nowStr && dueDate <= endStr;
+  }).length;
 });
 
 /* ---- Chart helpers ---- */

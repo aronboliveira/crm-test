@@ -49,6 +49,7 @@ export default class TasksController {
         assigneeId: (t as any).assigneeId || null,
         milestoneId: (t as any).milestoneId || null,
         tags: (t as any).tags || [],
+        subtasks: (t as any).subtasks || [],
         dueAt: t.dueAt,
         deadlineAt: (t as any).deadlineAt || null,
         createdAt: t.createdAt,
@@ -83,6 +84,22 @@ export default class TasksController {
       return { id: String(t._id) };
     } catch (error) {
       this.logger.error('Error in update endpoint:', error);
+      throw error;
+    }
+  }
+
+  @Patch('/:id/subtasks')
+  @Permissions('tasks.write')
+  async updateSubtasks(
+    @Param('id') id: string,
+    @Body() dto: { subtasks: any[] },
+  ) {
+    try {
+      const t = await this.s.updateSubtasks(id, dto.subtasks);
+      this.logger.log(`Task subtasks updated: ${id}`);
+      return { id: String(t._id), subtasks: t.subtasks || [] };
+    } catch (error) {
+      this.logger.error('Error in updateSubtasks endpoint:', error);
       throw error;
     }
   }

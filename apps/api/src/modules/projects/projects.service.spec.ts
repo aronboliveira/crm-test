@@ -195,9 +195,7 @@ describe('ProjectsService', () => {
   /* ── remove ── */
   describe('remove', () => {
     it('should throw BadRequestException for invalid id', async () => {
-      await expect(service.remove('bad')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.remove('bad')).rejects.toThrow(BadRequestException);
     });
 
     it('should call repo.delete with valid ObjectId', async () => {

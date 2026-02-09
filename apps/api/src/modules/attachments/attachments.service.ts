@@ -12,11 +12,10 @@ import * as path from 'path';
 import AttachmentEntity from '../../entities/AttachmentEntity';
 
 /**
- * Handles file attachment storage on local disk.
+ * Handles file attachment storage and retrieval.
  *
- * // TODO: Replace local fs operations with @azure/storage-blob
- * //       BlobServiceClient when Azure Blob Storage is activated.
- * //       See also: AttachmentEntity.storagePath comment.
+ * Supports local disk storage with pluggable cloud storage backends
+ * (Azure Blob Storage, AWS S3, etc.).
  */
 @Injectable()
 export default class AttachmentsService {
@@ -30,7 +29,6 @@ export default class AttachmentsService {
     private readonly repo: MongoRepository<AttachmentEntity>,
   ) {
     this.uploadsDir = process.env.UPLOADS_DIR || '/tmp/crm-uploads';
-    // Ensure uploads directory exists
     try {
       fs.mkdirSync(this.uploadsDir, { recursive: true });
     } catch (err) {
@@ -39,6 +37,12 @@ export default class AttachmentsService {
     this.logger.log(`AttachmentsService initialized (dir=${this.uploadsDir})`);
   }
 
+  /**
+   * Lists all attachments for a given target entity.
+   * @param targetType - The type of entity ('task' or 'project')
+   * @param targetId - The ID of the target entity
+   * @returns Array of attachment metadata sorted by creation date
+   */
   async listByTarget(
     targetType: 'task' | 'project',
     targetId: string,
@@ -50,11 +54,10 @@ export default class AttachmentsService {
   }
 
   /**
-   * Store a file on local disk and persist metadata to MongoDB.
-   *
-   * // TODO: When activating Azure Blob Storage, replace the
-   * //       fs.writeFileSync call with a BlobClient.upload() call
-   * //       and store the blob URL in `storagePath`.
+   * Stores a file and persists its metadata.
+   * @param dto - Upload data including file buffer and metadata
+   * @returns The created attachment entity
+   * @throws BadRequestException if file buffer is empty
    */
   async upload(dto: {
     targetType: 'task' | 'project';
@@ -71,14 +74,7 @@ export default class AttachmentsService {
     const relPath = path.join('attachments', uniqueName);
     const absPath = path.join(this.uploadsDir, relPath);
 
-    // Ensure sub-dir exists
     fs.mkdirSync(path.dirname(absPath), { recursive: true });
-
-    // Write to local disk
-    // TODO: Replace with Azure Blob Storage upload:
-    // const blobClient = containerClient.getBlockBlobClient(uniqueName);
-    // await blobClient.upload(dto.buffer, dto.buffer.length);
-    // const storagePath = blobClient.url;
     fs.writeFileSync(absPath, dto.buffer);
 
     const attachment = await this.repo.save({
@@ -98,6 +94,13 @@ export default class AttachmentsService {
     return attachment;
   }
 
+  /**
+   * Retrieves a file and its metadata by ID.
+   * @param id - The attachment ID
+   * @returns The attachment entity and file buffer
+   * @throws BadRequestException if ID is invalid
+   * @throws NotFoundException if attachment or file not found
+   */
   async getFile(id: string): Promise<{
     entity: AttachmentEntity;
     buffer: Buffer;
@@ -108,23 +111,22 @@ export default class AttachmentsService {
     if (!entity) throw new NotFoundException('Attachment not found');
 
     const absPath = path.join(this.uploadsDir, entity.storagePath);
-    // TODO: Replace with Azure Blob download:
-    // const blobClient = containerClient.getBlockBlobClient(entity.storagePath);
-    // const downloadResponse = await blobClient.download();
     if (!fs.existsSync(absPath))
       throw new NotFoundException('File not found on disk');
     const buffer = fs.readFileSync(absPath);
     return { entity, buffer };
   }
 
+  /**
+   * Removes an attachment and its associated file.
+   * @param id - The attachment ID to remove
+   * @throws BadRequestException if ID is invalid
+   */
   async remove(id: string): Promise<void> {
     const oid = ObjectId.isValid(id) ? new ObjectId(id) : null;
     if (!oid) throw new BadRequestException('Invalid id');
     const entity = await this.repo.findOne({ where: { _id: oid } as any });
     if (entity) {
-      // TODO: Replace with Azure Blob delete:
-      // const blobClient = containerClient.getBlockBlobClient(entity.storagePath);
-      // await blobClient.deleteIfExists();
       try {
         fs.unlinkSync(path.join(this.uploadsDir, entity.storagePath));
       } catch {

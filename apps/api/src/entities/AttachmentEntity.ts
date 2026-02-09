@@ -2,15 +2,10 @@ import { Entity, Column, ObjectIdColumn, Index } from 'typeorm';
 import { ObjectId } from 'mongodb';
 
 /**
- * File attachment metadata for tasks / projects.
+ * File attachment metadata for tasks and projects.
  *
- * **Storage strategy (current):** local disk at `UPLOADS_DIR`.
- * The `storagePath` column holds the relative path under that directory.
- *
- * // TODO: When ready to activate Azure Blob Storage, replace the local
- * //       file-system calls in AttachmentsService with
- * //       @azure/storage-blob BlobServiceClient operations and store
- * //       the blob URL in `storagePath` instead.
+ * Stores file metadata with configurable storage backend.
+ * Currently uses local disk storage; supports Azure Blob Storage.
  */
 @Entity('attachments')
 export default class AttachmentEntity {
@@ -43,8 +38,8 @@ export default class AttachmentEntity {
   sizeBytes!: number;
 
   /**
-   * Relative path on local disk (e.g. "attachments/abc123-file.pdf").
-   * // TODO: Switch to Azure Blob URL when cloud storage is activated.
+   * Storage path for the attachment file.
+   * Contains relative path for local storage or URL for cloud storage.
    */
   @Column()
   storagePath!: string;

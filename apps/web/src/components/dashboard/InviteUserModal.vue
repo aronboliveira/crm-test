@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, watch, computed, onMounted } from "vue";
 import ApiClientService from "../../services/ApiClientService";
-import AlertService from "../../services/AlertService";
 
 const emit = defineEmits<{
   (e: "close"): void;

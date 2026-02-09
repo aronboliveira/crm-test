@@ -38,6 +38,10 @@ import TagsModule from './modules/tags/tags.module';
 import MilestonesModule from './modules/milestones/milestones.module';
 import TemplatesModule from './modules/templates/templates.module';
 import ImportModule from './modules/import/import.module';
+import { ClientsModule } from './modules/clients/clients.module';
+import ClientEntity from './entities/ClientEntity';
+import { LeadsModule } from './modules/leads/leads.module';
+import LeadEntity from './entities/LeadEntity';
 
 @Module({
   imports: [
@@ -48,6 +52,8 @@ import ImportModule from './modules/import/import.module';
         PermissionEntity,
         RoleEntity,
         UserEntity,
+        ClientEntity,
+        LeadEntity,
         ProjectEntity,
         TaskEntity,
         AuthAuditEventEntity,
@@ -78,6 +84,8 @@ import ImportModule from './modules/import/import.module';
     TemplatesModule,
     ImportModule,
     MockSeedModule,
+    ClientsModule,
+    LeadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

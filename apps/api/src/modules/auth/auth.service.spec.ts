@@ -61,7 +61,6 @@ describe('AuthService', () => {
   /* ── validateUser ── */
   describe('validateUser', () => {
     it('should return user when credentials are correct', async () => {
-      
       const hash = await bcrypt.hash('Test#123', 12);
       const user = mockUser({ passwordHash: hash });
       mockUsersService.findByEmail.mockResolvedValue(user);
@@ -94,7 +93,6 @@ describe('AuthService', () => {
     });
 
     it('should return null when password does not match', async () => {
-      
       const hash = await bcrypt.hash('RealPassword', 12);
       mockUsersService.findByEmail.mockResolvedValue(
         mockUser({ passwordHash: hash }),
@@ -191,7 +189,6 @@ describe('AuthService', () => {
   /* ── changePassword ── */
   describe('changePassword', () => {
     it('should update password when current password matches', async () => {
-      
       const oldHash = await bcrypt.hash('OldPass#1', 12);
       mockUsersRepo.findOne.mockResolvedValue(
         mockUser({ passwordHash: oldHash }),
@@ -221,11 +218,8 @@ describe('AuthService', () => {
     });
 
     it('should throw when current password is wrong', async () => {
-      
       const hash = await bcrypt.hash('CorrectPass', 12);
-      mockUsersRepo.findOne.mockResolvedValue(
-        mockUser({ passwordHash: hash }),
-      );
+      mockUsersRepo.findOne.mockResolvedValue(mockUser({ passwordHash: hash }));
 
       await expect(
         service.changePassword(fakeOid, 'WrongPass', 'NewPass'),
@@ -236,11 +230,8 @@ describe('AuthService', () => {
   /* ── requestEmailChange ── */
   describe('requestEmailChange', () => {
     it('should accept email change when password is correct', async () => {
-      
       const hash = await bcrypt.hash('MyPass#1', 12);
-      mockUsersRepo.findOne.mockResolvedValue(
-        mockUser({ passwordHash: hash }),
-      );
+      mockUsersRepo.findOne.mockResolvedValue(mockUser({ passwordHash: hash }));
       mockUsersService.findByEmail.mockResolvedValue(null);
 
       const result = await service.requestEmailChange(
@@ -253,11 +244,8 @@ describe('AuthService', () => {
     });
 
     it('should reject when email is already taken by another user', async () => {
-      
       const hash = await bcrypt.hash('Pass#1', 12);
-      mockUsersRepo.findOne.mockResolvedValue(
-        mockUser({ passwordHash: hash }),
-      );
+      mockUsersRepo.findOne.mockResolvedValue(mockUser({ passwordHash: hash }));
       mockUsersService.findByEmail.mockResolvedValue({
         _id: 'differentUserId',
       });
@@ -278,11 +266,8 @@ describe('AuthService', () => {
     });
 
     it('should throw when password is incorrect', async () => {
-      
       const hash = await bcrypt.hash('CorrectPass', 12);
-      mockUsersRepo.findOne.mockResolvedValue(
-        mockUser({ passwordHash: hash }),
-      );
+      mockUsersRepo.findOne.mockResolvedValue(mockUser({ passwordHash: hash }));
 
       await expect(
         service.requestEmailChange(fakeOid, 'new@b.com', 'WrongPass'),

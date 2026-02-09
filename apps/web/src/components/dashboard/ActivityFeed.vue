@@ -62,8 +62,8 @@ const generateMockActivities = (): ActivityItem[] => {
   const now = Date.now();
 
   for (let i = 0; i < 10; i++) {
-    const type = types[Math.floor(Math.random() * types.length)];
-    const user = users[Math.floor(Math.random() * users.length)];
+    const type = types[Math.floor(Math.random() * types.length)]!;
+    const user = users[Math.floor(Math.random() * users.length)]!;
     const timestamp = new Date(
       now - i * 3600000 * (1 + Math.random() * 5),
     ).toISOString();
@@ -75,24 +75,24 @@ const generateMockActivities = (): ActivityItem[] => {
       case "project_created":
         title = "Novo projeto criado";
         description =
-          projectNames[Math.floor(Math.random() * projectNames.length)];
+          projectNames[Math.floor(Math.random() * projectNames.length)]!;
         break;
       case "task_completed":
         title = "Tarefa concluída";
-        description = taskNames[Math.floor(Math.random() * taskNames.length)];
+        description = taskNames[Math.floor(Math.random() * taskNames.length)]!;
         break;
       case "task_created":
         title = "Nova tarefa adicionada";
-        description = taskNames[Math.floor(Math.random() * taskNames.length)];
+        description = taskNames[Math.floor(Math.random() * taskNames.length)]!;
         break;
       case "project_updated":
         title = "Projeto atualizado";
         description =
-          projectNames[Math.floor(Math.random() * projectNames.length)];
+          projectNames[Math.floor(Math.random() * projectNames.length)]!;
         break;
       case "user_joined":
         title = "Usuário entrou na equipe";
-        description = user.split("@")[0];
+        description = user.split("@")[0]!;
         break;
     }
 

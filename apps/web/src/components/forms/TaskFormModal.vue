@@ -271,8 +271,13 @@ const handleSubmit = async () => {
       ...result.data,
       priority: result.data.priority as TaskPriority,
       dueAt: result.data.dueAt ?? null,
+      deadlineAt: result.data.deadlineAt ?? null,
       assigneeEmail:
         result.data.assigneeEmail ?? props.task?.assigneeEmail ?? "",
+      assigneeId: props.task?.assigneeId ?? null,
+      milestoneId: result.data.milestoneId ?? props.task?.milestoneId ?? null,
+      tags: result.data.tags ?? [],
+      subtasks: props.task?.subtasks ?? [],
       createdAt: props.task?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

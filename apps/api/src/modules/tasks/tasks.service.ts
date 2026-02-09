@@ -11,10 +11,14 @@ import { ObjectId } from 'mongodb';
 import TaskEntity, {
   type TaskPriority,
   type TaskStatus,
+  type Subtask,
 } from '../../entities/TaskEntity';
 import type { ProjectsLookupPort } from './ports/projects-lookup.port';
 import { PROJECTS_LOOKUP_PORT } from './ports/projects-lookup.token';
 
+/**
+ * Data transfer object for creating a new task.
+ */
 type CreateTaskDto = Readonly<{
   projectId: string;
   title: string;
@@ -29,11 +33,29 @@ type CreateTaskDto = Readonly<{
   deadlineAt?: string;
 }>;
 
+/**
+ * Data transfer object for updating an existing task.
+ */
 type UpdateTaskDto = Readonly<Partial<CreateTaskDto>>;
 
+/**
+ * Type guard to check if a value is an ISO 8601 date string.
+ * @param v - The value to check
+ * @returns True if the value matches ISO date format
+ */
 const isIso = (v: unknown): v is string =>
   typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v);
 
+/**
+ * Service responsible for managing task entities.
+ * Provides CRUD operations for tasks within projects.
+ *
+ * @example
+ * ```typescript
+ * const task = await tasksService.create({ projectId: '...', title: 'My Task' });
+ * const tasks = await tasksService.list();
+ * ```
+ */
 @Injectable()
 export default class TasksService {
   private readonly logger = new Logger(TasksService.name);
@@ -56,6 +78,11 @@ export default class TasksService {
     }
   }
 
+  /**
+   * Retrieves all tasks from the database.
+   * @returns A readonly array of task entities (max 1000)
+   * @throws Error if database query fails
+   */
   async list(): Promise<readonly TaskEntity[]> {
     try {
       const tasks = await this.repo.find({ take: 1000 } as any);
@@ -230,6 +257,55 @@ export default class TasksService {
       return updated as any;
     } catch (error) {
       this.logger.error('Error updating task:', error);
+      throw error;
+    }
+  }
+
+  async updateSubtasks(id: string, subtasks: unknown[]): Promise<TaskEntity> {
+    try {
+      const oid = ObjectId.isValid(id) ? new ObjectId(id) : null;
+      if (!oid) {
+        this.logger.warn(`Update subtasks - invalid id: ${id}`);
+        throw new BadRequestException('Invalid id');
+      }
+
+      const cur = await this.repo.findOne({ where: { _id: oid } as any });
+      if (!cur) {
+        this.logger.warn(`Update subtasks - not found: ${id}`);
+        throw new NotFoundException('Not found');
+      }
+
+      const normalized: Subtask[] = Array.isArray(subtasks)
+        ? subtasks
+            .filter(
+              (s: any) =>
+                s && typeof s === 'object' && typeof s.text === 'string',
+            )
+            .map((s: any, i: number) => ({
+              id:
+                typeof s.id === 'string' && s.id.trim()
+                  ? s.id.trim()
+                  : new ObjectId().toHexString(),
+              text: String(s.text).trim(),
+              done: !!s.done,
+              order: typeof s.order === 'number' ? s.order : i,
+            }))
+            .filter((s) => s.text.length > 0)
+        : [];
+
+      const patch: any = {
+        subtasks: normalized,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await this.repo.update(oid as any, patch);
+      const updated = await this.repo.findOne({ where: { _id: oid } as any });
+      this.logger.log(
+        `Task subtasks updated: ${id} (${normalized.length} items)`,
+      );
+      return updated as any;
+    } catch (error) {
+      this.logger.error('Error updating subtasks:', error);
       throw error;
     }
   }

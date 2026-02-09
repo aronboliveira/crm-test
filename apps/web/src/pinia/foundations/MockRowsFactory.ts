@@ -1,8 +1,342 @@
+import type { ClientRow } from "../types/clients.types";
+import type { LeadRow, LeadStatus, LeadSource } from "../types/leads.types";
 import type { ProjectRow, ProjectStatus } from "../types/projects.types";
 import type { TaskPriority, TaskRow, TaskStatus } from "../types/tasks.types";
 
 export default class MockRowsFactory {
   static #SALT = "corp-admin-v1";
+
+  static clients(count: number): readonly ClientRow[] {
+    try {
+      const n = MockRowsFactory.#clamp(count, 18, 1, 120);
+      const firstNames = [
+        "Ana",
+        "Bruno",
+        "Carla",
+        "Daniel",
+        "Eduarda",
+        "Felipe",
+        "Giovana",
+        "Henrique",
+        "Isabela",
+        "João",
+        "Kamila",
+        "Lucas",
+        "Marina",
+        "Nicolas",
+        "Otávio",
+        "Paula",
+        "Rafael",
+        "Sofia",
+        "Thiago",
+        "Viviane",
+      ];
+      const lastNames = [
+        "Almeida",
+        "Barbosa",
+        "Cardoso",
+        "Dias",
+        "Ferreira",
+        "Gomes",
+        "Lima",
+        "Machado",
+        "Oliveira",
+        "Pereira",
+        "Ramos",
+        "Silva",
+        "Souza",
+        "Teixeira",
+      ];
+      const companyPrefixes = [
+        "Nova",
+        "Prime",
+        "Global",
+        "Vértice",
+        "Aurora",
+        "Atlas",
+        "Pulso",
+        "Nexo",
+        "Sigma",
+        "Bridge",
+      ];
+      const companySuffixes = [
+        "Tech",
+        "Digital",
+        "Labs",
+        "Systems",
+        "Solutions",
+        "Cloud",
+        "Analytics",
+        "Studio",
+        "Group",
+        "Works",
+      ];
+      const domains = [
+        "empresa.local",
+        "corp.local",
+        "tech.local",
+        "solutions.local",
+      ];
+      const notesPool = [
+        "Cliente estratégico",
+        "Renovação prevista este trimestre",
+        "Time técnico dedicado",
+        "Onboarding em andamento",
+        "Contrato anual",
+        "Expansão planejada",
+      ];
+      const out: ClientRow[] = [];
+      for (let i = 0; i < n; i++) {
+        const seed = MockRowsFactory.#hash(`${MockRowsFactory.#SALT}:c:${i}`);
+        const s = parseInt(seed.slice(0, 6), 16) || i + 1;
+        const first = firstNames[s % firstNames.length];
+        const last = lastNames[(s + 3) % lastNames.length];
+        const name = `${first} ${last}`;
+        const company = `${companyPrefixes[(s + 5) % companyPrefixes.length]} ${
+          companySuffixes[(s + 2) % companySuffixes.length]
+        }`;
+        const domain = domains[(s + 7) % domains.length];
+        const email = `${first.toLowerCase()}.${last.toLowerCase()}@${domain}`;
+        const phone = `+55 11 9${String(1000 + (s % 9000)).padStart(4, "0")}-${String(1000 + ((s * 7) % 9000)).padStart(4, "0")}`;
+        const createdAt = MockRowsFactory.#isoDaysAgo(30 + (i % 40));
+        const updatedAt = MockRowsFactory.#isoDaysAgo(i % 12);
+        out.push({
+          id: `c_${seed.slice(0, 10)}`,
+          name,
+          company: i % 8 === 0 ? undefined : company,
+          email: i % 10 === 0 ? undefined : email,
+          phone: i % 7 === 0 ? undefined : phone,
+          notes: i % 3 === 0 ? notesPool[s % notesPool.length] : undefined,
+          createdAt,
+          updatedAt,
+        });
+      }
+      return out;
+    } catch (error) {
+      console.error("[MockRowsFactory] Error generating clients:", error);
+      return [];
+    }
+  }
+
+  static leads(count: number): readonly LeadRow[] {
+    try {
+      const n = MockRowsFactory.#clamp(count, 24, 1, 200);
+
+      const firstNames = [
+        "Marcos",
+        "Juliana",
+        "Roberto",
+        "Patrícia",
+        "André",
+        "Camila",
+        "Fernando",
+        "Letícia",
+        "Gustavo",
+        "Tatiane",
+        "Ricardo",
+        "Vanessa",
+        "Diego",
+        "Renata",
+        "Leonardo",
+        "Amanda",
+        "César",
+        "Beatriz",
+        "Sérgio",
+        "Cláudia",
+      ];
+      const lastNames = [
+        "Mendes",
+        "Costa",
+        "Santos",
+        "Pinto",
+        "Nunes",
+        "Araújo",
+        "Ribeiro",
+        "Moreira",
+        "Cavalcanti",
+        "Freitas",
+      ];
+      const companies = [
+        "TechVision SA",
+        "Inova Digital",
+        "MegaSoft",
+        "DataPrime",
+        "CloudBridge",
+        "NetPulse",
+        "StartHub",
+        "ByteForge",
+        "AgileCorp",
+        "SmartGrid",
+        "CyberEdge",
+        "FutureLabs",
+      ];
+      const statuses: LeadStatus[] = [
+        "new",
+        "contacted",
+        "qualified",
+        "proposal",
+        "negotiation",
+        "won",
+        "lost",
+      ];
+      const sources: LeadSource[] = [
+        "website",
+        "referral",
+        "social",
+        "email_campaign",
+        "cold_call",
+        "event",
+        "partner",
+        "other",
+      ];
+      const tagPool = [
+        "enterprise",
+        "startup",
+        "saas",
+        "e-commerce",
+        "fintech",
+        "healthtech",
+        "edtech",
+        "govtech",
+        "varejo",
+        "indústria",
+      ];
+      const campaignNames = [
+        "Black Friday 2025",
+        "Webinar Q1",
+        "Email Drip Nurture",
+        "LinkedIn Outreach",
+        "Google Ads Retarget",
+        "Evento Presencial SP",
+      ];
+      const contractTitles = [
+        "Contrato Piloto",
+        "Assinatura Anual",
+        "POC 30 dias",
+        "Licença Enterprise",
+        "Serviço Consultoria",
+      ];
+      const ctaChannels: Array<
+        "email" | "whatsapp" | "sms" | "linkedin" | "call"
+      > = ["email", "whatsapp", "sms", "linkedin", "call"];
+      const ctaMessages = [
+        "Olá {name}, temos uma proposta para a {company}!",
+        "Oi {name}, vamos agendar uma demo?",
+        "{name}, seu período de avaliação termina em breve.",
+        "Olá {name}, novas funcionalidades disponíveis!",
+        "{name}, você tem 15% off esperando por você.",
+      ];
+
+      const out: LeadRow[] = [];
+      for (let i = 0; i < n; i++) {
+        const seed = MockRowsFactory.#hash(`${MockRowsFactory.#SALT}:l:${i}`);
+        const s = parseInt(seed.slice(0, 6), 16) || i + 1;
+        const first = firstNames[s % firstNames.length];
+        const last = lastNames[(s + 3) % lastNames.length];
+        const name = `${first} ${last}`;
+        const company = companies[(s + 2) % companies.length];
+        const status = statuses[s % statuses.length];
+        const source = sources[(s + 4) % sources.length];
+        const domain =
+          company.toLowerCase().replace(/\s+/g, "").slice(0, 10) + ".com";
+        const email =
+          i % 8 === 0
+            ? undefined
+            : `${first.toLowerCase()}.${last.toLowerCase()}@${domain}`;
+        const phone =
+          i % 6 === 0
+            ? undefined
+            : `+55 11 9${String(2000 + (s % 8000)).padStart(4, "0")}-${String(1000 + ((s * 3) % 9000)).padStart(4, "0")}`;
+
+        const tags =
+          i % 3 === 0
+            ? [tagPool[s % tagPool.length], tagPool[(s + 5) % tagPool.length]]
+            : i % 2 === 0
+              ? [tagPool[(s + 1) % tagPool.length]]
+              : undefined;
+
+        const campaigns =
+          i % 4 === 0
+            ? [
+                {
+                  id: `camp_${seed.slice(0, 6)}`,
+                  name: campaignNames[s % campaignNames.length],
+                  channel: ctaChannels[s % ctaChannels.length],
+                  attachedAt: MockRowsFactory.#isoDaysAgo(10 + (i % 20)),
+                },
+              ]
+            : undefined;
+
+        const contracts =
+          i % 5 === 0
+            ? [
+                {
+                  id: `ctr_${seed.slice(0, 6)}`,
+                  title: contractTitles[s % contractTitles.length],
+                  value: Math.round(((s % 50) + 5) * 1000),
+                  attachedAt: MockRowsFactory.#isoDaysAgo(5 + (i % 15)),
+                },
+              ]
+            : undefined;
+
+        const ctaSuggestions =
+          i % 3 === 0
+            ? [
+                {
+                  id: `cta_${seed.slice(0, 6)}`,
+                  channel: ctaChannels[(s + 1) % ctaChannels.length],
+                  message: ctaMessages[s % ctaMessages.length]
+                    .replace(/\{name\}/g, first)
+                    .replace(/\{company\}/g, company),
+                  createdAt: MockRowsFactory.#isoDaysAgo(3),
+                  used: i % 6 === 0,
+                },
+              ]
+            : undefined;
+
+        const estimatedValue =
+          status === "lost" ? undefined : Math.round(((s % 100) + 10) * 500);
+        const lastContactAt = ["new"].includes(status)
+          ? undefined
+          : MockRowsFactory.#isoDaysAgo(1 + (i % 14));
+        const assignedTo =
+          i % 5 === 0 ? undefined : `user${(s % 8) + 1}@corp.local`;
+        const lostReason =
+          status === "lost"
+            ? ["Orçamento", "Timing", "Concorrente escolhido", "Sem resposta"][
+                s % 4
+              ]
+            : undefined;
+
+        out.push({
+          id: `l_${seed.slice(0, 10)}`,
+          name,
+          email,
+          phone,
+          company,
+          status,
+          source,
+          assignedTo,
+          estimatedValue,
+          notes: i % 4 === 0 ? "Lead de alto potencial" : undefined,
+          tags,
+          campaigns,
+          contracts,
+          ctaSuggestions,
+          lastContactAt,
+          convertedClientId:
+            status === "won" ? `c_${seed.slice(2, 12)}` : undefined,
+          lostReason,
+          createdAt: MockRowsFactory.#isoDaysAgo(30 + (i % 60)),
+          updatedAt: MockRowsFactory.#isoDaysAgo(i % 10),
+        });
+      }
+      return out;
+    } catch (error) {
+      console.error("[MockRowsFactory] Error generating leads:", error);
+      return [];
+    }
+  }
 
   static projects(count: number): readonly ProjectRow[] {
     try {

@@ -1,6 +1,8 @@
 export type ResourceKey =
   | 'projects'
   | 'tasks'
+  | 'clients'
+  | 'leads'
   | 'users'
   | 'roles'
   | 'permissions'

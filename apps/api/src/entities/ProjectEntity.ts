@@ -28,6 +28,10 @@ export default class ProjectEntity {
   @Column()
   status!: ProjectStatus;
 
+  @Index()
+  @Column()
+  clientId?: string;
+
   @Column()
   ownerEmail?: string;
 

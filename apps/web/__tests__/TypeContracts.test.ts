@@ -32,7 +32,9 @@ describe("Type contracts", () => {
         "audit.read",
       ];
       expect(allKeys).toHaveLength(15);
-      allKeys.forEach((k) => expect(k).toMatch(/^[a-z]+\.(read|write|manage)$/));
+      allKeys.forEach((k) =>
+        expect(k).toMatch(/^[a-z]+\.(read|write|manage)$/),
+      );
     });
   });
 

@@ -30,7 +30,9 @@ export function useTopBar(emit: TopBarEmits) {
       // Extract name part from email (before @)
       const namePart = emailVal.split("@")[0];
       // Capitalize first letter
-      return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+      return (
+        (namePart?.charAt(0).toUpperCase() || "") + (namePart?.slice(1) || "")
+      );
     }
     return "User";
   });

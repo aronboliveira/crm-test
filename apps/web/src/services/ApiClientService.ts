@@ -1,9 +1,13 @@
 import axios, { type AxiosInstance, type AxiosError } from "axios";
 import type { CreateDTO, UpdateDTO } from "../types/api.types";
 
-// Token storage key - must match auth.store.ts
+/** Storage key for authentication token, must match auth.store.ts */
 const AUTH_TOKEN_KEY = "_auth_token_v1";
 
+/**
+ * Retrieves the authentication token from session storage.
+ * @returns The stored token or null if not found
+ */
 function getToken(): string | null {
   try {
     return sessionStorage.getItem(AUTH_TOKEN_KEY) || null;
@@ -12,9 +16,18 @@ function getToken(): string | null {
   }
 }
 
+/**
+ * Low-level HTTP client wrapper around Axios.
+ * Handles request/response interceptors for authentication and error handling.
+ */
 class ApiClient {
   #ax: AxiosInstance;
 
+  /**
+   * Creates a new ApiClient instance.
+   * @param baseURL - The base URL for all API requests
+   * @throws Error if baseURL is not provided
+   */
   constructor(baseURL: string) {
     if (!baseURL) {
       throw new Error("[ApiClient] baseURL is required");
@@ -72,6 +85,7 @@ class ApiClient {
     );
   }
 
+  /** Returns the underlying Axios instance for direct access. */
   get raw(): AxiosInstance {
     return this.#ax;
   }
@@ -81,9 +95,24 @@ const api = new ApiClient(
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000",
 );
 
+/**
+ * High-level API client service for making HTTP requests to the backend.
+ * Provides typed methods for all CRM resources (auth, projects, tasks, clients, leads).
+ *
+ * @example
+ * ```typescript
+ * const user = await ApiClientService.auth.me();
+ * const projects = await ApiClientService.projects.list();
+ * ```
+ */
 export default class ApiClientService {
+  /** Direct access to the Axios instance for custom requests. */
   static raw = api.raw;
 
+  /**
+   * Sets the authentication token (compatibility method).
+   * @param _token - The token to set (handled via interceptor)
+   */
   static setToken(_token: string): void {
     // Token is set via interceptor using AuthService
     // This method exists for compatibility
@@ -260,6 +289,227 @@ export default class ApiClientService {
           `[ApiClientService.tasks.remove] Failed for ID ${id}:`,
           error,
         );
+        throw error;
+      }
+    },
+    updateSubtasks: async (id: string, subtasks: any[]) => {
+      try {
+        if (!id || typeof id !== "string") throw new Error("Invalid task ID");
+        const response = await api.raw.patch(
+          `/tasks/${encodeURIComponent(id)}/subtasks`,
+          { subtasks },
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.tasks.updateSubtasks] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+  };
+
+  static clients = {
+    list: async () => {
+      try {
+        const response = await api.raw.get("/clients");
+        return response.data;
+      } catch (error) {
+        console.error("[ApiClientService.clients.list] Request failed:", error);
+        throw error;
+      }
+    },
+
+    create: async (payload: any) => {
+      try {
+        const response = await api.raw.post("/clients", payload);
+        return response.data;
+      } catch (error) {
+        console.error(
+          "[ApiClientService.clients.create] Request failed:",
+          error,
+        );
+        throw error;
+      }
+    },
+
+    update: async (id: string, payload: any) => {
+      try {
+        const response = await api.raw.patch(`/clients/${id}`, payload);
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.clients.update] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    remove: async (id: string) => {
+      try {
+        const response = await api.raw.delete(`/clients/${id}`);
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.clients.remove] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+  };
+
+  /* ── Leads ────────────────────────────────────────────────── */
+
+  static leads = {
+    list: async (q?: string, status?: string) => {
+      try {
+        const response = await api.raw.get("/leads", {
+          params: { q, status },
+        });
+        return response.data;
+      } catch (error) {
+        console.error("[ApiClientService.leads.list] Request failed:", error);
+        throw error;
+      }
+    },
+
+    get: async (id: string) => {
+      try {
+        const response = await api.raw.get(`/leads/${encodeURIComponent(id)}`);
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.leads.get] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    create: async (payload: any) => {
+      try {
+        const response = await api.raw.post("/leads", payload);
+        return response.data;
+      } catch (error) {
+        console.error("[ApiClientService.leads.create] Request failed:", error);
+        throw error;
+      }
+    },
+
+    update: async (id: string, payload: any) => {
+      try {
+        const response = await api.raw.patch(
+          `/leads/${encodeURIComponent(id)}`,
+          payload,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.leads.update] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    remove: async (id: string) => {
+      try {
+        const response = await api.raw.delete(
+          `/leads/${encodeURIComponent(id)}`,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.leads.remove] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    attachCampaign: async (id: string, campaign: any) => {
+      try {
+        const response = await api.raw.post(
+          `/leads/${encodeURIComponent(id)}/campaigns`,
+          campaign,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.leads.attachCampaign] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    detachCampaign: async (id: string, campaignId: string) => {
+      try {
+        const response = await api.raw.delete(
+          `/leads/${encodeURIComponent(id)}/campaigns/${encodeURIComponent(campaignId)}`,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(`[ApiClientService.leads.detachCampaign] Failed:`, error);
+        throw error;
+      }
+    },
+
+    attachContract: async (id: string, contract: any) => {
+      try {
+        const response = await api.raw.post(
+          `/leads/${encodeURIComponent(id)}/contracts`,
+          contract,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.leads.attachContract] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    detachContract: async (id: string, contractId: string) => {
+      try {
+        const response = await api.raw.delete(
+          `/leads/${encodeURIComponent(id)}/contracts/${encodeURIComponent(contractId)}`,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(`[ApiClientService.leads.detachContract] Failed:`, error);
+        throw error;
+      }
+    },
+
+    refreshCta: async (id: string, channels?: string[]) => {
+      try {
+        const response = await api.raw.post(
+          `/leads/${encodeURIComponent(id)}/cta/refresh`,
+          { channels },
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.leads.refreshCta] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    markCtaUsed: async (id: string, ctaId: string) => {
+      try {
+        const response = await api.raw.patch(
+          `/leads/${encodeURIComponent(id)}/cta/${encodeURIComponent(ctaId)}/used`,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(`[ApiClientService.leads.markCtaUsed] Failed:`, error);
         throw error;
       }
     },

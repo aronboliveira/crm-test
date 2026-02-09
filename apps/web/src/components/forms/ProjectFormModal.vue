@@ -6,7 +6,6 @@ import type {
   ProjectRow,
   ProjectStatus,
 } from "../../pinia/types/projects.types";
-import { useProjectsStore } from "../../pinia/stores/projects.store";
 import ApiClientService from "../../services/ApiClientService";
 import AlertService from "../../services/AlertService";
 import SmartAutocompleteService from "../../services/SmartAutocompleteService";
@@ -23,7 +22,6 @@ const emit = defineEmits<{
   (e: "confirm", project: ProjectRow): void;
 }>();
 
-const _projectsStore = useProjectsStore();
 const isEditing = computed(() => !!props.project);
 const busy = ref(false);
 
@@ -269,6 +267,9 @@ const handleSubmit = async () => {
       id: props.project?.id ?? crypto.randomUUID(),
       ...result.data,
       dueAt: result.data.dueAt ?? null,
+      deadlineAt: result.data.deadlineAt ?? null,
+      tags: result.data.tags ?? [],
+      templateKey: result.data.templateKey ?? null,
       ownerEmail: props.project?.ownerEmail ?? "",
       createdAt: props.project?.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),

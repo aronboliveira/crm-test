@@ -6,7 +6,7 @@ services:
     container_name: crm-mongodb
     restart: unless-stopped
     ports:
-      - "27018:27017" # Changed host port to 27018 to avoid conflict
+      - "${MONGO_HOST_PORT:-27017}:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
@@ -98,7 +98,7 @@ services:
     container_name: crm-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru

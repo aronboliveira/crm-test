@@ -113,14 +113,29 @@ const normalizeTask = (x: any): TaskRow | null => {
   const updatedAt = String(x?.updatedAt || createdAt);
   const dueAt = x?.dueAt ? String(x.dueAt) : null;
 
+  const rawSubtasks = Array.isArray(x?.subtasks) ? x.subtasks : [];
+  const subtasks = rawSubtasks
+    .filter((s: any) => s && typeof s.text === "string")
+    .map((s: any, i: number) => ({
+      id: String(s.id || `st_${i}`),
+      text: String(s.text).trim(),
+      done: !!s.done,
+      order: typeof s.order === "number" ? s.order : i,
+    }));
+
   return {
     id,
     projectId,
     title,
     assigneeEmail,
+    assigneeId: x?.assigneeId ? String(x.assigneeId) : null,
+    milestoneId: x?.milestoneId ? String(x.milestoneId) : null,
+    tags: Array.isArray(x?.tags) ? x.tags.filter(Boolean) : [],
+    subtasks,
     status,
     priority,
     dueAt,
+    deadlineAt: x?.deadlineAt ? String(x.deadlineAt) : null,
     createdAt,
     updatedAt,
   };

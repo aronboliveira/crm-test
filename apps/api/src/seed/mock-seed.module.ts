@@ -11,6 +11,7 @@ import TagEntity from '../entities/TagEntity';
 import MilestoneEntity from '../entities/MilestoneEntity';
 import CommentEntity from '../entities/CommentEntity';
 import ProjectTemplateEntity from '../entities/ProjectTemplateEntity';
+import ClientEntity from '../entities/ClientEntity';
 
 import MockSeedService from './mock-seed.service';
 
@@ -27,6 +28,7 @@ import MockSeedService from './mock-seed.service';
       MilestoneEntity,
       CommentEntity,
       ProjectTemplateEntity,
+      ClientEntity,
     ]),
   ],
   providers: [MockSeedService],

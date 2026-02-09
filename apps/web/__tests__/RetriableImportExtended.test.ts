@@ -32,11 +32,7 @@ describe("RetriableImport – extended", () => {
   it("should not call onAttempt when first attempt succeeds", async () => {
     const loader = vi.fn().mockResolvedValue("ok");
     const onAttempt = vi.fn();
-    await RetriableImport.load(
-      loader,
-      { tries: 3, intervalMs: 10 },
-      onAttempt,
-    );
+    await RetriableImport.load(loader, { tries: 3, intervalMs: 10 }, onAttempt);
     expect(onAttempt).not.toHaveBeenCalled();
   });
 

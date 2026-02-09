@@ -46,7 +46,7 @@
 /// @param {Number} $amount - Amount to lighten (0-100)
 /// @return {Color} - Lightened color
 @function tint($color, $amount) {
-  @return color-mix(in oklab, #{$color}, white #{$amount}%);
+  @return color-mix(in oklab, #{$color}, white #{$amount * 1%});
 }
 
 /// Darken color using oklab
@@ -54,7 +54,7 @@
 /// @param {Number} $amount - Amount to darken (0-100)
 /// @return {Color} - Darkened color
 @function shade($color, $amount) {
-  @return color-mix(in oklab, #{$color}, black #{$amount}%);
+  @return color-mix(in oklab, #{$color}, black #{$amount * 1%});
 }
 
 /// Get radius token

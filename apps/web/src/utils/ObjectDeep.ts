@@ -1,3 +1,4 @@
+/** Primitive JavaScript types */
 export type Primitive =
   | string
   | number
@@ -7,6 +8,7 @@ export type Primitive =
   | symbol
   | bigint;
 
+/** Deep readonly type that recursively marks all properties as readonly */
 export type DeepReadonly<T> = T extends Primitive
   ? T
   : T extends (...args: any[]) => any
@@ -21,7 +23,16 @@ export type DeepReadonly<T> = T extends Primitive
             ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
             : T;
 
+/**
+ * Utility class for deep object operations.
+ * Provides methods for deep freezing objects to ensure immutability.
+ */
 export default class ObjectDeep {
+  /**
+   * Recursively freezes an object and all nested properties.
+   * @param obj - The object to freeze
+   * @returns The frozen object cast as DeepReadonly
+   */
   static freeze<T>(obj: T): DeepReadonly<T> {
     try {
       return ObjectDeep.#freeze(obj) as DeepReadonly<T>;
@@ -31,12 +42,16 @@ export default class ObjectDeep {
     }
   }
 
+  /**
+   * Internal recursive freeze implementation.
+   * @param v - Value to freeze
+   * @returns The frozen value
+   */
   static #freeze(v: unknown): unknown {
     try {
       if (!v || typeof v !== "object") return v;
       if (Object.isFrozen(v)) return v;
 
-      // todo treat Maps, Dates, RegExps and Sets differently
       const keys = Object.keys(v);
 
       keys.forEach((k) => {

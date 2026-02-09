@@ -3,6 +3,13 @@ import type { Cursor, TablePrefs } from "./table.types";
 export type TaskStatus = "todo" | "doing" | "blocked" | "done" | "archived";
 export type TaskPriority = 1 | 2 | 3 | 4 | 5;
 
+export type SubtaskRow = Readonly<{
+  id: string;
+  text: string;
+  done: boolean;
+  order: number;
+}>;
+
 export type TaskRow = Readonly<{
   id: string;
   projectId: string;
@@ -11,6 +18,7 @@ export type TaskRow = Readonly<{
   assigneeId: string | null;
   milestoneId: string | null;
   tags: string[];
+  subtasks: SubtaskRow[];
   status: TaskStatus;
   priority: TaskPriority;
   dueAt: string | null;

@@ -11,6 +11,9 @@ import ProjectEntity, {
   type ProjectStatus,
 } from '../../entities/ProjectEntity';
 
+/**
+ * Data transfer object for creating a new project.
+ */
 type CreateProjectDto = Readonly<{
   name: string;
   code?: string;
@@ -23,11 +26,29 @@ type CreateProjectDto = Readonly<{
   templateKey?: string;
 }>;
 
+/**
+ * Data transfer object for updating an existing project.
+ */
 type UpdateProjectDto = Readonly<Partial<CreateProjectDto>>;
 
+/**
+ * Type guard to check if a value is a plain object (record).
+ * @param v - The value to check
+ * @returns True if the value is a non-null, non-array object
+ */
 const isRec = (v: unknown): v is Record<string, unknown> =>
   !!v && typeof v === 'object' && !Array.isArray(v) ? true : false;
 
+/**
+ * Service responsible for managing project entities.
+ * Provides CRUD operations for projects stored in MongoDB.
+ *
+ * @example
+ * ```typescript
+ * const project = await projectsService.create({ name: 'My Project' });
+ * const all = await projectsService.list();
+ * ```
+ */
 @Injectable()
 export default class ProjectsService {
   private readonly logger = new Logger(ProjectsService.name);
@@ -48,6 +69,11 @@ export default class ProjectsService {
     }
   }
 
+  /**
+   * Retrieves all projects from the database.
+   * @returns A readonly array of project entities (max 500)
+   * @throws Error if database query fails
+   */
   async list(): Promise<readonly ProjectEntity[]> {
     try {
       const projects = await this.repo.find({ take: 500 } as any);

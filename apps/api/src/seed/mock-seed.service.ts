@@ -19,6 +19,7 @@ import TagEntity from '../entities/TagEntity';
 import MilestoneEntity from '../entities/MilestoneEntity';
 import CommentEntity from '../entities/CommentEntity';
 import ProjectTemplateEntity from '../entities/ProjectTemplateEntity';
+import ClientEntity from '../entities/ClientEntity';
 
 type MockUser = Readonly<{
   email: string;
@@ -50,18 +51,49 @@ export default class MockSeedService {
     private readonly commentsRepo: MongoRepository<CommentEntity>,
     @InjectRepository(ProjectTemplateEntity)
     private readonly templatesRepo: MongoRepository<ProjectTemplateEntity>,
+    @InjectRepository(ClientEntity)
+    private readonly clientsRepo: MongoRepository<ClientEntity>,
   ) {}
 
   async run(): Promise<void> {
     await this.#seedPermissions();
     await this.#seedRoles();
     const allEmails = await this.#seedUsers();
-    const projects = await this.#seedProjectsAndTasks(allEmails);
+    const clients = await this.#seedClients();
+    const projects = await this.#seedProjectsAndTasks(allEmails, clients);
     await this.#seedTags();
     await this.#seedMilestones(projects);
     await this.#seedComments(projects, allEmails);
     await this.#seedTemplates();
     await this.#seedMailOutbox(allEmails);
+  }
+
+  async #seedClients(): Promise<ClientEntity[]> {
+    const clients: ClientEntity[] = [];
+    const count = await this.clientsRepo.count();
+    if (count > 0) {
+      return this.clientsRepo.find();
+    }
+
+    const now = new Date().toISOString();
+    for (let i = 0; i < 15; i++) {
+      const name = faker.company.name();
+      const email = faker.internet.email();
+      const client = this.clientsRepo.create({
+        id: crypto.randomUUID(),
+        name,
+        email,
+        phone: faker.phone.number(),
+        company: name,
+        notes: faker.lorem.sentence(),
+        createdAt: now,
+        updatedAt: now,
+      } as any);
+      clients.push(
+        (await this.clientsRepo.save(client)) as unknown as ClientEntity,
+      );
+    }
+    return clients;
   }
 
   async #seedPermissions(): Promise<void> {
@@ -210,12 +242,20 @@ export default class MockSeedService {
     return allEmails;
   }
 
-  async #seedProjectsAndTasks(allEmails: string[]): Promise<ProjectEntity[]> {
+  async #seedProjectsAndTasks(
+    allEmails: string[],
+    clients: ClientEntity[],
+  ): Promise<ProjectEntity[]> {
     const now = new Date().toISOString();
 
     // Helper to pick a random email for ownership/assignment
     const pick = () =>
       allEmails[faker.number.int({ min: 0, max: allEmails.length - 1 })];
+
+    const pickClient = () =>
+      clients.length
+        ? clients[faker.number.int({ min: 0, max: clients.length - 1 })]
+        : null;
 
     const names = [
       'Internal ERP Migration',
@@ -299,12 +339,18 @@ export default class MockSeedService {
         }))!;
       } else {
         row = await this.projectsRepo.save({
+          id: crypto.randomUUID(),
           name,
+          code:
+            name.substring(0, 3).toUpperCase() +
+            '-' +
+            faker.number.int({ min: 100, max: 999 }),
           status: config.status,
           description: config.description,
           ownerEmail: pick(),
           createdAt: now,
           updatedAt: now,
+          clientId: pickClient()?.id,
         } as any);
       }
 

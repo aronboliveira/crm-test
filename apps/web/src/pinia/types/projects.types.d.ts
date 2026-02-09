@@ -13,6 +13,7 @@ export type ProjectRow = Readonly<{
   name: string;
   ownerEmail: string;
   status: ProjectStatus;
+  clientId?: string;
   dueAt: string | null;
   deadlineAt: string | null;
   tags: string[];

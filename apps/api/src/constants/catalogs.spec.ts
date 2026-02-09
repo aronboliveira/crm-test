@@ -30,10 +30,11 @@ describe('RolesCatalog', () => {
 
   it('admin should have all permissions', () => {
     const admin = (ROLES_CATALOG as any).find((r: any) => r.key === 'admin');
-    expect(admin.permissions.length).toBeGreaterThanOrEqual(15);
+    expect(admin.permissions.length).toBeGreaterThanOrEqual(18);
     expect(admin.permissions).toContain('users.manage');
     expect(admin.permissions).toContain('projects.manage');
     expect(admin.permissions).toContain('tasks.manage');
+    expect(admin.permissions).toContain('clients.manage');
   });
 
   it('viewer should have only read permissions', () => {
@@ -61,6 +62,7 @@ describe('PermissionsCatalog', () => {
     const keys = (PERMISSIONS_CATALOG as any).map((p: any) => p.key);
     expect(keys).toContain('projects.read');
     expect(keys).toContain('tasks.read');
+    expect(keys).toContain('clients.read');
     expect(keys).toContain('users.read');
     expect(keys).toContain('roles.read');
     expect(keys).toContain('permissions.read');

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { defineAsyncComponent, ref, computed } from "vue";
+import { defineAsyncComponent, ref, computed, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useDashboardTasksPage } from "../assets/scripts/pages/useDashboardTasksPage";
 import ModalService from "../services/ModalService";
 import ApiClientService from "../services/ApiClientService";
 import AlertService from "../services/AlertService";
+import StorageService from "../services/StorageService";
 import type { TaskRow } from "../pinia/types/tasks.types";
 import type { FilterState } from "../components/ui/AdvancedFilter.vue";
 
@@ -27,8 +29,38 @@ const AttachmentsPanel = defineAsyncComponent(
   () => import("../components/ui/AttachmentsPanel.vue"),
 );
 
+const TaskDetailPanel = defineAsyncComponent(
+  () => import("../components/tasks/TaskDetailPanel.vue"),
+);
+
+const KanbanBoard = defineAsyncComponent(
+  () => import("../components/tasks/KanbanBoard.vue"),
+);
+
+const route = useRoute();
+const router = useRouter();
+
 const { rows, q, loading, error, nextCursor, load, more } =
   useDashboardTasksPage();
+
+/* ── View mode toggle (table / kanban) ──────────────── */
+
+type ViewMode = "table" | "kanban";
+
+const viewMode = ref<ViewMode>(
+  (StorageService.local.getStr("tasks_view_mode", "table") as ViewMode) ||
+    "table",
+);
+
+watch(viewMode, (v) => StorageService.local.setStr("tasks_view_mode", v));
+
+/* ── Query param taskId → detail panel ──────────────── */
+
+const hasTaskDetail = computed(
+  () => !!route.query.taskId && typeof route.query.taskId === "string",
+);
+
+/* ── Filtering ──────────────────────────────────────── */
 
 const filter = ref<FilterState>({
   status: "",
@@ -71,6 +103,8 @@ const onReset = () => {
   };
 };
 
+/* ── CRUD actions ───────────────────────────────────── */
+
 const openCreateTask = async () => {
   const result = await ModalService.open(TaskFormModal, {
     title: "Criar Nova Tarefa",
@@ -103,6 +137,16 @@ const deleteTask = async (task: TaskRow) => {
     console.error("[DashboardTasksPage] Delete failed:", e);
     await AlertService.error("Erro", "Falha ao excluir tarefa.");
   }
+};
+
+/* ── Select helpers ─────────────────────────────────── */
+
+const selectAndOpenDetail = (task: TaskRow) => {
+  selectedTask.value = task;
+  router.push({
+    path: route.path,
+    query: { ...route.query, taskId: task.id },
+  });
 };
 
 const taskStatusOptions = [
@@ -145,6 +189,53 @@ const taskPriorityOptions = [
           @filter="onFilter"
           @reset="onReset"
         />
+
+        <!-- View toggle -->
+        <div class="dt-view-toggle" role="group" aria-label="Modo de exibição">
+          <button
+            class="dt-view-btn"
+            :class="{ active: viewMode === 'table' }"
+            type="button"
+            aria-label="Visualização em tabela"
+            @click="viewMode = 'table'"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+          <button
+            class="dt-view-btn"
+            :class="{ active: viewMode === 'kanban' }"
+            type="button"
+            aria-label="Visualização em kanban"
+            @click="viewMode = 'kanban'"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="16"
+              height="16"
+            >
+              <rect x="3" y="3" width="5" height="18" rx="1" />
+              <rect x="10" y="3" width="5" height="12" rx="1" />
+              <rect x="17" y="3" width="5" height="15" rx="1" />
+            </svg>
+          </button>
+        </div>
+
         <button class="btn btn-primary" type="button" @click="openCreateTask">
           + Nova
         </button>
@@ -161,112 +252,123 @@ const taskPriorityOptions = [
     </header>
 
     <div class="dt-layout mt-3">
-      <!-- Table -->
-      <div
-        class="dt-card card p-2 overflow-auto flex-1"
-        role="region"
-        aria-label="Tabela de tarefas"
-      >
-        <table class="min-w-[1200px] w-full" role="table" aria-label="Tarefas">
-          <thead>
-            <tr class="text-left opacity-80">
-              <th class="py-2 pr-3">Título</th>
-              <th class="py-2 pr-3">Projeto</th>
-              <th class="py-2 pr-3">Responsável</th>
-              <th class="py-2 pr-3">Status</th>
-              <th class="py-2 pr-3">Prioridade</th>
-              <th class="py-2 pr-3">Tags</th>
-              <th class="py-2 pr-3">Entrega</th>
-              <th class="py-2 pr-3">Ações</th>
-            </tr>
-          </thead>
+      <!-- Table view -->
+      <template v-if="viewMode === 'table'">
+        <div
+          class="dt-card card p-2 overflow-auto flex-1"
+          role="region"
+          aria-label="Tabela de tarefas"
+        >
+          <table class="min-w-300 w-full" role="table" aria-label="Tarefas">
+            <thead>
+              <tr class="text-left opacity-80">
+                <th class="py-2 pr-3">Título</th>
+                <th class="py-2 pr-3">Projeto</th>
+                <th class="py-2 pr-3">Responsável</th>
+                <th class="py-2 pr-3">Status</th>
+                <th class="py-2 pr-3">Prioridade</th>
+                <th class="py-2 pr-3">Tags</th>
+                <th class="py-2 pr-3">Entrega</th>
+                <th class="py-2 pr-3">Ações</th>
+              </tr>
+            </thead>
 
-          <tbody>
-            <tr
-              v-for="t in filteredRows"
-              :key="t?.id || (Math.random() * Math.random()).toString(36)"
-              class="border-t border-white/10 cursor-pointer"
-              :class="{ 'bg-white/5': selectedTask?.id === t?.id }"
-              @click="selectedTask = t ?? null"
+            <tbody>
+              <tr
+                v-for="t in filteredRows"
+                :key="t?.id || (Math.random() * Math.random()).toString(36)"
+                class="border-t border-white/10 cursor-pointer"
+                :class="{ 'bg-white/5': selectedTask?.id === t?.id }"
+                @click="selectAndOpenDetail(t!)"
+              >
+                <td class="py-2 pr-3 font-semibold">{{ t?.title ?? "-" }}</td>
+                <td class="py-2 pr-3">{{ t?.projectId ?? "-" }}</td>
+                <td class="py-2 pr-3">{{ t?.assigneeEmail ?? "-" }}</td>
+                <td class="py-2 pr-3">{{ t?.status ?? "-" }}</td>
+                <td class="py-2 pr-3">{{ t?.priority ?? "-" }}</td>
+                <td class="py-2 pr-3">
+                  <div class="flex gap-0.5 flex-wrap">
+                    <span
+                      v-for="tag in ((t as any)?.tags ?? []).slice(0, 3)"
+                      :key="tag"
+                      class="text-xs bg-indigo-500/15 px-1 rounded"
+                    >
+                      {{ tag }}
+                    </span>
+                  </div>
+                </td>
+                <td class="py-2 pr-3">{{ t?.dueAt?.slice(0, 10) ?? "-" }}</td>
+                <td class="py-2 pr-3">
+                  <div class="flex gap-1">
+                    <button
+                      class="btn btn-ghost btn-sm"
+                      type="button"
+                      aria-label="Editar tarefa"
+                      @click.stop="openEditTask(t!)"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      class="btn btn-ghost btn-sm text-danger"
+                      type="button"
+                      aria-label="Excluir tarefa"
+                      @click.stop="deleteTask(t!)"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </td>
+              </tr>
+
+              <tr v-if="!filteredRows.length && !loading">
+                <td colspan="8" class="py-6 opacity-70 text-center">
+                  {{ error || "Nenhuma tarefa." }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Classic detail sidebar (comments / notes / attachments) -->
+        <aside
+          v-if="selectedTask && !hasTaskDetail"
+          class="dt-detail card p-3 overflow-y-auto"
+          aria-label="Detalhes da tarefa"
+        >
+          <div class="flex justify-between items-start mb-2">
+            <h2 class="font-bold text-sm">{{ selectedTask.title }}</h2>
+            <button
+              class="text-xs opacity-40 hover:opacity-100"
+              @click="selectedTask = null"
             >
-              <td class="py-2 pr-3 font-semibold">{{ t?.title ?? "-" }}</td>
-              <td class="py-2 pr-3">{{ t?.projectId ?? "-" }}</td>
-              <td class="py-2 pr-3">{{ t?.assigneeEmail ?? "-" }}</td>
-              <td class="py-2 pr-3">{{ t?.status ?? "-" }}</td>
-              <td class="py-2 pr-3">{{ t?.priority ?? "-" }}</td>
-              <td class="py-2 pr-3">
-                <div class="flex gap-0.5 flex-wrap">
-                  <span
-                    v-for="tag in ((t as any)?.tags ?? []).slice(0, 3)"
-                    :key="tag"
-                    class="text-xs bg-indigo-500/15 px-1 rounded"
-                  >
-                    {{ tag }}
-                  </span>
-                </div>
-              </td>
-              <td class="py-2 pr-3">{{ t?.dueAt?.slice(0, 10) ?? "-" }}</td>
-              <td class="py-2 pr-3">
-                <div class="flex gap-1">
-                  <button
-                    class="btn btn-ghost btn-sm"
-                    type="button"
-                    aria-label="Editar tarefa"
-                    @click.stop="openEditTask(t!)"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    class="btn btn-ghost btn-sm text-danger"
-                    type="button"
-                    aria-label="Excluir tarefa"
-                    @click.stop="deleteTask(t!)"
-                  >
-                    Excluir
-                  </button>
-                </div>
-              </td>
-            </tr>
+              ✕
+            </button>
+          </div>
 
-            <tr v-if="!filteredRows.length && !loading">
-              <td colspan="8" class="py-6 opacity-70 text-center">
-                {{ error || "Nenhuma tarefa." }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+          <div class="text-xs opacity-60 mb-3">
+            Status: {{ selectedTask.status }} · P{{ selectedTask.priority }}
+            <span v-if="selectedTask.assigneeEmail">
+              · {{ selectedTask.assigneeEmail }}
+            </span>
+          </div>
 
-      <!-- Detail sidebar -->
-      <aside
-        v-if="selectedTask"
-        class="dt-detail card p-3 overflow-y-auto"
-        aria-label="Detalhes da tarefa"
-      >
-        <div class="flex justify-between items-start mb-2">
-          <h2 class="font-bold text-sm">{{ selectedTask.title }}</h2>
-          <button
-            class="text-xs opacity-40 hover:opacity-100"
-            @click="selectedTask = null"
-          >
-            ✕
-          </button>
-        </div>
+          <CommentsPanel :target-type="'task'" :target-id="selectedTask.id" />
+          <NotesPanel :target-type="'task'" :target-id="selectedTask.id" />
+          <AttachmentsPanel
+            :target-type="'task'"
+            :target-id="selectedTask.id"
+          />
+        </aside>
+      </template>
 
-        <div class="text-xs opacity-60 mb-3">
-          Status: {{ selectedTask.status }} · P{{ selectedTask.priority }}
-          <span v-if="selectedTask.assigneeEmail">
-            · {{ selectedTask.assigneeEmail }}
-          </span>
-        </div>
+      <!-- Kanban view -->
+      <KanbanBoard v-if="viewMode === 'kanban'" />
 
-        <CommentsPanel :target-type="'task'" :target-id="selectedTask.id" />
-        <NotesPanel :target-type="'task'" :target-id="selectedTask.id" />
-        <AttachmentsPanel :target-type="'task'" :target-id="selectedTask.id" />
-      </aside>
+      <!-- Task detail panel (driven by ?taskId=xxx) -->
+      <TaskDetailPanel v-if="hasTaskDetail" />
     </div>
 
-    <div class="mt-3 flex justify-end">
+    <div class="mt-3 flex justify-end" v-if="viewMode === 'table'">
       <button
         class="btn btn-ghost"
         type="button"
@@ -329,6 +431,43 @@ const taskPriorityOptions = [
   width: 340px;
   min-width: 280px;
   max-height: calc(100vh - 200px);
+}
+
+/* ── View toggle ─────────────────────────────────── */
+
+.dt-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+}
+
+.dt-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem 0.5rem;
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+
+  &:hover {
+    background: var(--surface-2);
+    color: var(--text-1);
+  }
+
+  &.active {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  & + & {
+    border-left: 1px solid var(--border-1);
+  }
 }
 
 @media (max-width: 960px) {

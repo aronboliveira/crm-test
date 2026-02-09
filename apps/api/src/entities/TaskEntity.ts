@@ -4,6 +4,13 @@ import { ObjectId } from 'mongodb';
 export type TaskStatus = 'todo' | 'doing' | 'done' | 'blocked';
 export type TaskPriority = 1 | 2 | 3 | 4 | 5;
 
+export interface Subtask {
+  id: string;
+  text: string;
+  done: boolean;
+  order: number;
+}
+
 @Entity('tasks')
 export default class TaskEntity {
   @ObjectIdColumn()
@@ -52,6 +59,9 @@ export default class TaskEntity {
   /** Hard deadline — after this date the task is considered overdue */
   @Column()
   deadlineAt?: string;
+
+  @Column()
+  subtasks?: Subtask[];
 
   @Column()
   createdAt!: string;

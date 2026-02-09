@@ -15,6 +15,14 @@ const catalog: readonly PermissionSpec[] = [
   { key: 'tasks.write', description: 'Create/update tasks' },
   { key: 'tasks.manage', description: 'Administrative task actions' },
 
+  { key: 'clients.read', description: 'Read clients' },
+  { key: 'clients.write', description: 'Create/update clients' },
+  { key: 'clients.manage', description: 'Administrative client actions' },
+
+  { key: 'leads.read', description: 'Read leads' },
+  { key: 'leads.write', description: 'Create/update leads' },
+  { key: 'leads.manage', description: 'Administrative lead actions' },
+
   { key: 'users.read', description: 'Read users' },
   { key: 'users.write', description: 'Create/update users' },
   { key: 'users.manage', description: 'Administrative user actions' },
