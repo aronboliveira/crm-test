@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted, ref } from "vue";
 import { useDashboardClientsPage } from "../assets/scripts/pages/useDashboardClientsPage";
 import ModalService from "../services/ModalService";
 import ApiClientService from "../services/ApiClientService";
 import AlertService from "../services/AlertService";
 import { useProjectsStore } from "../pinia/stores/projects.store";
+import { useLeadsStore } from "../pinia/stores/leads.store";
 import type { ClientRow } from "../pinia/types/clients.types";
+import ClientStatisticsDashboard from "../components/dashboard/ClientStatisticsDashboard.vue";
 
 const { rows, loading, error, load } = useDashboardClientsPage();
 const projectsStore = useProjectsStore();
+const leadsStore = useLeadsStore();
+
+// Load projects and leads for statistics
+onMounted(async () => {
+  if (!projectsStore.rows.length) await projectsStore.list();
+  if (!leadsStore.rows.length) await leadsStore.list();
+});
 
 const sortKey = ref<"name" | "company" | "email" | "phone">("name");
 const sortDir = ref<"asc" | "desc">("asc");
@@ -106,6 +115,15 @@ const handleDelete = async (client: ClientRow) => {
         <p class="page-subtitle">Gerenciamento de clientes e conexões.</p>
       </div>
     </header>
+
+    <!-- Statistics Dashboard -->
+    <ClientStatisticsDashboard
+      v-if="!loading && rows && rows.length > 0"
+      :clients="rows"
+      :projects="projectsStore.rows"
+      :leads="leadsStore.rows"
+      :loading="loading"
+    />
 
     <div v-if="loading" class="p-8 text-center opacity-70">
       Carregando clientes...
