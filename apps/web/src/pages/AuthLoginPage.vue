@@ -1,14 +1,7 @@
 <script setup lang="ts">
 import { useAuthLoginPage } from "../assets/scripts/pages/useAuthLoginPage";
-const {
-  formId,
-  formEl,
-  busy,
-  email,
-  password,
-  submit,
-  passwordVisibility,
-} = useAuthLoginPage();
+const { formId, formEl, busy, email, password, submit, passwordVisibility } =
+  useAuthLoginPage();
 </script>
 
 <style lang="scss">
