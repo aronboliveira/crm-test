@@ -35,7 +35,11 @@ const colorClasses = {
     <div class="stat-card__body">
       <p class="stat-card__value">{{ value }}</p>
       <p v-if="subtitle" class="stat-card__subtitle">{{ subtitle }}</p>
-      <div v-if="trend && trendValue" class="stat-card__trend" :class="`stat-card__trend--${trend}`">
+      <div
+        v-if="trend && trendValue"
+        class="stat-card__trend"
+        :class="`stat-card__trend--${trend}`"
+      >
         <span class="trend-indicator">
           {{ trend === "up" ? "↑" : trend === "down" ? "↓" : "→" }}
         </span>

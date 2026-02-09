@@ -26,21 +26,18 @@ const radius = computed(() => props.size / 2 - props.strokeWidth / 2);
 const cx = computed(() => props.size / 2);
 const cy = computed(() => props.size / 2);
 
-const total = computed(() => 
-  props.slices.reduce((sum, s) => sum + s.value, 0) || 1
+const total = computed(
+  () => props.slices.reduce((sum, s) => sum + s.value, 0) || 1,
 );
 
 const slicesWithPercentage = computed(() =>
-  props.slices.map(s => ({
+  props.slices.map((s) => ({
     ...s,
     pct: Math.round((s.value / total.value) * 100),
-  }))
+  })),
 );
 
-function donutPath(
-  startAngle: number,
-  endAngle: number,
-): string {
+function donutPath(startAngle: number, endAngle: number): string {
   const r = radius.value;
   const cx_ = cx.value;
   const cy_ = cy.value;
@@ -55,24 +52,29 @@ function donutPath(
 }
 
 const arcs = computed(() => {
-  const result: Array<{ d: string; color: string; label: string; pct: number }> = [];
+  const result: Array<{
+    d: string;
+    color: string;
+    label: string;
+    pct: number;
+  }> = [];
   let angle = 0;
-  
+
   for (const slice of slicesWithPercentage.value) {
     const sweep = (slice.pct / 100) * 360;
     if (sweep < 0.5) continue;
     const clampedSweep = Math.min(sweep, 359.99);
-    
+
     result.push({
       d: donutPath(angle, angle + clampedSweep),
       color: slice.color,
       label: slice.label,
       pct: slice.pct,
     });
-    
+
     angle += sweep;
   }
-  
+
   return result;
 });
 </script>
@@ -117,12 +119,11 @@ const arcs = computed(() => {
       </g>
     </svg>
     <ul class="chart-legend">
-      <li
-        v-for="(arc, i) in arcs"
-        :key="i"
-        class="chart-legend__item"
-      >
-        <span class="chart-legend__dot" :style="{ backgroundColor: arc.color }" />
+      <li v-for="(arc, i) in arcs" :key="i" class="chart-legend__item">
+        <span
+          class="chart-legend__dot"
+          :style="{ backgroundColor: arc.color }"
+        />
         <span class="chart-legend__label">{{ arc.label }}</span>
         <span class="chart-legend__value">{{ arc.pct }}%</span>
       </li>

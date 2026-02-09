@@ -20,14 +20,16 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
 });
 
-type DashboardSection = "overview" | "projects" | "companies" | "timeline" | "leads";
+type DashboardSection =
+  | "overview"
+  | "projects"
+  | "companies"
+  | "timeline"
+  | "leads";
 
-const activeFilters = ref<Set<DashboardSection>>(new Set([
-  "overview",
-  "projects",
-  "companies",
-  "timeline",
-]));
+const activeFilters = ref<Set<DashboardSection>>(
+  new Set(["overview", "projects", "companies", "timeline"]),
+);
 
 const sections: Array<{ id: DashboardSection; label: string; icon: string }> = [
   { id: "overview", label: "Visão Geral", icon: "📊" },
@@ -45,10 +47,11 @@ const toggleFilter = (sectionId: DashboardSection) => {
   }
 };
 
-const isFilterActive = (sectionId: DashboardSection) => activeFilters.value.has(sectionId);
+const isFilterActive = (sectionId: DashboardSection) =>
+  activeFilters.value.has(sectionId);
 
 const showAllSections = () => {
-  sections.forEach(s => activeFilters.value.add(s.id));
+  sections.forEach((s) => activeFilters.value.add(s.id));
 };
 
 const hideAllSections = () => {
@@ -56,29 +59,40 @@ const hideAllSections = () => {
 };
 
 // Computed statistics
-const statistics = computed(() => 
-  ClientStatisticsService.calculateStatistics(props.clients, props.projects)
+const statistics = computed(() =>
+  ClientStatisticsService.calculateStatistics(props.clients, props.projects),
 );
 
 const distribution = computed(() =>
-  ClientStatisticsService.calculateDistribution(props.clients, props.projects)
+  ClientStatisticsService.calculateDistribution(props.clients, props.projects),
 );
 
 const timeline = computed(() =>
-  ClientStatisticsService.calculateTimeline(props.clients)
+  ClientStatisticsService.calculateTimeline(props.clients),
 );
 
 const leadConversion = computed(() =>
   props.leads && props.leads.length > 0
-    ? ClientStatisticsService.calculateLeadConversion(props.clients, props.leads)
-    : []
+    ? ClientStatisticsService.calculateLeadConversion(
+        props.clients,
+        props.leads,
+      )
+    : [],
 );
 
 // Chart data transformations
 const companiesDonutData = computed(() => {
   const companies = statistics.value.clientsByCompany;
-  const colors = ["#3b82f6", "#16a34a", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4"];
-  
+  const colors = [
+    "#3b82f6",
+    "#16a34a",
+    "#f59e0b",
+    "#ef4444",
+    "#8b5cf6",
+    "#ec4899",
+    "#06b6d4",
+  ];
+
   return Object.entries(companies)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 7)
@@ -90,27 +104,38 @@ const companiesDonutData = computed(() => {
 });
 
 const projectDistributionBars = computed(() =>
-  distribution.value.slice(0, 10).map(d => ({
-    label: d.clientName.length > 20 ? d.clientName.substring(0, 20) + "..." : d.clientName,
+  distribution.value.slice(0, 10).map((d) => ({
+    label:
+      d.clientName.length > 20
+        ? d.clientName.substring(0, 20) + "..."
+        : d.clientName,
     value: d.projectCount,
     color: "#3b82f6",
-  }))
+  })),
 );
 
 const timelineBars = computed(() =>
-  timeline.value.map(t => ({
+  timeline.value.map((t) => ({
     label: t.month,
     value: t.newClients,
     color: "#16a34a",
-  }))
+  })),
 );
 
 const conversionBars = computed(() =>
-  leadConversion.value.slice(0, 8).map(c => ({
-    label: c.clientName.length > 15 ? c.clientName.substring(0, 15) + "..." : c.clientName,
+  leadConversion.value.slice(0, 8).map((c) => ({
+    label:
+      c.clientName.length > 15
+        ? c.clientName.substring(0, 15) + "..."
+        : c.clientName,
     value: c.conversionRate,
-    color: c.conversionRate >= 50 ? "#16a34a" : c.conversionRate >= 30 ? "#f59e0b" : "#ef4444",
-  }))
+    color:
+      c.conversionRate >= 50
+        ? "#16a34a"
+        : c.conversionRate >= 30
+          ? "#f59e0b"
+          : "#ef4444",
+  })),
 );
 </script>
 
@@ -121,8 +146,12 @@ const conversionBars = computed(() =>
       <div class="filters-header">
         <h3 class="filters-title">Filtros do Dashboard</h3>
         <div class="filters-actions">
-          <button class="btn btn-xs btn-ghost" @click="showAllSections">Todos</button>
-          <button class="btn btn-xs btn-ghost" @click="hideAllSections">Nenhum</button>
+          <button class="btn btn-xs btn-ghost" @click="showAllSections">
+            Todos
+          </button>
+          <button class="btn btn-xs btn-ghost" @click="hideAllSections">
+            Nenhum
+          </button>
         </div>
       </div>
       <div class="filters-list">
@@ -203,10 +232,13 @@ const conversionBars = computed(() =>
             <p>Nenhum dado disponível</p>
           </div>
         </div>
-        
+
         <div class="chart-card card">
           <h3 class="chart-title">Top 5 Clientes</h3>
-          <ul v-if="statistics.topClientsByProjects.length > 0" class="top-clients-list">
+          <ul
+            v-if="statistics.topClientsByProjects.length > 0"
+            class="top-clients-list"
+          >
             <li
               v-for="(client, i) in statistics.topClientsByProjects"
               :key="client.clientId"
@@ -229,8 +261,15 @@ const conversionBars = computed(() =>
       <h2 class="section-title">🏢 Clientes por Empresa</h2>
       <div class="chart-card card">
         <h3 class="chart-title">Distribuição por Empresa (Top 7)</h3>
-        <div v-if="companiesDonutData.length > 0" class="chart-content chart-content--centered">
-          <DonutChart :slices="companiesDonutData" :size="200" :stroke-width="35" />
+        <div
+          v-if="companiesDonutData.length > 0"
+          class="chart-content chart-content--centered"
+        >
+          <DonutChart
+            :slices="companiesDonutData"
+            :size="200"
+            :stroke-width="35"
+          />
         </div>
         <div v-else class="chart-empty">
           <p>Nenhum dado disponível</p>
@@ -253,7 +292,10 @@ const conversionBars = computed(() =>
     </section>
 
     <!-- Lead Conversion Section -->
-    <section v-if="isFilterActive('leads') && leadConversion.length > 0" class="dashboard-section">
+    <section
+      v-if="isFilterActive('leads') && leadConversion.length > 0"
+      class="dashboard-section"
+    >
       <h2 class="section-title">🎯 Taxa de Conversão de Leads</h2>
       <div class="chart-card card">
         <h3 class="chart-title">Top 8 Clientes por Taxa de Conversão (%)</h3>

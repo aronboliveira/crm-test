@@ -22,26 +22,20 @@ const props = withDefaults(defineProps<Props>(), {
   horizontal: false,
 });
 
-const maxValue = computed(() => 
-  Math.max(...props.bars.map(b => b.value), 1)
-);
+const maxValue = computed(() => Math.max(...props.bars.map((b) => b.value), 1));
 
 const barsWithPercentage = computed(() =>
-  props.bars.map(b => ({
+  props.bars.map((b) => ({
     ...b,
     pct: Math.round((b.value / maxValue.value) * 100),
     color: b.color || props.defaultColor,
-  }))
+  })),
 );
 </script>
 
 <template>
   <div class="bar-chart" :class="{ 'bar-chart--horizontal': horizontal }">
-    <div 
-      v-for="(bar, i) in barsWithPercentage" 
-      :key="i" 
-      class="bar-item"
-    >
+    <div v-for="(bar, i) in barsWithPercentage" :key="i" class="bar-item">
       <span class="bar-label">{{ bar.label }}</span>
       <div class="bar-container">
         <div
