@@ -99,24 +99,28 @@
 ## Features Implemented
 
 ### Statistics & KPIs
+
 ✅ Total clients count
 ✅ Clients with/without projects breakdown
 ✅ Average projects per client
 ✅ Recent activity tracking (30/7 days)
 
 ### Visualizations
+
 ✅ Donut charts for company distribution
 ✅ Horizontal bar charts for project distribution
 ✅ Vertical bar charts for timeline
 ✅ Color-coded conversion rates
 
 ### Interactivity
+
 ✅ Tab-based filter system
 ✅ Show/hide dashboard sections
 ✅ Hover effects on charts
 ✅ Responsive grid layout
 
 ### Code Quality
+
 ✅ Modular architecture (OCP, LSP)
 ✅ Type-safe TypeScript
 ✅ Vue 3 Composition API
@@ -128,6 +132,7 @@
 Navigate to **Dashboard → Meus Clientes** to see the full dashboard with all statistics and visualizations.
 
 Use the filter chips at the top to show/hide specific sections:
+
 - Click a section chip to toggle it
 - Use "Todos" to show all sections
 - Use "Nenhum" to hide all sections

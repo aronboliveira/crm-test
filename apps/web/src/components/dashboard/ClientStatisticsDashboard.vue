@@ -283,7 +283,12 @@ const conversionBars = computed(() =>
       <div class="chart-card card">
         <h3 class="chart-title">Novos Clientes por Mês (Últimos 12 meses)</h3>
         <div v-if="timelineBars.length > 0" class="chart-content">
-          <BarChart :bars="timelineBars" :horizontal="false" />
+          <BarChart 
+            :bars="timelineBars" 
+            :horizontal="false" 
+            :max-bar-width="60"
+            :show-axis-labels="true"
+          />
         </div>
         <div v-else class="chart-empty">
           <p>Nenhum dado disponível</p>
@@ -359,6 +364,7 @@ const conversionBars = computed(() =>
   transition: all 0.2s;
   font-size: 0.875rem;
   font-weight: 500;
+  color: #334155;
 }
 
 .filter-chip:hover {
@@ -370,6 +376,26 @@ const conversionBars = computed(() =>
   border-color: #3b82f6;
   background: #eff6ff;
   color: #3b82f6;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .filter-chip {
+    border-color: #334155;
+    background: #1e293b;
+    color: #cbd5e1;
+  }
+
+  .filter-chip:hover {
+    border-color: #475569;
+    background: #334155;
+  }
+
+  .filter-chip--active {
+    border-color: #60a5fa;
+    background: #1e3a8a;
+    color: #93c5fd;
+  }
 }
 
 .filter-chip__icon {
