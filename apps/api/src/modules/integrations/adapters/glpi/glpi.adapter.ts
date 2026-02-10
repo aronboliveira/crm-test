@@ -5,7 +5,12 @@ import type {
   IntegrationStatus,
 } from '../../types';
 import { GlpiApiClient } from './glpi-api.client';
-import { GlpiDataMapper, type CrmLead, type CrmContact, type CrmClient } from './glpi-data.mapper';
+import {
+  GlpiDataMapper,
+  type CrmLead,
+  type CrmContact,
+  type CrmClient,
+} from './glpi-data.mapper';
 import type { GlpiTicket, GlpiUser, GlpiEntity } from './glpi.types';
 
 /**
@@ -69,8 +74,7 @@ export class GlpiAdapter implements IntegrationAdapter {
 
       return result;
     } catch (error) {
-      this.lastError =
-        error instanceof Error ? error.message : 'Unknown error';
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error('GLPI connection test failed', error);
       return false;
     }
@@ -99,8 +103,7 @@ export class GlpiAdapter implements IntegrationAdapter {
       this.lastError = undefined;
       this.logger.log('GLPI sync completed');
     } catch (error) {
-      this.lastError =
-        error instanceof Error ? error.message : 'Sync failed';
+      this.lastError = error instanceof Error ? error.message : 'Sync failed';
       this.logger.error('GLPI sync failed', error);
       throw error;
     }
@@ -155,8 +158,8 @@ export class GlpiAdapter implements IntegrationAdapter {
   private isConfigured(): boolean {
     return Boolean(
       this.config.baseUrl &&
-        this.config.apiKey &&
-        (this.config.username || this.config.password),
+      this.config.apiKey &&
+      (this.config.username || this.config.password),
     );
   }
 

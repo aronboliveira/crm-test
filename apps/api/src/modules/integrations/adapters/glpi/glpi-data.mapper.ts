@@ -1,4 +1,9 @@
-import type { GlpiTicket, GlpiUser, GlpiEntity, GlpiTicketStatus } from './glpi.types';
+import type {
+  GlpiTicket,
+  GlpiUser,
+  GlpiEntity,
+  GlpiTicketStatus,
+} from './glpi.types';
 import { GLPI_TICKET_STATUS_MAP, GLPI_TICKET_TYPE_MAP } from './glpi.types';
 
 export interface CrmLead {

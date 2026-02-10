@@ -87,9 +87,15 @@ describe('GlpiDataMapper', () => {
       const urgentPriority = { ...createBaseTicket(), priority: 5 };
 
       expect(GlpiDataMapper.ticketToCrmLead(lowPriority).priority).toBe('low');
-      expect(GlpiDataMapper.ticketToCrmLead(mediumPriority).priority).toBe('medium');
-      expect(GlpiDataMapper.ticketToCrmLead(highPriority).priority).toBe('high');
-      expect(GlpiDataMapper.ticketToCrmLead(urgentPriority).priority).toBe('urgent');
+      expect(GlpiDataMapper.ticketToCrmLead(mediumPriority).priority).toBe(
+        'medium',
+      );
+      expect(GlpiDataMapper.ticketToCrmLead(highPriority).priority).toBe(
+        'high',
+      );
+      expect(GlpiDataMapper.ticketToCrmLead(urgentPriority).priority).toBe(
+        'urgent',
+      );
     });
 
     it('should map status correctly', () => {
@@ -100,10 +106,18 @@ describe('GlpiDataMapper', () => {
       const closedTicket = { ...createBaseTicket(), status: 6 as const };
 
       expect(GlpiDataMapper.ticketToCrmLead(newTicket).status).toBe('new');
-      expect(GlpiDataMapper.ticketToCrmLead(processingTicket).status).toBe('in_progress');
-      expect(GlpiDataMapper.ticketToCrmLead(pendingTicket).status).toBe('pending');
-      expect(GlpiDataMapper.ticketToCrmLead(solvedTicket).status).toBe('resolved');
-      expect(GlpiDataMapper.ticketToCrmLead(closedTicket).status).toBe('closed');
+      expect(GlpiDataMapper.ticketToCrmLead(processingTicket).status).toBe(
+        'in_progress',
+      );
+      expect(GlpiDataMapper.ticketToCrmLead(pendingTicket).status).toBe(
+        'pending',
+      );
+      expect(GlpiDataMapper.ticketToCrmLead(solvedTicket).status).toBe(
+        'resolved',
+      );
+      expect(GlpiDataMapper.ticketToCrmLead(closedTicket).status).toBe(
+        'closed',
+      );
     });
   });
 
@@ -183,7 +197,9 @@ describe('GlpiDataMapper', () => {
       expect(GlpiDataMapper.mapCrmStatusToGlpiStatus('pending')).toBe(4);
       expect(GlpiDataMapper.mapCrmStatusToGlpiStatus('resolved')).toBe(5);
       expect(GlpiDataMapper.mapCrmStatusToGlpiStatus('closed')).toBe(6);
-      expect(GlpiDataMapper.mapCrmStatusToGlpiStatus('unknown')).toBeUndefined();
+      expect(
+        GlpiDataMapper.mapCrmStatusToGlpiStatus('unknown'),
+      ).toBeUndefined();
     });
   });
 });

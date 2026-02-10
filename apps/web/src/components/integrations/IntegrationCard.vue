@@ -210,5 +210,5 @@ const handleKeyDown = (event: KeyboardEvent) => {
 </template>
 
 <style lang="scss">
-@use "../styles/components/integrations/integration-card";
+@use "../../styles/components/integrations/integration-card";
 </style>

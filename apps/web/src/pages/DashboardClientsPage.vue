@@ -299,10 +299,12 @@ const handleDelete = async (client: ClientRow) => {
 
 .table-container {
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .data-table {
   width: 100%;
+  min-width: 800px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -312,6 +314,9 @@ const handleDelete = async (client: ClientRow) => {
   padding: 0.75rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .data-table th {
@@ -324,32 +329,39 @@ const handleDelete = async (client: ClientRow) => {
 
 .data-table th:nth-child(1),
 .data-table td:nth-child(1) {
-  width: 40px;
+  width: 50px;
+  min-width: 50px;
 }
 
 .data-table th:nth-child(2),
 .data-table td:nth-child(2) {
-  width: 18%;
+  width: 20%;
+  min-width: 150px;
 }
 
 .data-table th:nth-child(3),
 .data-table td:nth-child(3) {
-  width: 20%;
+  width: 18%;
+  min-width: 140px;
 }
 
 .data-table th:nth-child(4),
 .data-table td:nth-child(4) {
-  width: 26%;
+  width: 22%;
+  min-width: 180px;
 }
 
 .data-table th:nth-child(5),
 .data-table td:nth-child(5) {
-  width: 20%;
+  width: 18%;
+  min-width: 140px;
 }
 
 .data-table th:nth-child(6),
 .data-table td:nth-child(6) {
-  width: 16%;
+  width: 22%;
+  min-width: 180px;
+  text-align: right;
 }
 
 .btn-expand {

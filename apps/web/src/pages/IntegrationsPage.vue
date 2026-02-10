@@ -145,13 +145,21 @@ const testConnection = async (integration: Integration) => {
         </p>
       </div>
 
-      <div class="header-stats" role="group" aria-label="Estatísticas de integrações">
+      <div
+        class="header-stats"
+        role="group"
+        aria-label="Estatísticas de integrações"
+      >
         <div class="stat-card" title="Total de integrações disponíveis">
-          <span class="stat-value" aria-label="Disponíveis">{{ integrations.length }}</span>
+          <span class="stat-value" aria-label="Disponíveis">{{
+            integrations.length
+          }}</span>
           <span class="stat-label">Disponíveis</span>
         </div>
         <div class="stat-card stat-connected" title="Integrações conectadas">
-          <span class="stat-value" aria-label="Conectadas">{{ connectedCount }}</span>
+          <span class="stat-value" aria-label="Conectadas">{{
+            connectedCount
+          }}</span>
           <span class="stat-label">Conectadas</span>
         </div>
       </div>
@@ -180,8 +188,8 @@ const testConnection = async (integration: Integration) => {
       </p>
     </div>
 
-    <section 
-      class="integrations-grid" 
+    <section
+      class="integrations-grid"
       aria-label="Lista de integrações disponíveis"
     >
       <IntegrationCard

@@ -3,6 +3,7 @@
 // ============================================================================
 
 @use "mixins" as *;
+@use "./components/integrations";
 
 // ============================================================================
 // BUTTONS
@@ -848,9 +849,6 @@ table:not([class]) tbody tr:last-child td {
 // ============================================================================
 // SCOPED STYLES
 // ============================================================================
-
-// Import component-specific styles
-@use "./components/integrations";
 
 @supports (selector(:scope)) {
   @scope (.card) {

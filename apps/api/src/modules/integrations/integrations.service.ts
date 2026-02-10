@@ -20,11 +20,11 @@ export class IntegrationsService {
     private readonly zimbra: ZimbraAdapter,
     private readonly outlook: OutlookAdapter,
   ) {
-    this.adapters = new Map([
-      ['glpi', glpi],
-      ['sat', sat],
-      ['zimbra', zimbra],
-      ['outlook', outlook],
+    this.adapters = new Map<string, IntegrationAdapter>([
+      ['glpi', glpi as IntegrationAdapter],
+      ['sat', sat as IntegrationAdapter],
+      ['zimbra', zimbra as IntegrationAdapter],
+      ['outlook', outlook as IntegrationAdapter],
     ]);
   }
 
