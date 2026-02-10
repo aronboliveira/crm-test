@@ -125,16 +125,12 @@ export default class TemplatesController {
     // Additional sanitization for content field (HTML allowed)
     const sanitizedDto = {
       ...dto,
-      content: dto.content
-        ? this.sanitizer.sanitizeHtml(dto.content)
-        : undefined,
+      content: dto.content ? this.sanitizer.sanitizeHtml(dto.content) : '',
       name: this.sanitizer.sanitizeText(dto.name),
       description: dto.description
         ? this.sanitizer.sanitizeText(dto.description)
-        : undefined,
-      subject: dto.subject
-        ? this.sanitizer.sanitizeText(dto.subject)
-        : undefined,
+        : '',
+      subject: dto.subject ? this.sanitizer.sanitizeText(dto.subject) : '',
     };
 
     const t = await this.svc.create(sanitizedDto);

@@ -134,7 +134,8 @@ export default class TemplatesService {
     } as any);
 
     this.logger.log(`Creating template: ${key}`);
-    return this.repo.save(entity);
+    const saved = await this.repo.save(entity);
+    return Array.isArray(saved) ? saved[0] : saved;
   }
 
   /**
