@@ -41,6 +41,24 @@ export class ClientsService {
     return this.repo.find();
   }
 
+  async findOneById(id: string): Promise<ClientEntity> {
+    const safeId = typeof id === 'string' ? id.trim() : '';
+    if (!safeId) throw new BadRequestException('Invalid id');
+
+    let item = (await this.repo.findOne({
+      where: { id: safeId } as any,
+    })) as ClientEntity | null;
+
+    if (!item && ObjectId.isValid(safeId)) {
+      item = (await this.repo.findOne({
+        where: { _id: new ObjectId(safeId) } as any,
+      })) as ClientEntity | null;
+    }
+
+    if (!item) throw new NotFoundException('Not found');
+    return item;
+  }
+
   async create(dto: any): Promise<ClientEntity> {
     const name = typeof dto?.name === 'string' ? dto.name.trim() : '';
     if (!name) throw new BadRequestException('Invalid name');
@@ -62,6 +80,28 @@ export class ClientsService {
       phone:
         typeof dto?.phone === 'string' && dto.phone.trim()
           ? dto.phone.trim()
+          : undefined,
+      cellPhone:
+        typeof dto?.cellPhone === 'string' && dto.cellPhone.trim()
+          ? dto.cellPhone.trim()
+          : undefined,
+      whatsappNumber:
+        typeof dto?.whatsappNumber === 'string' && dto.whatsappNumber.trim()
+          ? dto.whatsappNumber.trim()
+          : undefined,
+      hasWhatsapp:
+        typeof dto?.hasWhatsapp === 'boolean' ? dto.hasWhatsapp : undefined,
+      preferredContact:
+        typeof dto?.preferredContact === 'string'
+          ? dto.preferredContact
+          : undefined,
+      whatsappAnalytics:
+        typeof dto?.whatsappAnalytics === 'object'
+          ? dto.whatsappAnalytics
+          : undefined,
+      emailAnalytics:
+        typeof dto?.emailAnalytics === 'object'
+          ? dto.emailAnalytics
           : undefined,
       notes:
         typeof dto?.notes === 'string' && dto.notes.trim()
@@ -102,6 +142,40 @@ export class ClientsService {
       patch.phone =
         typeof dto?.phone === 'string' && dto.phone.trim()
           ? dto.phone.trim()
+          : undefined;
+    }
+    if ('cellPhone' in (dto || {})) {
+      patch.cellPhone =
+        typeof dto?.cellPhone === 'string' && dto.cellPhone.trim()
+          ? dto.cellPhone.trim()
+          : undefined;
+    }
+    if ('whatsappNumber' in (dto || {})) {
+      patch.whatsappNumber =
+        typeof dto?.whatsappNumber === 'string' && dto.whatsappNumber.trim()
+          ? dto.whatsappNumber.trim()
+          : undefined;
+    }
+    if ('hasWhatsapp' in (dto || {})) {
+      patch.hasWhatsapp =
+        typeof dto?.hasWhatsapp === 'boolean' ? dto.hasWhatsapp : undefined;
+    }
+    if ('preferredContact' in (dto || {})) {
+      patch.preferredContact =
+        typeof dto?.preferredContact === 'string'
+          ? dto.preferredContact
+          : undefined;
+    }
+    if ('whatsappAnalytics' in (dto || {})) {
+      patch.whatsappAnalytics =
+        typeof dto?.whatsappAnalytics === 'object'
+          ? dto.whatsappAnalytics
+          : undefined;
+    }
+    if ('emailAnalytics' in (dto || {})) {
+      patch.emailAnalytics =
+        typeof dto?.emailAnalytics === 'object'
+          ? dto.emailAnalytics
           : undefined;
     }
     if ('notes' in (dto || {})) {

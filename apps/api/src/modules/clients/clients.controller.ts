@@ -30,6 +30,13 @@ export class ClientsController {
     };
   }
 
+  @Get('/:id')
+  @Permissions('clients.read')
+  async getOne(@Param('id') id: string) {
+    const item = await this.service.findOneById(id);
+    return { item };
+  }
+
   @Post()
   @Permissions('clients.write')
   async create(@Body() dto: any) {
