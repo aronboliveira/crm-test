@@ -152,6 +152,13 @@ html.dark-mode .integration-card,
     transform var(--transition-base),
     box-shadow var(--transition-base);
 
+  .integration-logo {
+    width: 1.5rem;
+    height: 1.5rem;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
+  }
+
   :deep(svg) {
     width: 1.25rem;
     height: 1.25rem;

@@ -22,6 +22,12 @@ const name = ref(props.client?.name ?? "");
 const company = ref(props.client?.company ?? "");
 const email = ref(props.client?.email ?? "");
 const phone = ref(props.client?.phone ?? "");
+const cellPhone = ref(props.client?.cellPhone ?? "");
+const whatsappNumber = ref(props.client?.whatsappNumber ?? "");
+const hasWhatsapp = ref(props.client?.hasWhatsapp ?? false);
+const preferredContact = ref<"email" | "phone" | "whatsapp" | "cellphone">(
+  props.client?.preferredContact ?? "email",
+);
 const notes = ref(props.client?.notes ?? "");
 
 const emailValid = computed(() => {
@@ -49,6 +55,10 @@ const submit = async () => {
       company: company.value.trim() || undefined,
       email: email.value.trim() || undefined,
       phone: phone.value.trim() || undefined,
+      cellPhone: cellPhone.value.trim() || undefined,
+      whatsappNumber: whatsappNumber.value.trim() || undefined,
+      hasWhatsapp: hasWhatsapp.value,
+      preferredContact: preferredContact.value,
       notes: notes.value.trim() || undefined,
     };
 
@@ -65,6 +75,10 @@ const submit = async () => {
       company: payload.company,
       email: payload.email,
       phone: payload.phone,
+      cellPhone: payload.cellPhone,
+      whatsappNumber: payload.whatsappNumber,
+      hasWhatsapp: payload.hasWhatsapp,
+      preferredContact: payload.preferredContact,
       notes: payload.notes,
       createdAt: props.client?.createdAt ?? now,
       updatedAt: now,
@@ -117,15 +131,66 @@ const submit = async () => {
         />
       </div>
       <div class="form-field">
-        <label class="form-label" for="client-phone">Telefone</label>
+        <label class="form-label" for="client-phone">Telefone Fixo</label>
         <input
           id="client-phone"
           v-model="phone"
           class="form-input"
           type="text"
+          placeholder="+55 11 3xxx-xxxx"
+          :disabled="busy"
+        />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-field">
+        <label class="form-label" for="client-cellphone">Celular</label>
+        <input
+          id="client-cellphone"
+          v-model="cellPhone"
+          class="form-input"
+          type="text"
           placeholder="+55 11 9xxxx-xxxx"
           :disabled="busy"
         />
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="client-whatsapp">WhatsApp</label>
+        <input
+          id="client-whatsapp"
+          v-model="whatsappNumber"
+          class="form-input"
+          type="text"
+          placeholder="+55 11 9xxxx-xxxx"
+          :disabled="busy"
+        />
+        <small class="form-hint">Se diferente do celular</small>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-field">
+        <label class="form-checkbox">
+          <input v-model="hasWhatsapp" type="checkbox" :disabled="busy" />
+          <span>WhatsApp Verificado</span>
+        </label>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="client-preferred"
+          >Contato Preferido</label
+        >
+        <select
+          id="client-preferred"
+          v-model="preferredContact"
+          class="form-input"
+          :disabled="busy"
+        >
+          <option value="email">📧 E-mail</option>
+          <option value="phone">📞 Telefone</option>
+          <option value="cellphone">📱 Celular</option>
+          <option value="whatsapp">💬 WhatsApp</option>
+        </select>
       </div>
     </div>
 
@@ -252,6 +317,22 @@ const submit = async () => {
 .form-textarea {
   resize: vertical;
   min-height: 110px;
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-1);
+
+  input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+  }
 }
 
 .form-hint {

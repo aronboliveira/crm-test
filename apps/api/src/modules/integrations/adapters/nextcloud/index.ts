@@ -13,4 +13,7 @@ export {
   type CrmIntegrationUser,
   type CrmActivityLog,
 } from './nextcloud-data.mapper';
-export { NextcloudAdapter, type NextcloudAdapterConfig } from './nextcloud.adapter';
+export {
+  NextcloudAdapter,
+  type NextcloudAdapterConfig,
+} from './nextcloud.adapter';

@@ -267,7 +267,9 @@ export class SatApiClient {
   /**
    * Creates a new customer.
    */
-  async createCustomer(payload: SatCreateCustomerPayload): Promise<SatCustomer> {
+  async createCustomer(
+    payload: SatCreateCustomerPayload,
+  ): Promise<SatCustomer> {
     await this.ensureAuthenticated();
     this.logger.log('Creating SAT customer');
 
@@ -452,7 +454,10 @@ export class SatApiClient {
    */
   async recordPayment(
     invoiceId: number,
-    payment: Omit<SatPayment, 'id' | 'invoice_id' | 'invoice_number' | 'created_at'>,
+    payment: Omit<
+      SatPayment,
+      'id' | 'invoice_id' | 'invoice_number' | 'created_at'
+    >,
   ): Promise<SatPayment> {
     await this.ensureAuthenticated();
     this.logger.log(`Recording payment for SAT invoice ${invoiceId}`);

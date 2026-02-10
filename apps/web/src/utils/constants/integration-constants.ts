@@ -12,7 +12,11 @@ import ObjectDeep, { type DeepReadonly } from "../ObjectDeep";
 // =============================================================================
 
 /** Integration status type */
-export type IntegrationStatus = "connected" | "disconnected" | "error" | "pending";
+export type IntegrationStatus =
+  | "connected"
+  | "disconnected"
+  | "error"
+  | "pending";
 
 /** Integration category */
 export type IntegrationCategory =
@@ -23,7 +27,8 @@ export type IntegrationCategory =
   | "calendar"
   | "crm"
   | "communication"
-  | "analytics";
+  | "analytics"
+  | "messaging";
 
 /** Integration configuration field type */
 export type ConfigFieldType =
@@ -70,6 +75,7 @@ export interface IntegrationDefinition {
   readonly type: string;
   readonly category: IntegrationCategory;
   readonly icon: string;
+  readonly logoUrl?: string;
   readonly color: string;
   readonly features: readonly IntegrationFeature[];
   readonly configFields: readonly ConfigField[];
@@ -85,23 +91,25 @@ export interface IntegrationDefinition {
 /** SVG icon paths for integrations */
 const _INTEGRATION_ICONS = {
   GLPI: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>`,
-  
+
   SAT: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
-  
+
   NEXTCLOUD: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>`,
-  
+
+  WHATSAPP: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`,
+
   ZIMBRA: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
-  
+
   OUTLOOK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>`,
-  
+
   DATABASE: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>`,
-  
+
   SETTINGS: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
-  
+
   CHECK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`,
-  
+
   CHEVRON_DOWN: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>`,
-  
+
   TEST_CONNECTION: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
 } as const;
 
@@ -114,6 +122,7 @@ const _INTEGRATION_COLORS = {
   GLPI: "#5cb85c",
   SAT: "#1e88e5",
   NEXTCLOUD: "#0082c9",
+  WHATSAPP: "#25d366",
   ZIMBRA: "#ff7043",
   OUTLOOK: "#0078d4",
   DEFAULT: "#6c757d",
@@ -164,6 +173,11 @@ const _INTEGRATION_CATEGORIES = {
     id: "analytics",
     label: "Analytics",
     description: "Ferramentas de análise e relatórios",
+  },
+  MESSAGING: {
+    id: "messaging",
+    label: "Mensagens",
+    description: "Plataformas de mensagens e comunicação",
   },
 } as const;
 
@@ -427,6 +441,47 @@ const _ZIMBRA_CONFIG_FIELDS: readonly ConfigField[] = [
     required: true,
   },
   {
+    key: "smtpHost",
+    label: "SMTP Host",
+    type: "text",
+    required: false,
+    placeholder: "mail.empresa.com.br",
+    helpText: "Host SMTP para envio de emails",
+  },
+  {
+    key: "smtpPort",
+    label: "SMTP Porta",
+    type: "number",
+    required: false,
+    placeholder: "587",
+  },
+  {
+    key: "smtpUser",
+    label: "SMTP Usuário",
+    type: "text",
+    required: false,
+    placeholder: "usuario@empresa.com.br",
+  },
+  {
+    key: "smtpPass",
+    label: "SMTP Senha",
+    type: "password",
+    required: false,
+  },
+  {
+    key: "smtpFrom",
+    label: "SMTP Remetente",
+    type: "text",
+    required: false,
+    placeholder: "CRM <usuario@empresa.com.br>",
+  },
+  {
+    key: "smtpSecure",
+    label: "SMTP Seguro (TLS)",
+    type: "checkbox",
+    required: false,
+  },
+  {
     key: "syncCalendar",
     label: "Sincronizar Calendário",
     type: "checkbox",
@@ -478,6 +533,46 @@ const _OUTLOOK_CONFIG_FIELDS: readonly ConfigField[] = [
     required: true,
   },
   {
+    key: "smtpHost",
+    label: "SMTP Host",
+    type: "text",
+    required: false,
+    placeholder: "smtp.office365.com",
+  },
+  {
+    key: "smtpPort",
+    label: "SMTP Porta",
+    type: "number",
+    required: false,
+    placeholder: "587",
+  },
+  {
+    key: "smtpUser",
+    label: "SMTP Usuário",
+    type: "text",
+    required: false,
+    placeholder: "usuario@empresa.com",
+  },
+  {
+    key: "smtpPass",
+    label: "SMTP Senha",
+    type: "password",
+    required: false,
+  },
+  {
+    key: "smtpFrom",
+    label: "SMTP Remetente",
+    type: "text",
+    required: false,
+    placeholder: "CRM <usuario@empresa.com>",
+  },
+  {
+    key: "smtpSecure",
+    label: "SMTP Seguro (TLS)",
+    type: "checkbox",
+    required: false,
+  },
+  {
     key: "syncCalendar",
     label: "Sincronizar Calendário",
     type: "checkbox",
@@ -509,6 +604,81 @@ const _OUTLOOK_FEATURES: readonly IntegrationFeature[] = [
     label: "OneDrive",
     description: "Integração com arquivos do OneDrive",
     enabled: false,
+  },
+] as const;
+
+/** WhatsApp integration configuration */
+const _WHATSAPP_CONFIG_FIELDS: readonly ConfigField[] = [
+  {
+    key: "accessToken",
+    label: "Token de Acesso",
+    type: "password",
+    required: true,
+    placeholder: "Token de acesso da API Meta",
+    helpText: "Token permanente gerado no Meta Business Suite",
+  },
+  {
+    key: "businessAccountId",
+    label: "ID da Conta Business",
+    type: "text",
+    required: true,
+    placeholder: "ID da conta WhatsApp Business",
+    helpText: "Encontrado no Meta Business Suite > Configurações",
+  },
+  {
+    key: "phoneNumberId",
+    label: "ID do Número de Telefone",
+    type: "text",
+    required: false,
+    placeholder: "ID do número para métricas detalhadas",
+    helpText: "Necessário para analytics de mensagens",
+  },
+  {
+    key: "apiVersion",
+    label: "Versão da API",
+    type: "text",
+    required: false,
+    placeholder: "v18.0",
+    helpText: "Versão da Graph API (padrão: v18.0)",
+  },
+] as const;
+
+const _WHATSAPP_FEATURES: readonly IntegrationFeature[] = [
+  {
+    key: "templates",
+    label: "Templates de Mensagem",
+    description: "Armazenar e gerenciar templates com formatação WhatsApp",
+    enabled: true,
+  },
+  {
+    key: "formatting",
+    label: "Formatação WhatsApp",
+    description: "Preview com *negrito*, _itálico_, ~tachado~, ```mono```",
+    enabled: true,
+  },
+  {
+    key: "copyPaste",
+    label: "Copiar e Colar",
+    description: "Templates prontos para copiar e usar no WhatsApp",
+    enabled: true,
+  },
+  {
+    key: "analytics",
+    label: "Analytics (Leitura)",
+    description: "Estatísticas de mensagens e conversas da API Meta",
+    enabled: true,
+  },
+  {
+    key: "templatePerformance",
+    label: "Performance de Templates",
+    description: "Métricas de entrega e leitura por template",
+    enabled: true,
+  },
+  {
+    key: "accountHealth",
+    label: "Saúde da Conta",
+    description: "Monitoramento de qualidade e status do número",
+    enabled: true,
   },
 ] as const;
 
@@ -553,6 +723,8 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     type: "Armazenamento",
     category: "storage",
     icon: "cloud",
+    logoUrl:
+      "https://raw.githubusercontent.com/nextcloud/server/master/core/img/logo/logo.svg",
     color: _INTEGRATION_COLORS.NEXTCLOUD,
     features: _NEXTCLOUD_FEATURES,
     configFields: _NEXTCLOUD_CONFIG_FIELDS,
@@ -567,6 +739,8 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     type: "Email",
     category: "email",
     icon: "mail",
+    logoUrl:
+      "https://raw.githubusercontent.com/Zimbra/zm-web-client/master/webapps/zimbra/branding/logo/zimbra.svg",
     color: _INTEGRATION_COLORS.ZIMBRA,
     features: _ZIMBRA_FEATURES,
     configFields: _ZIMBRA_CONFIG_FIELDS,
@@ -581,12 +755,30 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     type: "Email",
     category: "email",
     icon: "calendar",
+    logoUrl:
+      "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Mail/Fill/SVG/ic_fluent_mail_24_filled.svg",
     color: _INTEGRATION_COLORS.OUTLOOK,
     features: _OUTLOOK_FEATURES,
     configFields: _OUTLOOK_CONFIG_FIELDS,
     configurable: true,
     docsUrl: "https://docs.microsoft.com/graph/",
     apiVersion: "Microsoft Graph",
+  },
+  whatsapp: {
+    id: "whatsapp",
+    name: "WhatsApp Business",
+    description: "Templates de mensagem e analytics de comunicação",
+    type: "Mensagens/Analytics",
+    category: "communication",
+    icon: "message-circle",
+    logoUrl:
+      "https://raw.githubusercontent.com/WhatsApp/WhatsApp-Business-API-Setup/master/assets/whatsapp-logo.svg",
+    color: _INTEGRATION_COLORS.WHATSAPP,
+    features: _WHATSAPP_FEATURES,
+    configFields: _WHATSAPP_CONFIG_FIELDS,
+    configurable: true,
+    docsUrl: "https://developers.facebook.com/docs/whatsapp/",
+    apiVersion: "Meta Graph API v18.0",
   },
 } as const;
 
@@ -603,8 +795,9 @@ export const INTEGRATION_COLORS: DeepReadonly<typeof _INTEGRATION_COLORS> =
   ObjectDeep.freeze(_INTEGRATION_COLORS);
 
 /** Frozen integration categories */
-export const INTEGRATION_CATEGORIES: DeepReadonly<typeof _INTEGRATION_CATEGORIES> =
-  ObjectDeep.freeze(_INTEGRATION_CATEGORIES);
+export const INTEGRATION_CATEGORIES: DeepReadonly<
+  typeof _INTEGRATION_CATEGORIES
+> = ObjectDeep.freeze(_INTEGRATION_CATEGORIES);
 
 /** Frozen status labels */
 export const STATUS_LABELS: DeepReadonly<typeof _STATUS_LABELS> =
@@ -623,8 +816,14 @@ export const SAT_CONFIG_FIELDS: DeepReadonly<typeof _SAT_CONFIG_FIELDS> =
   ObjectDeep.freeze(_SAT_CONFIG_FIELDS);
 
 /** Frozen NextCloud config fields */
-export const NEXTCLOUD_CONFIG_FIELDS: DeepReadonly<typeof _NEXTCLOUD_CONFIG_FIELDS> =
-  ObjectDeep.freeze(_NEXTCLOUD_CONFIG_FIELDS);
+export const NEXTCLOUD_CONFIG_FIELDS: DeepReadonly<
+  typeof _NEXTCLOUD_CONFIG_FIELDS
+> = ObjectDeep.freeze(_NEXTCLOUD_CONFIG_FIELDS);
+
+/** Frozen WhatsApp config fields */
+export const WHATSAPP_CONFIG_FIELDS: DeepReadonly<
+  typeof _WHATSAPP_CONFIG_FIELDS
+> = ObjectDeep.freeze(_WHATSAPP_CONFIG_FIELDS);
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -636,7 +835,7 @@ export const NEXTCLOUD_CONFIG_FIELDS: DeepReadonly<typeof _NEXTCLOUD_CONFIG_FIEL
  * @returns Integration definition or undefined
  */
 export const getIntegration = (
-  id: string
+  id: string,
 ): DeepReadonly<IntegrationDefinition> | undefined => {
   return INTEGRATIONS[id];
 };
@@ -655,7 +854,7 @@ export const getAllIntegrations = (): DeepReadonly<IntegrationDefinition>[] => {
  * @returns Array of matching integration definitions
  */
 export const getIntegrationsByCategory = (
-  category: IntegrationCategory
+  category: IntegrationCategory,
 ): DeepReadonly<IntegrationDefinition>[] => {
   return Object.values(INTEGRATIONS).filter((i) => i.category === category);
 };
@@ -679,12 +878,13 @@ export const getIntegrationIcon = (iconKey: string): string => {
     headphones: "GLPI",
     document: "SAT",
     cloud: "NEXTCLOUD",
+    "message-circle": "WHATSAPP",
     mail: "ZIMBRA",
     calendar: "OUTLOOK",
     database: "DATABASE",
     settings: "SETTINGS",
   };
-  
+
   const key = iconMap[iconKey] || "SETTINGS";
   return INTEGRATION_ICONS[key] || INTEGRATION_ICONS.SETTINGS;
 };
@@ -708,11 +908,11 @@ export const getIntegrationOptions = (): { value: string; label: string }[] => {
  */
 export const hasFeature = (
   integrationId: string,
-  featureKey: string
+  featureKey: string,
 ): boolean => {
   const integration = INTEGRATIONS[integrationId];
   if (!integration) return false;
-  
+
   const feature = integration.features.find((f) => f.key === featureKey);
   return feature?.enabled ?? false;
 };

@@ -132,7 +132,10 @@ export class NextcloudApiClient {
   /**
    * Parse WebDAV XML response to NextcloudFile array
    */
-  private parseWebdavResponse(xmlData: string, basePath: string): NextcloudFile[] {
+  private parseWebdavResponse(
+    xmlData: string,
+    basePath: string,
+  ): NextcloudFile[] {
     const files: NextcloudFile[] = [];
     // Simple XML parsing for WebDAV response
     const responsePattern = /<d:response>([\s\S]*?)<\/d:response>/g;
@@ -183,7 +186,10 @@ export class NextcloudApiClient {
       name,
       type: isFolder ? 'dir' : 'file',
       mimetype: getValue('d:getcontenttype'),
-      size: parseInt(getValue('oc:size') || getValue('d:getcontentlength') || '0', 10),
+      size: parseInt(
+        getValue('oc:size') || getValue('d:getcontentlength') || '0',
+        10,
+      ),
       etag: (getValue('d:getetag') || '').replace(/"/g, ''),
       lastModified: new Date(getValue('d:getlastmodified') || Date.now()),
       permissions: getValue('oc:permissions') || '',
@@ -587,12 +593,11 @@ export class NextcloudApiClient {
   async getCapabilities(): Promise<Record<string, unknown>> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get<NextcloudOcsResponse<{ capabilities: Record<string, unknown> }>>(
-          `${this.baseUrl}/ocs/v2.php/cloud/capabilities`,
-          {
-            headers: this.getHeaders({ Accept: 'application/json' }),
-          },
-        ),
+        this.httpService.get<
+          NextcloudOcsResponse<{ capabilities: Record<string, unknown> }>
+        >(`${this.baseUrl}/ocs/v2.php/cloud/capabilities`, {
+          headers: this.getHeaders({ Accept: 'application/json' }),
+        }),
       );
       return response.data.ocs.data.capabilities;
     } catch (error) {

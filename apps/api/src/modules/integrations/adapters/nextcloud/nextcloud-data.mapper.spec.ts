@@ -6,7 +6,10 @@
  */
 
 import { NextcloudDataMapper } from './nextcloud-data.mapper';
-import { NEXTCLOUD_SHARE_TYPES, NEXTCLOUD_PERMISSIONS } from './nextcloud.types';
+import {
+  NEXTCLOUD_SHARE_TYPES,
+  NEXTCLOUD_PERMISSIONS,
+} from './nextcloud.types';
 import type {
   NextcloudFile,
   NextcloudShare,
@@ -122,7 +125,9 @@ describe('NextcloudDataMapper', () => {
     });
 
     it('should parse permissions correctly', () => {
-      const result = NextcloudDataMapper.parsePermissions(NEXTCLOUD_PERMISSIONS.ALL);
+      const result = NextcloudDataMapper.parsePermissions(
+        NEXTCLOUD_PERMISSIONS.ALL,
+      );
 
       expect(result.read).toBe(true);
       expect(result.write).toBe(true);
@@ -132,7 +137,9 @@ describe('NextcloudDataMapper', () => {
     });
 
     it('should parse read-only permissions', () => {
-      const result = NextcloudDataMapper.parsePermissions(NEXTCLOUD_PERMISSIONS.READ);
+      const result = NextcloudDataMapper.parsePermissions(
+        NEXTCLOUD_PERMISSIONS.READ,
+      );
 
       expect(result.read).toBe(true);
       expect(result.write).toBe(false);
@@ -150,22 +157,39 @@ describe('NextcloudDataMapper', () => {
         share: false,
       };
 
-      const result = NextcloudDataMapper.convertPermissionsToBitmask(permissions);
+      const result =
+        NextcloudDataMapper.convertPermissionsToBitmask(permissions);
 
-      expect(result).toBe(NEXTCLOUD_PERMISSIONS.READ | NEXTCLOUD_PERMISSIONS.UPDATE);
+      expect(result).toBe(
+        NEXTCLOUD_PERMISSIONS.READ | NEXTCLOUD_PERMISSIONS.UPDATE,
+      );
     });
 
     it('should map share types correctly', () => {
-      expect(NextcloudDataMapper.mapShareType(NEXTCLOUD_SHARE_TYPES.USER)).toBe('user');
-      expect(NextcloudDataMapper.mapShareType(NEXTCLOUD_SHARE_TYPES.GROUP)).toBe('group');
-      expect(NextcloudDataMapper.mapShareType(NEXTCLOUD_SHARE_TYPES.PUBLIC_LINK)).toBe('link');
-      expect(NextcloudDataMapper.mapShareType(NEXTCLOUD_SHARE_TYPES.EMAIL)).toBe('email');
+      expect(NextcloudDataMapper.mapShareType(NEXTCLOUD_SHARE_TYPES.USER)).toBe(
+        'user',
+      );
+      expect(
+        NextcloudDataMapper.mapShareType(NEXTCLOUD_SHARE_TYPES.GROUP),
+      ).toBe('group');
+      expect(
+        NextcloudDataMapper.mapShareType(NEXTCLOUD_SHARE_TYPES.PUBLIC_LINK),
+      ).toBe('link');
+      expect(
+        NextcloudDataMapper.mapShareType(NEXTCLOUD_SHARE_TYPES.EMAIL),
+      ).toBe('email');
     });
 
     it('should map CRM share type to NextCloud', () => {
-      expect(NextcloudDataMapper.mapCrmShareType('user')).toBe(NEXTCLOUD_SHARE_TYPES.USER);
-      expect(NextcloudDataMapper.mapCrmShareType('group')).toBe(NEXTCLOUD_SHARE_TYPES.GROUP);
-      expect(NextcloudDataMapper.mapCrmShareType('link')).toBe(NEXTCLOUD_SHARE_TYPES.PUBLIC_LINK);
+      expect(NextcloudDataMapper.mapCrmShareType('user')).toBe(
+        NEXTCLOUD_SHARE_TYPES.USER,
+      );
+      expect(NextcloudDataMapper.mapCrmShareType('group')).toBe(
+        NEXTCLOUD_SHARE_TYPES.GROUP,
+      );
+      expect(NextcloudDataMapper.mapCrmShareType('link')).toBe(
+        NEXTCLOUD_SHARE_TYPES.PUBLIC_LINK,
+      );
     });
 
     it('should create share payload from CRM share', () => {
@@ -250,7 +274,9 @@ describe('NextcloudDataMapper', () => {
     };
 
     it('should map NextCloud activity to CRM activity log', () => {
-      const result = NextcloudDataMapper.activityToCrmActivity(mockNextcloudActivity);
+      const result = NextcloudDataMapper.activityToCrmActivity(
+        mockNextcloudActivity,
+      );
 
       expect(result.id).toBe('1000');
       expect(result.type).toBe('file_created');
@@ -278,19 +304,25 @@ describe('NextcloudDataMapper', () => {
 
   describe('Folder Structure Mapping', () => {
     it('should map CRM entity to folder structure', () => {
-      const result = NextcloudDataMapper.mapCrmEntityToFolderStructure('project', {
-        id: 'abc-123',
-        name: 'Test Project',
-      });
+      const result = NextcloudDataMapper.mapCrmEntityToFolderStructure(
+        'project',
+        {
+          id: 'abc-123',
+          name: 'Test Project',
+        },
+      );
 
       expect(result).toBe('/CRM/projects/abc-123_Test Project');
     });
 
     it('should sanitize special characters in names', () => {
-      const result = NextcloudDataMapper.mapCrmEntityToFolderStructure('client', {
-        id: 'def-456',
-        name: 'Test/Client:Name',
-      });
+      const result = NextcloudDataMapper.mapCrmEntityToFolderStructure(
+        'client',
+        {
+          id: 'def-456',
+          name: 'Test/Client:Name',
+        },
+      );
 
       expect(result).toBe('/CRM/clients/def-456_Test-Client-Name');
     });

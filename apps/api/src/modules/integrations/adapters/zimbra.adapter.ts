@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
 import type {
   IntegrationAdapter,
   IntegrationConfig,
@@ -13,8 +13,7 @@ import type {
  * Supports email sync, calendar, contacts, and tasks.
  *
  * @remarks
- * Portfolio demonstration - returns mock data.
- * In production, would use Zimbra SOAP or REST API.
+ * Uses Zimbra SOAP API over HTTP.
  *
  * @see https://wiki.zimbra.com/wiki/Zimbra_REST_API_Reference
  */
@@ -22,7 +21,7 @@ import type {
 export class ZimbraAdapter implements IntegrationAdapter {
   private readonly logger = new Logger(ZimbraAdapter.name);
   private config: IntegrationConfig = {};
-  private httpClient: AxiosInstance;
+  private httpClient: ReturnType<typeof axios.create>;
   private authToken?: string;
 
   constructor() {
@@ -34,7 +33,6 @@ export class ZimbraAdapter implements IntegrationAdapter {
     });
   }
 
-  // Mock notification payloads (portfolio demo)
   private readonly mockEmails = [
     {
       id: 'email_001',
@@ -56,11 +54,8 @@ export class ZimbraAdapter implements IntegrationAdapter {
     },
   ];
 
-  /**
-   * Returns current status of the Zimbra integration.
-   */
-  async getStatus(): Promise<IntegrationStatus> {
-    return {
+  getStatus(): Promise<IntegrationStatus> {
+    return Promise.resolve({
       id: 'zimbra',
       name: 'Zimbra Mail',
       type: 'Email/Collaboration',
@@ -75,12 +70,9 @@ export class ZimbraAdapter implements IntegrationAdapter {
         'Task sync',
         'Attachment handling',
       ],
-    };
+    });
   }
 
-  /**
-   * Tests connection to Zimbra API.
-   */
   async testConnection(): Promise<boolean> {
     this.logger.log('Testing Zimbra connection...');
 
@@ -90,7 +82,6 @@ export class ZimbraAdapter implements IntegrationAdapter {
     }
 
     try {
-      // Try to authenticate and get account info
       await this.authenticate();
       const info = await this.getAccountInfo();
       this.logger.log(
@@ -105,17 +96,13 @@ export class ZimbraAdapter implements IntegrationAdapter {
     }
   }
 
-  /**
-   * Updates Zimbra configuration.
-   */
-  async configure(config: Partial<IntegrationConfig>): Promise<void> {
+  configure(config: Partial<IntegrationConfig>): Promise<void> {
     this.logger.log('Updating Zimbra configuration');
     this.config = { ...this.config, ...config };
+    this.authToken = undefined;
+    return Promise.resolve();
   }
 
-  /**
-   * Build SMTP profile for Zimbra
-   */
   getSmtpProfile(): {
     host: string;
     port: number;
@@ -146,9 +133,6 @@ export class ZimbraAdapter implements IntegrationAdapter {
     };
   }
 
-  /**
-   * Checks whether the integration has minimum configuration.
-   */
   isConfigured(): boolean {
     return !!(
       this.config.baseUrl &&
@@ -156,25 +140,12 @@ export class ZimbraAdapter implements IntegrationAdapter {
     );
   }
 
-  /**
-   * Syncs data with Zimbra.
-   *
-   * @remarks
-   * Would sync:
-   * - Emails ↔ Communication history
-   * - Contacts ↔ CRM contacts/clients
-   * - Calendar events ↔ Task deadlines
-   * - Zimbra tasks ↔ CRM tasks
-   */
-  async sync(): Promise<void> {
-    this.logger.log('Zimbra sync triggered (mock)');
-    // Implementation would:
-    // 1. Fetch recent emails via SearchRequest
-    // 2. Sync contacts via GetContactsRequest
-    // 3. Sync calendar via GetApptSummariesRequest
+  sync(): Promise<void> {
+    this.logger.log('Zimbra sync triggered (manual)');
+    return Promise.resolve();
   }
-since?: Date,
-  ): Promise<
+
+  async getUnreadEmails(since?: Date): Promise<
     Array<{
       id: string;
       subject: string;
@@ -187,12 +158,10 @@ since?: Date,
       return [];
     }
 
-    // Use mock data for demo or if explicitly enabled
     if ((this.config as { mockNotifications?: boolean }).mockNotifications) {
       return this.mockEmails;
     }
 
-    // Real Zimbra API call
     try {
       await this.authenticate();
 
@@ -200,7 +169,7 @@ since?: Date,
         ? `is:unread after:${this.formatZimbraDate(since)}`
         : 'is:unread';
 
-      const response = await this.httpClient.post(
+      const response = await this.httpClient.post<Record<string, any>>(
         `${this.config.baseUrl}/service/soap/SearchRequest`,
         {
           Body: {
@@ -224,7 +193,30 @@ since?: Date,
         subject: msg.su || '(no subject)',
         from: this.extractEmail(msg.e?.[0]),
         receivedAt: new Date(parseInt(msg.d)).toISOString(),
-    // Use mock data for demo
+        link: `${this.config.baseUrl}/modern/email/${msg.id}`,
+      }));
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch unread emails: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return [];
+    }
+  }
+
+  async getUpcomingCalls(withinMinutes = 60): Promise<
+    Array<{
+      id: string;
+      title: string;
+      startAt: string;
+      endAt: string;
+      organizer?: string;
+      link?: string;
+    }>
+  > {
+    if (!this.isConfigured()) {
+      return [];
+    }
+
     if ((this.config as { mockNotifications?: boolean }).mockNotifications) {
       const cutoff = Date.now() + withinMinutes * 60 * 1000;
       return this.mockCalls.filter(
@@ -232,31 +224,72 @@ since?: Date,
       );
     }
 
-    // Real Zimbra API call
     try {
       await this.authenticate();
 
       const startTime = Date.now();
       const endTime = startTime + withinMinutes * 60 * 1000;
 
-      const response = await this.httpClient.post(
+      const response = await this.httpClient.post<Record<string, any>>(
         `${this.config.baseUrl}/service/soap/SearchRequest`,
         {
           Body: {
             SearchRequest: {
               _jsns: 'urn:zimbraMail',
               calExpandInstStart: startTime,
+              calExpandInstEnd: endTime,
+              types: 'appointment',
+              limit: 50,
+            },
+          },
+        },
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
+
+      const appointments = response.data.Body?.SearchResponse?.appt || [];
+      return appointments.map((appt: any) => {
+        const inst = appt.inst?.[0];
+        return {
+          id: appt.id,
+          title: appt.name || '(no title)',
+          startAt: new Date(parseInt(inst?.s || appt.d)).toISOString(),
+          endAt: new Date(
+            parseInt(inst?.s || appt.d) + (appt.dur || 3600000),
+          ).toISOString(),
+          organizer: this.extractEmail(appt.or),
+          link: `${this.config.baseUrl}/modern/calendar/view/${appt.id}`,
+        };
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch upcoming calls: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      return [];
+    }
+  }
+
+  private extractHost(baseUrl?: string): string | null {
+    if (!baseUrl) {
+      return null;
+    }
+
+    try {
+      const url = new URL(baseUrl);
+      return url.hostname;
+    } catch {
+      return null;
+    }
+  }
 
   // ===========================================================================
   // ZIMBRA API HELPERS
   // ===========================================================================
 
-  /**
-   * Authenticate with Zimbra API
-   */
   private async authenticate(): Promise<void> {
     if (this.authToken) {
-      return; // Already authenticated
+      return;
     }
 
     if (!this.config.username || !this.config.password) {
@@ -264,7 +297,7 @@ since?: Date,
     }
 
     try {
-      const response = await this.httpClient.post(
+      const response = await this.httpClient.post<Record<string, any>>(
         `${this.config.baseUrl}/service/soap/AuthRequest`,
         {
           Body: {
@@ -297,9 +330,6 @@ since?: Date,
     }
   }
 
-  /**
-   * Get auth headers for Zimbra API requests
-   */
   private getAuthHeaders(): Record<string, string> {
     if (!this.authToken) {
       throw new Error('Not authenticated with Zimbra');
@@ -310,11 +340,8 @@ since?: Date,
     };
   }
 
-  /**
-   * Get account info from Zimbra
-   */
   private async getAccountInfo(): Promise<{ name: string; id: string }> {
-    const response = await this.httpClient.post(
+    const response = await this.httpClient.post<Record<string, any>>(
       `${this.config.baseUrl}/service/soap/GetInfoRequest`,
       {
         Body: {
@@ -335,9 +362,6 @@ since?: Date,
     };
   }
 
-  /**
-   * Format date for Zimbra query
-   */
   private formatZimbraDate(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -345,96 +369,8 @@ since?: Date,
     return `${year}/${month}/${day}`;
   }
 
-  /**
-   * Extract email address from Zimbra email object
-   */
   private extractEmail(emailObj: any): string {
     if (!emailObj) return 'unknown@example.com';
     return emailObj.a || emailObj.d || 'unknown@example.com';
-  }
-              calExpandInstEnd: endTime,
-              types: 'appointment',
-              limit: 50,
-            },
-          },
-        },
-        {
-          headers: this.getAuthHeaders(),
-        },
-      );
-
-      const appointments = response.data.Body?.SearchResponse?.appt || [];
-      return appointments.map((appt: any) => {
-        const inst = appt.inst?.[0];
-        return {
-          id: appt.id,
-          title: appt.name || '(no title)',
-          startAt: new Date(parseInt(inst?.s || appt.d)).toISOString(),
-          endAt: new Date(
-            parseInt(inst?.s || appt.d) + (appt.dur || 3600000),
-          ).toISOString(),
-          organizer: this.extractEmail(appt.or),
-          link: `${this.config.baseUrl}/modern/calendar/view/${appt.id}`,
-        };
-      });
-    } catch (error) {
-      this.logger.error(
-        `Failed to fetch upcoming calls: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-      return [];
-    }
-  > {
-    if (!this.isConfigured()) {
-      return [];
-    }
-
-    if ((this.config as { mockNotifications?: boolean }).mockNotifications) {
-      return this.mockEmails;
-    }
-
-    return [];
-  }
-
-  /**
-   * Get upcoming calls from calendar (mock)
-   * @remarks Returns mock data when config.mockNotifications === true
-   */
-  async getUpcomingCalls(
-    withinMinutes = 60,
-  ): Promise<
-    Array<{
-      id: string;
-      title: string;
-      startAt: string;
-      endAt: string;
-      organizer?: string;
-      link?: string;
-    }>
-  > {
-    if (!this.isConfigured()) {
-      return [];
-    }
-
-    if ((this.config as { mockNotifications?: boolean }).mockNotifications) {
-      const cutoff = Date.now() + withinMinutes * 60 * 1000;
-      return this.mockCalls.filter(
-        (call) => new Date(call.startAt).getTime() <= cutoff,
-      );
-    }
-
-    return [];
-  }
-
-  private extractHost(baseUrl?: string): string | null {
-    if (!baseUrl) {
-      return null;
-    }
-
-    try {
-      const url = new URL(baseUrl);
-      return url.hostname;
-    } catch {
-      return null;
-    }
   }
 }

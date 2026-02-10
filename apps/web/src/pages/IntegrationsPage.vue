@@ -30,6 +30,7 @@ interface Integration {
   type: string;
   status: IntegrationStatus;
   icon: string;
+  logoUrl?: string;
   color: string;
   features: string[];
   configurable: boolean;
@@ -77,6 +78,8 @@ const integrations = ref<Integration[]>([
     type: "Armazenamento",
     status: "disconnected",
     icon: "cloud",
+    logoUrl:
+      "https://raw.githubusercontent.com/nextcloud/server/master/core/img/logo/logo.svg",
     color: INTEGRATION_COLORS.NEXTCLOUD,
     features: [
       "Upload e download de arquivos",
@@ -88,12 +91,33 @@ const integrations = ref<Integration[]>([
     configurable: true,
   },
   {
+    id: "whatsapp",
+    name: "WhatsApp Business",
+    description: "Templates de mensagem e analytics de comunicação",
+    type: "Mensagens/Analytics",
+    status: "disconnected",
+    icon: "message-circle",
+    logoUrl:
+      "https://raw.githubusercontent.com/WhatsApp/WhatsApp-Business-API-Setup/master/assets/whatsapp-logo.svg",
+    color: INTEGRATION_COLORS.WHATSAPP,
+    features: [
+      "Templates de mensagem com formatação",
+      "Copiar e colar mensagens prontas",
+      "Analytics de entrega e leitura",
+      "Métricas de conversas e custos",
+      "Saúde do número e conta",
+    ],
+    configurable: true,
+  },
+  {
     id: "zimbra",
     name: "Zimbra Mail",
     description: "Cliente de e-mail e colaboração",
     type: "E-mail/Calendário",
     status: "disconnected",
     icon: "mail",
+    logoUrl:
+      "https://raw.githubusercontent.com/Zimbra/zm-web-client/master/webapps/zimbra/branding/logo/zimbra.svg",
     color: INTEGRATION_COLORS.ZIMBRA,
     features: [
       "Sincronização de e-mails",
@@ -111,6 +135,8 @@ const integrations = ref<Integration[]>([
     type: "E-mail/Microsoft 365",
     status: "disconnected",
     icon: "calendar",
+    logoUrl:
+      "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Mail/Fill/SVG/ic_fluent_mail_24_filled.svg",
     color: INTEGRATION_COLORS.OUTLOOK,
     features: [
       "Sincronização de e-mails",

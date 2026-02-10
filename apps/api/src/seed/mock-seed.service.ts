@@ -79,11 +79,64 @@ export default class MockSeedService {
     for (let i = 0; i < 15; i++) {
       const name = faker.company.name();
       const email = faker.internet.email();
+      const cellPhone = faker.phone.number();
+      const hasWhatsapp = faker.datatype.boolean(0.7); // 70% have WhatsApp
+      const preferredContacts: Array<
+        'email' | 'phone' | 'whatsapp' | 'cellphone'
+      > = ['email', 'phone', 'whatsapp', 'cellphone'];
+      const whatsappSent = faker.number.int({ min: 0, max: 120 });
+      const whatsappRead = Math.min(
+        whatsappSent,
+        faker.number.int({ min: 0, max: whatsappSent }),
+      );
+      const whatsappReplied = Math.min(
+        whatsappRead,
+        faker.number.int({ min: 0, max: whatsappRead }),
+      );
+      const emailSent = faker.number.int({ min: 0, max: 80 });
+      const emailOpened = Math.min(
+        emailSent,
+        faker.number.int({ min: 0, max: emailSent }),
+      );
+      const emailClicked = Math.min(
+        emailOpened,
+        faker.number.int({ min: 0, max: emailOpened }),
+      );
+      const emailReplied = Math.min(
+        emailOpened,
+        faker.number.int({ min: 0, max: emailOpened }),
+      );
+
       const client = this.clientsRepo.create({
         id: crypto.randomUUID(),
         name,
         email,
         phone: faker.phone.number(),
+        cellPhone,
+        whatsappNumber: hasWhatsapp ? cellPhone : undefined,
+        hasWhatsapp,
+        preferredContact:
+          preferredContacts[faker.number.int({ min: 0, max: 3 })],
+        whatsappAnalytics: {
+          sent: whatsappSent,
+          delivered: whatsappRead,
+          read: whatsappRead,
+          replied: whatsappReplied,
+          lastMessageAt:
+            whatsappSent > 0
+              ? faker.date.recent({ days: 30 }).toISOString()
+              : undefined,
+        },
+        emailAnalytics: {
+          sent: emailSent,
+          opened: emailOpened,
+          clicked: emailClicked,
+          replied: emailReplied,
+          lastEmailAt:
+            emailSent > 0
+              ? faker.date.recent({ days: 45 }).toISOString()
+              : undefined,
+        },
         company: name,
         notes: faker.lorem.sentence(),
         createdAt: now,

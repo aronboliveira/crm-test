@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationType } from '../../entities/NotificationEntity';
-import * as crypto from 'crypto-js';
+import {
+  NotificationType,
+  NotificationPriority,
+} from '../../entities/NotificationEntity';
+import * as crypto from 'crypto';
 
 export interface WebhookEvent {
-  source: 'zimbra' | 'outlook';
+  source: 'zimbra' | 'outlook' | 'nextcloud';
   eventType: string;
   data: any;
   timestamp: Date;
@@ -20,12 +23,11 @@ export class WebhooksService {
   /**
    * Verify webhook signature to ensure authenticity
    */
-  verifySignature(
-    payload: string,
-    signature: string,
-    secret: string,
-  ): boolean {
-    const expectedSignature = crypto.HmacSHA256(payload, secret).toString();
+  verifySignature(payload: string, signature: string, secret: string): boolean {
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(payload)
+      .digest('hex');
     return expectedSignature === signature;
   }
 
@@ -95,6 +97,119 @@ export class WebhooksService {
   }
 
   /**
+   * Handle incoming Nextcloud webhook events
+   */
+  async handleNextcloudWebhook(event: WebhookEvent, userId: string) {
+    this.logger.log(
+      `Processing Nextcloud webhook: ${event.eventType} for user ${userId}`,
+    );
+
+    try {
+      const et = (event.eventType || '').toString().toLowerCase();
+
+      // Map common Nextcloud events to our internal handlers
+      // Check specific patterns first (deleted, shared) before generic patterns
+      if (et.includes('deleted') || et.includes('removed')) {
+        await this.handleFileDeleted(event.data, userId, 'nextcloud');
+      } else if (et.includes('share') || et.includes('shared')) {
+        await this.handleFileShared(event.data, userId, 'nextcloud');
+      } else if (
+        et.includes('file') ||
+        et.includes('created') ||
+        et.includes('added')
+      ) {
+        await this.handleFileUpdated(event.data, userId, 'nextcloud');
+      } else {
+        this.logger.warn(`Unknown Nextcloud event type: ${event.eventType}`);
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error processing Nextcloud webhook: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Handle file updated/created events from Nextcloud
+   */
+  private async handleFileUpdated(data: any, userId: string, source: string) {
+    const fileId = data.id || data.path || data.file || JSON.stringify(data);
+    const externalId = `${source}-file-updated-${fileId}`;
+
+    const exists = await this.notificationsService.existsByExternalId(
+      source,
+      externalId,
+    );
+    if (exists) return;
+
+    await this.notificationsService.create({
+      type: NotificationType.FILE_UPDATED,
+      userId,
+      title: 'File updated',
+      message: data.name || data.path || 'A file was updated',
+      source,
+      externalId,
+      link: data.url || data.webUrl || null,
+      icon: 'file',
+      metadata: data,
+    });
+
+    this.logger.log(`Created file-updated notification: ${externalId}`);
+  }
+
+  /**
+   * Handle file deleted events from Nextcloud
+   */
+  private async handleFileDeleted(data: any, userId: string, source: string) {
+    const fileId = data.id || data.path || data.file || JSON.stringify(data);
+    const externalId = `${source}-file-deleted-${fileId}-${Date.now()}`;
+
+    await this.notificationsService.create({
+      type: NotificationType.INTEGRATION_ACTIVITY,
+      userId,
+      title: 'File deleted',
+      message: data.name || data.path || 'A file was deleted',
+      source,
+      externalId,
+      link: undefined,
+      icon: 'trash',
+      metadata: data,
+    });
+
+    this.logger.log(`Created file-deleted notification: ${externalId}`);
+  }
+
+  /**
+   * Handle file shared events from Nextcloud
+   */
+  private async handleFileShared(data: any, userId: string, source: string) {
+    const fileId = data.id || data.path || data.file || JSON.stringify(data);
+    const externalId = `${source}-file-shared-${fileId}`;
+
+    const exists = await this.notificationsService.existsByExternalId(
+      source,
+      externalId,
+    );
+    if (exists) return;
+
+    await this.notificationsService.create({
+      type: NotificationType.FILE_SHARED,
+      userId,
+      title: 'File shared',
+      message: data.name || data.path || 'A file was shared with you',
+      source,
+      externalId,
+      link: data.url || data.webUrl || null,
+      icon: 'share',
+      metadata: data,
+    });
+
+    this.logger.log(`Created file-shared notification: ${externalId}`);
+  }
+
+  /**
    * Handle new email event
    */
   private async handleNewEmail(
@@ -105,8 +220,10 @@ export class WebhooksService {
     const externalId = `${source}-email-${data.id}`;
 
     // Check if already processed
-    const exists =
-      await this.notificationsService.existsByExternalId(externalId);
+    const exists = await this.notificationsService.existsByExternalId(
+      source,
+      externalId,
+    );
     if (exists) {
       this.logger.debug(`Email notification already exists: ${externalId}`);
       return;
@@ -140,8 +257,10 @@ export class WebhooksService {
   ) {
     const externalId = `${source}-calendar-${data.id}`;
 
-    const exists =
-      await this.notificationsService.existsByExternalId(externalId);
+    const exists = await this.notificationsService.existsByExternalId(
+      source,
+      externalId,
+    );
     if (exists) return;
 
     await this.notificationsService.create({
@@ -178,7 +297,7 @@ export class WebhooksService {
       userId,
       title: `Reminder: ${data.subject}`,
       message: `Starting in ${data.minutesBeforeStart} minutes`,
-      priority: 'high',
+      priority: NotificationPriority.HIGH,
       source,
       externalId,
       link: data.webLink,
@@ -202,8 +321,10 @@ export class WebhooksService {
   ) {
     const externalId = `${source}-task-${data.id}`;
 
-    const exists =
-      await this.notificationsService.existsByExternalId(externalId);
+    const exists = await this.notificationsService.existsByExternalId(
+      source,
+      externalId,
+    );
     if (exists) return;
 
     await this.notificationsService.create({

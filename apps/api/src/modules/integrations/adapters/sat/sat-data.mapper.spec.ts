@@ -6,10 +6,7 @@
  */
 
 import { SatDataMapper } from './sat-data.mapper';
-import {
-  SAT_INVOICE_STATUS,
-  SAT_ORDER_STATUS,
-} from './sat.types';
+import { SAT_INVOICE_STATUS, SAT_ORDER_STATUS } from './sat.types';
 import type {
   SatInvoice,
   SatCustomer,
@@ -267,7 +264,9 @@ describe('SatDataMapper', () => {
     });
 
     it('should map order status correctly', () => {
-      expect(SatDataMapper.mapOrderStatus(SAT_ORDER_STATUS.QUOTE)).toBe('quote');
+      expect(SatDataMapper.mapOrderStatus(SAT_ORDER_STATUS.QUOTE)).toBe(
+        'quote',
+      );
       expect(SatDataMapper.mapOrderStatus(SAT_ORDER_STATUS.CONFIRMED)).toBe(
         'confirmed',
       );

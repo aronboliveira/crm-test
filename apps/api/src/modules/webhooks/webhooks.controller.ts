@@ -144,6 +144,61 @@ export class WebhooksController {
   }
 
   /**
+   * Nextcloud webhook endpoint
+   * POST /webhooks/nextcloud?userId=xxx
+   *
+   * Nextcloud webhook requests may include a signature header (e.g. `x-nextcloud-signature`).
+   * We verify using an HMAC secret configured in `NEXTCLOUD_WEBHOOK_SECRET`.
+   * Payload format depends on the Nextcloud webhook/app used; we expect a JSON body with
+   * `event`/`type` and `file`/`path` information.
+   */
+  @Post('nextcloud')
+  @HttpCode(HttpStatus.OK)
+  async handleNextcloudWebhook(
+    @Body() payload: any,
+    @Headers('x-nextcloud-signature') signature: string,
+    @Query('userId') userId: string,
+  ) {
+    if (!userId) {
+      throw new BadRequestException('userId query parameter is required');
+    }
+
+    this.logger.log(`Received Nextcloud webhook for user ${userId}`);
+
+    const secret = process.env.NEXTCLOUD_WEBHOOK_SECRET;
+    if (secret) {
+      if (!signature) {
+        this.logger.warn('Missing Nextcloud webhook signature');
+        throw new UnauthorizedException('Missing webhook signature');
+      }
+
+      const payloadString = JSON.stringify(payload);
+      const isValid = this.webhooksService.verifySignature(
+        payloadString,
+        signature,
+        secret,
+      );
+
+      if (!isValid) {
+        this.logger.warn('Invalid Nextcloud webhook signature');
+        throw new UnauthorizedException('Invalid webhook signature');
+      }
+    }
+
+    const event = {
+      source: 'nextcloud' as const,
+      eventType: payload.event || payload.type || 'unknown',
+      data: payload,
+      timestamp: new Date(),
+      signature,
+    };
+
+    await this.webhooksService.handleNextcloudWebhook(event, userId);
+
+    return { status: 'ok', message: 'Webhook processed successfully' };
+  }
+
+  /**
    * Extract userId from Microsoft Graph resource string
    * Example: "users/abc-123-def/messages/xyz" -> "abc-123-def"
    */

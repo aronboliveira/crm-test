@@ -97,20 +97,20 @@ const _INTEGRATION_TITLES = {
   RECONNECT: "Reconectar integração",
   REFRESH_STATUS: "Atualizar status da conexão",
   VIEW_DOCS: "Ver documentação",
-  
+
   // Status indicators
   STATUS_CONNECTED: "Integração conectada e funcionando",
   STATUS_DISCONNECTED: "Integração desconectada",
   STATUS_ERROR: "Erro na integração - clique para detalhes",
   STATUS_PENDING: "Conexão pendente de configuração",
   STATUS_SYNCING: "Sincronização em andamento",
-  
+
   // GLPI
   GLPI_TITLE: "GLPI - Sistema de gerenciamento de chamados",
   GLPI_TEST: "Testar conexão com GLPI",
   GLPI_SYNC: "Sincronizar tickets e usuários do GLPI",
   GLPI_CONFIG: "Configurar credenciais do GLPI",
-  
+
   // SAT
   SAT_TITLE: "SAT ERP - Sistema de gestão empresarial",
   SAT_TEST: "Testar conexão com SAT",
@@ -119,7 +119,7 @@ const _INTEGRATION_TITLES = {
   SAT_INVOICES: "Gerenciar notas fiscais",
   SAT_CUSTOMERS: "Sincronizar clientes",
   SAT_PRODUCTS: "Sincronizar produtos e estoque",
-  
+
   // NextCloud
   NEXTCLOUD_TITLE: "NextCloud - Armazenamento e colaboração",
   NEXTCLOUD_TEST: "Testar conexão com NextCloud",
@@ -127,13 +127,13 @@ const _INTEGRATION_TITLES = {
   NEXTCLOUD_CONFIG: "Configurar credenciais do NextCloud",
   NEXTCLOUD_FILES: "Gerenciar arquivos",
   NEXTCLOUD_SHARES: "Gerenciar compartilhamentos",
-  
+
   // Zimbra
   ZIMBRA_TITLE: "Zimbra - Servidor de email",
   ZIMBRA_TEST: "Testar conexão com Zimbra",
   ZIMBRA_SYNC: "Sincronizar emails e calendário",
   ZIMBRA_CONFIG: "Configurar conta do Zimbra",
-  
+
   // Outlook
   OUTLOOK_TITLE: "Microsoft Outlook - Email e calendário",
   OUTLOOK_TEST: "Testar conexão com Outlook",
@@ -152,34 +152,34 @@ const _FORM_TITLES = {
   HIDE_PASSWORD: "Ocultar senha",
   GENERATE_PASSWORD: "Gerar senha segura",
   COPY_PASSWORD: "Copiar senha",
-  
+
   // Validation
   FIELD_REQUIRED: "Este campo é obrigatório",
   FIELD_INVALID: "O valor informado é inválido",
   FIELD_TOO_SHORT: "O valor informado é muito curto",
   FIELD_TOO_LONG: "O valor informado é muito longo",
-  
+
   // File inputs
   SELECT_FILE: "Selecionar arquivo",
   SELECT_FILES: "Selecionar arquivos",
   DRAG_DROP: "Arraste e solte arquivos aqui",
   REMOVE_FILE: "Remover arquivo",
   PREVIEW_FILE: "Visualizar arquivo",
-  
+
   // Date inputs
   SELECT_DATE: "Selecionar data",
   SELECT_TIME: "Selecionar hora",
   SELECT_DATETIME: "Selecionar data e hora",
   CLEAR_DATE: "Limpar data",
   TODAY: "Selecionar data de hoje",
-  
+
   // Select/Dropdown
   SELECT_OPTION: "Selecionar opção",
   CLEAR_SELECTION: "Limpar seleção",
   SEARCH_OPTIONS: "Buscar opções",
   NO_OPTIONS: "Nenhuma opção disponível",
   LOADING_OPTIONS: "Carregando opções...",
-  
+
   // Rich text editor
   BOLD: "Negrito (Ctrl+B)",
   ITALIC: "Itálico (Ctrl+I)",
@@ -278,14 +278,14 @@ const _STATUS_TITLES = {
   PROJECT_COMPLETED: "Projeto concluído",
   PROJECT_CANCELLED: "Projeto cancelado",
   PROJECT_ARCHIVED: "Projeto arquivado",
-  
+
   // Task status
   TASK_TODO: "Tarefa a fazer",
   TASK_IN_PROGRESS: "Tarefa em andamento",
   TASK_REVIEW: "Tarefa em revisão",
   TASK_DONE: "Tarefa concluída",
   TASK_BLOCKED: "Tarefa bloqueada",
-  
+
   // Lead status
   LEAD_NEW: "Novo lead",
   LEAD_CONTACTED: "Lead contatado",
@@ -294,13 +294,13 @@ const _STATUS_TITLES = {
   LEAD_NEGOTIATION: "Em negociação",
   LEAD_WON: "Lead convertido",
   LEAD_LOST: "Lead perdido",
-  
+
   // Priority
   PRIORITY_LOW: "Prioridade baixa",
   PRIORITY_MEDIUM: "Prioridade média",
   PRIORITY_HIGH: "Prioridade alta",
   PRIORITY_URGENT: "Prioridade urgente",
-  
+
   // User status
   USER_ONLINE: "Usuário online",
   USER_OFFLINE: "Usuário offline",
@@ -380,15 +380,16 @@ export const TITLE_ATTRS = ObjectDeep.freeze({
  */
 export const getIntegrationCardTitle = (
   integrationName: string,
-  status: string
+  status: string,
 ): string => {
-  const statusLabel = status === "connected" 
-    ? "Conectado" 
-    : status === "disconnected" 
-      ? "Desconectado" 
-      : status === "error" 
-        ? "Erro" 
-        : "Pendente";
+  const statusLabel =
+    status === "connected"
+      ? "Conectado"
+      : status === "disconnected"
+        ? "Desconectado"
+        : status === "error"
+          ? "Erro"
+          : "Pendente";
   return `${integrationName} - ${statusLabel}. Clique para expandir ou recolher`;
 };
 
@@ -397,7 +398,7 @@ export const getIntegrationCardTitle = (
  */
 export const getExpandableTitle = (
   sectionName: string,
-  isExpanded: boolean
+  isExpanded: boolean,
 ): string => {
   return `${sectionName} - Clique para ${isExpanded ? "recolher" : "expandir"}`;
 };
@@ -407,9 +408,14 @@ export const getExpandableTitle = (
  */
 export const getSortableHeaderTitle = (
   columnName: string,
-  currentSort: "asc" | "desc" | "none"
+  currentSort: "asc" | "desc" | "none",
 ): string => {
-  const nextSort = currentSort === "none" ? "crescente" : currentSort === "asc" ? "decrescente" : "remover ordenação";
+  const nextSort =
+    currentSort === "none"
+      ? "crescente"
+      : currentSort === "asc"
+        ? "decrescente"
+        : "remover ordenação";
   return `${columnName} - Clique para ordenar em ordem ${nextSort}`;
 };
 
@@ -419,9 +425,11 @@ export const getSortableHeaderTitle = (
 
 export type ActionTitle = (typeof ACTION_TITLES)[keyof typeof ACTION_TITLES];
 export type NavTitle = (typeof NAV_TITLES)[keyof typeof NAV_TITLES];
-export type IntegrationTitle = (typeof INTEGRATION_TITLES)[keyof typeof INTEGRATION_TITLES];
+export type IntegrationTitle =
+  (typeof INTEGRATION_TITLES)[keyof typeof INTEGRATION_TITLES];
 export type FormTitle = (typeof FORM_TITLES)[keyof typeof FORM_TITLES];
 export type TableTitle = (typeof TABLE_TITLES)[keyof typeof TABLE_TITLES];
-export type NotificationTitle = (typeof NOTIFICATION_TITLES)[keyof typeof NOTIFICATION_TITLES];
+export type NotificationTitle =
+  (typeof NOTIFICATION_TITLES)[keyof typeof NOTIFICATION_TITLES];
 export type ModalTitle = (typeof MODAL_TITLES)[keyof typeof MODAL_TITLES];
 export type StatusTitle = (typeof STATUS_TITLES)[keyof typeof STATUS_TITLES];

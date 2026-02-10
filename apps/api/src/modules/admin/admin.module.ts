@@ -19,7 +19,7 @@ import ResetInviteStrategy from './users/provisioning/reset-invite.strategy';
 import UserProvisioningService, {
   USER_PROVISIONING_STRATEGIES,
 } from './users/user-provisioning.service';
-import NotificationsModule from '../notifications/notificatiions.module';
+import NotificationsModule from '../notifications/notifications.module';
 import MailAdminController from './mail/mail-admin.controller';
 import MailAdminService from './mail/mail-admin.service';
 

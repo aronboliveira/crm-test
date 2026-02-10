@@ -5,6 +5,7 @@ import { IntegrationsService } from './integrations.service';
 import { GlpiAdapter } from './adapters/glpi';
 import { SatAdapter } from './adapters/sat';
 import { NextcloudAdapter } from './adapters/nextcloud';
+import { WhatsAppAdapter } from './adapters/whatsapp';
 import { ZimbraAdapter } from './adapters/zimbra.adapter';
 import { OutlookAdapter } from './adapters/outlook.adapter';
 
@@ -16,9 +17,15 @@ import { OutlookAdapter } from './adapters/outlook.adapter';
     GlpiAdapter,
     SatAdapter,
     NextcloudAdapter,
+    WhatsAppAdapter,
     ZimbraAdapter,
     OutlookAdapter,
   ],
-  exports: [IntegrationsService],
+  exports: [
+    IntegrationsService,
+    NextcloudAdapter,
+    ZimbraAdapter,
+    OutlookAdapter,
+  ],
 })
 export class IntegrationsModule {}

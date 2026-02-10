@@ -94,8 +94,7 @@ export class NextcloudAdapter implements IntegrationAdapter {
         lastSyncAt: new Date().toISOString(),
       };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : 'Unknown error';
       return {
         ...baseStatus,
         status: 'error',
@@ -131,6 +130,13 @@ export class NextcloudAdapter implements IntegrationAdapter {
     });
 
     this.logger.log(`NextCloud adapter configured for ${config.baseUrl}`);
+  }
+
+  /**
+   * Check if adapter is configured
+   */
+  isConfigured(): boolean {
+    return !!this.config;
   }
 
   /**
@@ -181,8 +187,7 @@ export class NextcloudAdapter implements IntegrationAdapter {
 
       return { success: true, itemsProcessed };
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : 'Unknown error';
       errors.push(message);
       this.logger.error('Sync failed', error);
       return { success: false, itemsProcessed, errors };

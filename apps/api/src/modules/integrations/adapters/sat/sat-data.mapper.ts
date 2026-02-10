@@ -189,7 +189,9 @@ export class SatDataMapper {
       type: (invoice.type as 'NF' | 'NFe' | 'NFSe' | 'NFCe') || 'NFe',
       due_date: invoice.dueDate?.toISOString().split('T')[0] || '',
       items,
-      payment_method: invoice.paymentMethod as import('./sat.types').SatPaymentMethod | undefined,
+      payment_method: invoice.paymentMethod as
+        | import('./sat.types').SatPaymentMethod
+        | undefined,
       notes: invoice.notes,
     };
   }
@@ -236,7 +238,9 @@ export class SatDataMapper {
   /**
    * Maps CRM client to SAT customer create payload.
    */
-  static crmClientToCreatePayload(client: Partial<CrmClient>): import('./sat.types').SatCreateCustomerPayload {
+  static crmClientToCreatePayload(
+    client: Partial<CrmClient>,
+  ): import('./sat.types').SatCreateCustomerPayload {
     return {
       type: (client.type === 'company' ? 'PJ' : 'PF') as 'PF' | 'PJ',
       name: client.name || '',
@@ -257,7 +261,9 @@ export class SatDataMapper {
             country: client.address.country,
           }
         : {},
-      tax_regime: client.taxRegime as import('./sat.types').SatTaxRegime | undefined,
+      tax_regime: client.taxRegime as
+        | import('./sat.types').SatTaxRegime
+        | undefined,
     };
   }
 
@@ -412,9 +418,7 @@ export class SatDataMapper {
   /**
    * Maps CRM status string to SAT order status.
    */
-  static mapCrmStatusToOrderStatus(
-    status: string,
-  ): SatOrderStatus | undefined {
+  static mapCrmStatusToOrderStatus(status: string): SatOrderStatus | undefined {
     const reverseMap: Record<string, SatOrderStatus> = {
       quote: SAT_ORDER_STATUS.QUOTE,
       confirmed: SAT_ORDER_STATUS.CONFIRMED,

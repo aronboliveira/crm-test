@@ -20,6 +20,36 @@ export default class ClientEntity {
   phone?: string;
 
   @Column()
+  cellPhone?: string;
+
+  @Column()
+  whatsappNumber?: string;
+
+  @Column()
+  hasWhatsapp?: boolean;
+
+  @Column()
+  preferredContact?: string;
+
+  @Column()
+  whatsappAnalytics?: {
+    sent?: number;
+    delivered?: number;
+    read?: number;
+    replied?: number;
+    lastMessageAt?: string;
+  };
+
+  @Column()
+  emailAnalytics?: {
+    sent?: number;
+    opened?: number;
+    clicked?: number;
+    replied?: number;
+    lastEmailAt?: string;
+  };
+
+  @Column()
   company?: string;
 
   @Column()

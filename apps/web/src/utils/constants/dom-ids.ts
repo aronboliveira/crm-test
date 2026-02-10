@@ -291,10 +291,12 @@ const _ADMIN_IDS = {
 // =============================================================================
 
 /** Frozen application structure IDs */
-export const APP_IDS: DeepReadonly<typeof _APP_IDS> = ObjectDeep.freeze(_APP_IDS);
+export const APP_IDS: DeepReadonly<typeof _APP_IDS> =
+  ObjectDeep.freeze(_APP_IDS);
 
 /** Frozen navigation IDs */
-export const NAV_IDS: DeepReadonly<typeof _NAV_IDS> = ObjectDeep.freeze(_NAV_IDS);
+export const NAV_IDS: DeepReadonly<typeof _NAV_IDS> =
+  ObjectDeep.freeze(_NAV_IDS);
 
 /** Frozen dashboard IDs */
 export const DASHBOARD_IDS: DeepReadonly<typeof _DASHBOARD_IDS> =
@@ -305,33 +307,40 @@ export const PROJECTS_IDS: DeepReadonly<typeof _PROJECTS_IDS> =
   ObjectDeep.freeze(_PROJECTS_IDS);
 
 /** Frozen tasks page IDs */
-export const TASKS_IDS: DeepReadonly<typeof _TASKS_IDS> = ObjectDeep.freeze(_TASKS_IDS);
+export const TASKS_IDS: DeepReadonly<typeof _TASKS_IDS> =
+  ObjectDeep.freeze(_TASKS_IDS);
 
 /** Frozen leads page IDs */
-export const LEADS_IDS: DeepReadonly<typeof _LEADS_IDS> = ObjectDeep.freeze(_LEADS_IDS);
+export const LEADS_IDS: DeepReadonly<typeof _LEADS_IDS> =
+  ObjectDeep.freeze(_LEADS_IDS);
 
 /** Frozen clients page IDs */
-export const CLIENTS_IDS: DeepReadonly<typeof _CLIENTS_IDS> = ObjectDeep.freeze(_CLIENTS_IDS);
+export const CLIENTS_IDS: DeepReadonly<typeof _CLIENTS_IDS> =
+  ObjectDeep.freeze(_CLIENTS_IDS);
 
 /** Frozen integration IDs */
 export const INTEGRATION_IDS: DeepReadonly<typeof _INTEGRATION_IDS> =
   ObjectDeep.freeze(_INTEGRATION_IDS);
 
 /** Frozen authentication form IDs */
-export const AUTH_IDS: DeepReadonly<typeof _AUTH_IDS> = ObjectDeep.freeze(_AUTH_IDS);
+export const AUTH_IDS: DeepReadonly<typeof _AUTH_IDS> =
+  ObjectDeep.freeze(_AUTH_IDS);
 
 /** Frozen entity form IDs */
 export const ENTITY_FORM_IDS: DeepReadonly<typeof _ENTITY_FORM_IDS> =
   ObjectDeep.freeze(_ENTITY_FORM_IDS);
 
 /** Frozen modal IDs */
-export const MODAL_IDS: DeepReadonly<typeof _MODAL_IDS> = ObjectDeep.freeze(_MODAL_IDS);
+export const MODAL_IDS: DeepReadonly<typeof _MODAL_IDS> =
+  ObjectDeep.freeze(_MODAL_IDS);
 
 /** Frozen table IDs */
-export const TABLE_IDS: DeepReadonly<typeof _TABLE_IDS> = ObjectDeep.freeze(_TABLE_IDS);
+export const TABLE_IDS: DeepReadonly<typeof _TABLE_IDS> =
+  ObjectDeep.freeze(_TABLE_IDS);
 
 /** Frozen admin panel IDs */
-export const ADMIN_IDS: DeepReadonly<typeof _ADMIN_IDS> = ObjectDeep.freeze(_ADMIN_IDS);
+export const ADMIN_IDS: DeepReadonly<typeof _ADMIN_IDS> =
+  ObjectDeep.freeze(_ADMIN_IDS);
 
 // =============================================================================
 // AGGREGATE EXPORTS
@@ -385,9 +394,11 @@ export type ProjectsId = (typeof PROJECTS_IDS)[keyof typeof PROJECTS_IDS];
 export type TasksId = (typeof TASKS_IDS)[keyof typeof TASKS_IDS];
 export type LeadsId = (typeof LEADS_IDS)[keyof typeof LEADS_IDS];
 export type ClientsId = (typeof CLIENTS_IDS)[keyof typeof CLIENTS_IDS];
-export type IntegrationId = (typeof INTEGRATION_IDS)[keyof typeof INTEGRATION_IDS];
+export type IntegrationId =
+  (typeof INTEGRATION_IDS)[keyof typeof INTEGRATION_IDS];
 export type AuthId = (typeof AUTH_IDS)[keyof typeof AUTH_IDS];
-export type EntityFormId = (typeof ENTITY_FORM_IDS)[keyof typeof ENTITY_FORM_IDS];
+export type EntityFormId =
+  (typeof ENTITY_FORM_IDS)[keyof typeof ENTITY_FORM_IDS];
 export type ModalId = (typeof MODAL_IDS)[keyof typeof MODAL_IDS];
 export type TableId = (typeof TABLE_IDS)[keyof typeof TABLE_IDS];
 export type AdminId = (typeof ADMIN_IDS)[keyof typeof ADMIN_IDS];

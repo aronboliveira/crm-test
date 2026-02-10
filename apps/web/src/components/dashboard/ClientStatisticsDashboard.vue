@@ -99,6 +99,27 @@ const leadConversion = computed(() =>
     : [],
 );
 
+// WhatsApp statistics
+const whatsappStats = computed(() => {
+  const total = props.clients.length;
+  const withWhatsapp = props.clients.filter(
+    (c) => c.hasWhatsapp || c.whatsappNumber,
+  ).length;
+  const whatsappPreferred = props.clients.filter(
+    (c) => c.preferredContact === "whatsapp",
+  ).length;
+  const whatsappPercentage =
+    total > 0 ? Math.round((withWhatsapp / total) * 100) : 0;
+
+  return {
+    total,
+    withWhatsapp,
+    whatsappPreferred,
+    whatsappPercentage,
+    withoutWhatsapp: total - withWhatsapp,
+  };
+});
+
 // Chart data transformations
 const companiesDonutData = computed(() => {
   const companies = statistics.value.clientsByCompany;
@@ -214,6 +235,20 @@ const conversionBars = computed(() =>
           :value="statistics.totalClients"
           icon="👥"
           color="blue"
+        />
+        <StatCard
+          title="Com WhatsApp"
+          :value="whatsappStats.withWhatsapp"
+          :subtitle="`${whatsappStats.whatsappPercentage}% do total`"
+          icon="💬"
+          color="green"
+        />
+        <StatCard
+          title="WhatsApp Preferido"
+          :value="whatsappStats.whatsappPreferred"
+          subtitle="Meio de contato principal"
+          icon="⭐"
+          color="amber"
         />
         <StatCard
           title="Com Projetos"

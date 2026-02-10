@@ -463,8 +463,9 @@ const _RESPONSIVE_CLASSES = {
 // =============================================================================
 
 /** Frozen loading state classes */
-export const LOADING_STATE_CLASSES: DeepReadonly<typeof _LOADING_STATE_CLASSES> =
-  ObjectDeep.freeze(_LOADING_STATE_CLASSES);
+export const LOADING_STATE_CLASSES: DeepReadonly<
+  typeof _LOADING_STATE_CLASSES
+> = ObjectDeep.freeze(_LOADING_STATE_CLASSES);
 
 /** Frozen visibility classes */
 export const VISIBILITY_CLASSES: DeepReadonly<typeof _VISIBILITY_CLASSES> =
@@ -594,11 +595,16 @@ export const CSS_CLASSES = ObjectDeep.freeze({
 // TYPE EXPORTS
 // =============================================================================
 
-export type LoadingStateClass = (typeof LOADING_STATE_CLASSES)[keyof typeof LOADING_STATE_CLASSES];
-export type VisibilityClass = (typeof VISIBILITY_CLASSES)[keyof typeof VISIBILITY_CLASSES];
-export type InteractiveClass = (typeof INTERACTIVE_CLASSES)[keyof typeof INTERACTIVE_CLASSES];
-export type ValidationClass = (typeof VALIDATION_CLASSES)[keyof typeof VALIDATION_CLASSES];
-export type AnimationClass = (typeof ANIMATION_CLASSES)[keyof typeof ANIMATION_CLASSES];
+export type LoadingStateClass =
+  (typeof LOADING_STATE_CLASSES)[keyof typeof LOADING_STATE_CLASSES];
+export type VisibilityClass =
+  (typeof VISIBILITY_CLASSES)[keyof typeof VISIBILITY_CLASSES];
+export type InteractiveClass =
+  (typeof INTERACTIVE_CLASSES)[keyof typeof INTERACTIVE_CLASSES];
+export type ValidationClass =
+  (typeof VALIDATION_CLASSES)[keyof typeof VALIDATION_CLASSES];
+export type AnimationClass =
+  (typeof ANIMATION_CLASSES)[keyof typeof ANIMATION_CLASSES];
 export type CardClass = (typeof CARD_CLASSES)[keyof typeof CARD_CLASSES];
 export type ButtonClass = (typeof BUTTON_CLASSES)[keyof typeof BUTTON_CLASSES];
 export type FormClass = (typeof FORM_CLASSES)[keyof typeof FORM_CLASSES];
@@ -607,8 +613,11 @@ export type ModalClass = (typeof MODAL_CLASSES)[keyof typeof MODAL_CLASSES];
 export type NavClass = (typeof NAV_CLASSES)[keyof typeof NAV_CLASSES];
 export type BadgeClass = (typeof BADGE_CLASSES)[keyof typeof BADGE_CLASSES];
 export type AlertClass = (typeof ALERT_CLASSES)[keyof typeof ALERT_CLASSES];
-export type IntegrationClass = (typeof INTEGRATION_CLASSES)[keyof typeof INTEGRATION_CLASSES];
+export type IntegrationClass =
+  (typeof INTEGRATION_CLASSES)[keyof typeof INTEGRATION_CLASSES];
 export type StatusClass = (typeof STATUS_CLASSES)[keyof typeof STATUS_CLASSES];
-export type TypographyClass = (typeof TYPOGRAPHY_CLASSES)[keyof typeof TYPOGRAPHY_CLASSES];
+export type TypographyClass =
+  (typeof TYPOGRAPHY_CLASSES)[keyof typeof TYPOGRAPHY_CLASSES];
 export type A11yClass = (typeof A11Y_CLASSES)[keyof typeof A11Y_CLASSES];
-export type ResponsiveClass = (typeof RESPONSIVE_CLASSES)[keyof typeof RESPONSIVE_CLASSES];
+export type ResponsiveClass =
+  (typeof RESPONSIVE_CLASSES)[keyof typeof RESPONSIVE_CLASSES];

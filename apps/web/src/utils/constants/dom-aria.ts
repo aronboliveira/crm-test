@@ -22,7 +22,7 @@ const _ARIA_ROLES = {
   NAVIGATION: "navigation",
   REGION: "region",
   SEARCH: "search",
-  
+
   // Widget roles
   ALERT: "alert",
   ALERTDIALOG: "alertdialog",
@@ -58,7 +58,7 @@ const _ARIA_ROLES = {
   TREE: "tree",
   TREEITEM: "treeitem",
   TREEGRID: "treegrid",
-  
+
   // Document structure roles
   APPLICATION: "application",
   ARTICLE: "article",
@@ -84,7 +84,7 @@ const _ARIA_ROLES = {
   TABLE: "table",
   TERM: "term",
   TOOLBAR: "toolbar",
-  
+
   // Live region roles
   LOG: "log",
   MARQUEE: "marquee",
@@ -101,39 +101,39 @@ const _ARIA_STATES = {
   FALSE: "false",
   MIXED: "mixed",
   UNDEFINED: "undefined",
-  
+
   // Expanded state
   EXPANDED_TRUE: "true",
   EXPANDED_FALSE: "false",
-  
+
   // Selected state
   SELECTED_TRUE: "true",
   SELECTED_FALSE: "false",
-  
+
   // Checked state
   CHECKED_TRUE: "true",
   CHECKED_FALSE: "false",
   CHECKED_MIXED: "mixed",
-  
+
   // Pressed state
   PRESSED_TRUE: "true",
   PRESSED_FALSE: "false",
   PRESSED_MIXED: "mixed",
-  
+
   // Disabled state
   DISABLED_TRUE: "true",
   DISABLED_FALSE: "false",
-  
+
   // Hidden state
   HIDDEN_TRUE: "true",
   HIDDEN_FALSE: "false",
-  
+
   // Invalid state
   INVALID_TRUE: "true",
   INVALID_FALSE: "false",
   INVALID_GRAMMAR: "grammar",
   INVALID_SPELLING: "spelling",
-  
+
   // Current state
   CURRENT_TRUE: "true",
   CURRENT_FALSE: "false",
@@ -142,7 +142,7 @@ const _ARIA_STATES = {
   CURRENT_LOCATION: "location",
   CURRENT_DATE: "date",
   CURRENT_TIME: "time",
-  
+
   // Busy state
   BUSY_TRUE: "true",
   BUSY_FALSE: "false",
@@ -243,17 +243,17 @@ const _ARIA_ATTR_NAMES = {
   VALUEMIN: "valuemin",
   VALUENOW: "valuenow",
   VALUETEXT: "valuetext",
-  
+
   // Live region attributes
   ATOMIC: "atomic",
   BUSY: "busy",
   LIVE: "live",
   RELEVANT: "relevant",
-  
+
   // Drag and drop attributes
   DROPEFFECT: "dropeffect",
   GRABBED: "grabbed",
-  
+
   // Relationship attributes
   ACTIVEDESCENDANT: "activedescendant",
   COLCOUNT: "colcount",
@@ -270,7 +270,7 @@ const _ARIA_ATTR_NAMES = {
   ROWINDEX: "rowindex",
   ROWSPAN: "rowspan",
   SETSIZE: "setsize",
-  
+
   // Other
   CURRENT: "current",
   KEYSHORTCUTS: "keyshortcuts",
@@ -293,7 +293,7 @@ const _ARIA_LABELS = {
   USER_MENU: "Menu do usuário",
   NOTIFICATIONS: "Notificações",
   SEARCH: "Buscar",
-  
+
   // Actions
   CLOSE: "Fechar",
   OPEN: "Abrir",
@@ -313,7 +313,7 @@ const _ARIA_LABELS = {
   SAVE: "Salvar",
   REFRESH: "Atualizar",
   LOADING: "Carregando",
-  
+
   // Status
   SUCCESS: "Sucesso",
   ERROR: "Erro",
@@ -321,7 +321,7 @@ const _ARIA_LABELS = {
   INFO: "Informação",
   REQUIRED: "Obrigatório",
   OPTIONAL: "Opcional",
-  
+
   // Components
   MODAL: "Janela modal",
   DIALOG: "Diálogo",
@@ -333,7 +333,7 @@ const _ARIA_LABELS = {
   CAROUSEL: "Carrossel",
   TABLE: "Tabela",
   FORM: "Formulário",
-  
+
   // Integrations
   INTEGRATION_STATUS: "Status da integração",
   INTEGRATION_ACTIONS: "Ações da integração",
@@ -341,7 +341,7 @@ const _ARIA_LABELS = {
   CONFIGURE: "Configurar",
   SYNC: "Sincronizar",
   FEATURES: "Funcionalidades disponíveis",
-  
+
   // Tables
   SORT_ASCENDING: "Ordenar em ordem crescente",
   SORT_DESCENDING: "Ordenar em ordem decrescente",
@@ -349,7 +349,7 @@ const _ARIA_LABELS = {
   SELECT_ALL: "Selecionar todos",
   SELECT_ROW: "Selecionar linha",
   EXPAND_ROW: "Expandir linha",
-  
+
   // Forms
   SHOW_PASSWORD: "Mostrar senha",
   HIDE_PASSWORD: "Ocultar senha",
@@ -449,7 +449,9 @@ export const ariaAttr = (attr: keyof typeof _ARIA_ATTR_NAMES): string =>
  * @returns Object with proper aria-* keys
  */
 export const buildAriaAttrs = (
-  attrs: Partial<Record<keyof typeof _ARIA_ATTR_NAMES, string | boolean | number>>
+  attrs: Partial<
+    Record<keyof typeof _ARIA_ATTR_NAMES, string | boolean | number>
+  >,
 ): Record<string, string | boolean | number> => {
   const result: Record<string, string | boolean | number> = {};
   for (const [key, value] of Object.entries(attrs)) {
@@ -475,12 +477,12 @@ export const buildButtonA11y = (
     expanded?: boolean;
     controls?: string;
     haspopup?: (typeof _ARIA_HASPOPUP)[keyof typeof _ARIA_HASPOPUP];
-  } = {}
+  } = {},
 ): Record<string, string | boolean> => {
   const attrs: Record<string, string | boolean> = {
     "aria-label": label,
   };
-  
+
   if (options.disabled !== undefined) {
     attrs["aria-disabled"] = options.disabled;
   }
@@ -496,7 +498,7 @@ export const buildButtonA11y = (
   if (options.haspopup) {
     attrs["aria-haspopup"] = options.haspopup;
   }
-  
+
   return attrs;
 };
 
@@ -510,18 +512,18 @@ export const buildButtonA11y = (
 export const buildDialogA11y = (
   labelledBy: string,
   describedBy?: string,
-  modal = true
+  modal = true,
 ): Record<string, string | boolean> => {
   const attrs: Record<string, string | boolean> = {
     role: ARIA_ROLES.DIALOG,
     "aria-labelledby": labelledBy,
     "aria-modal": modal,
   };
-  
+
   if (describedBy) {
     attrs["aria-describedby"] = describedBy;
   }
-  
+
   return attrs;
 };
 
@@ -537,13 +539,13 @@ export const buildListboxA11y = (
     multiselectable?: boolean;
     orientation?: (typeof _ARIA_ORIENTATION)[keyof typeof _ARIA_ORIENTATION];
     activedescendant?: string;
-  } = {}
+  } = {},
 ): Record<string, string | boolean> => {
   const attrs: Record<string, string | boolean> = {
     role: ARIA_ROLES.LISTBOX,
     "aria-label": label,
   };
-  
+
   if (options.multiselectable !== undefined) {
     attrs["aria-multiselectable"] = options.multiselectable;
   }
@@ -553,7 +555,7 @@ export const buildListboxA11y = (
   if (options.activedescendant) {
     attrs["aria-activedescendant"] = options.activedescendant;
   }
-  
+
   return attrs;
 };
 
@@ -565,7 +567,7 @@ export const buildListboxA11y = (
  */
 export const buildSortableHeaderA11y = (
   columnName: string,
-  currentSort: "none" | "ascending" | "descending"
+  currentSort: "none" | "ascending" | "descending",
 ): Record<string, string> => {
   return {
     role: ARIA_ROLES.COLUMNHEADER,
@@ -587,11 +589,17 @@ export const buildSortableHeaderA11y = (
 export type AriaRole = (typeof ARIA_ROLES)[keyof typeof ARIA_ROLES];
 export type AriaState = (typeof ARIA_STATES)[keyof typeof ARIA_STATES];
 export type AriaLiveValue = (typeof ARIA_LIVE)[keyof typeof ARIA_LIVE];
-export type AriaAutocompleteValue = (typeof ARIA_AUTOCOMPLETE)[keyof typeof ARIA_AUTOCOMPLETE];
+export type AriaAutocompleteValue =
+  (typeof ARIA_AUTOCOMPLETE)[keyof typeof ARIA_AUTOCOMPLETE];
 export type AriaSortValue = (typeof ARIA_SORT)[keyof typeof ARIA_SORT];
-export type AriaOrientationValue = (typeof ARIA_ORIENTATION)[keyof typeof ARIA_ORIENTATION];
-export type AriaHaspopupValue = (typeof ARIA_HASPOPUP)[keyof typeof ARIA_HASPOPUP];
-export type AriaRelevantValue = (typeof ARIA_RELEVANT)[keyof typeof ARIA_RELEVANT];
-export type AriaDropeffectValue = (typeof ARIA_DROPEFFECT)[keyof typeof ARIA_DROPEFFECT];
-export type AriaAttrName = (typeof ARIA_ATTR_NAMES)[keyof typeof ARIA_ATTR_NAMES];
+export type AriaOrientationValue =
+  (typeof ARIA_ORIENTATION)[keyof typeof ARIA_ORIENTATION];
+export type AriaHaspopupValue =
+  (typeof ARIA_HASPOPUP)[keyof typeof ARIA_HASPOPUP];
+export type AriaRelevantValue =
+  (typeof ARIA_RELEVANT)[keyof typeof ARIA_RELEVANT];
+export type AriaDropeffectValue =
+  (typeof ARIA_DROPEFFECT)[keyof typeof ARIA_DROPEFFECT];
+export type AriaAttrName =
+  (typeof ARIA_ATTR_NAMES)[keyof typeof ARIA_ATTR_NAMES];
 export type AriaLabel = (typeof ARIA_LABELS)[keyof typeof ARIA_LABELS];

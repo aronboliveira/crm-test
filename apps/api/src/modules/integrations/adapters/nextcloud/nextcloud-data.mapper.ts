@@ -13,7 +13,10 @@ import type {
   NextcloudShareType,
   NextcloudCreateSharePayload,
 } from './nextcloud.types';
-import { NEXTCLOUD_SHARE_TYPES, NEXTCLOUD_PERMISSIONS } from './nextcloud.types';
+import {
+  NEXTCLOUD_SHARE_TYPES,
+  NEXTCLOUD_PERMISSIONS,
+} from './nextcloud.types';
 
 // =============================================================================
 // CRM ENTITY TYPES (for mapping)
@@ -149,9 +152,7 @@ export class NextcloudDataMapper {
   /**
    * Map NextCloud share type to CRM share type
    */
-  static mapShareType(
-    shareType: NextcloudShareType,
-  ): CrmShare['shareType'] {
+  static mapShareType(shareType: NextcloudShareType): CrmShare['shareType'] {
     switch (shareType) {
       case NEXTCLOUD_SHARE_TYPES.USER:
         return 'user';
@@ -193,9 +194,7 @@ export class NextcloudDataMapper {
   /**
    * Parse NextCloud permissions bitmask
    */
-  static parsePermissions(
-    permissions: number,
-  ): CrmShare['permissions'] {
+  static parsePermissions(permissions: number): CrmShare['permissions'] {
     return {
       read: (permissions & NEXTCLOUD_PERMISSIONS.READ) !== 0,
       write: (permissions & NEXTCLOUD_PERMISSIONS.UPDATE) !== 0,
@@ -233,9 +232,7 @@ export class NextcloudDataMapper {
       sharedWithName: share.shareWithDisplayname,
       permissions: this.parsePermissions(share.permissions),
       createdAt: new Date(share.stime * 1000),
-      expiresAt: share.expiration
-        ? new Date(share.expiration)
-        : undefined,
+      expiresAt: share.expiration ? new Date(share.expiration) : undefined,
       url: share.url,
       password: share.password,
       note: share.note,

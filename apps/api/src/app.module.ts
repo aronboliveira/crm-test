@@ -44,7 +44,7 @@ import ClientEntity from './entities/ClientEntity';
 import { LeadsModule } from './modules/leads/leads.module';
 import LeadEntity from './entities/LeadEntity';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
-import NotificationsModule from './modules/notifications/notificatiions.module';
+import NotificationsModule from './modules/notifications/notifications.module';
 import MessageEventEntity from './entities/MessageEventEntity';
 import { MessagesModule } from './modules/messages/messages.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';

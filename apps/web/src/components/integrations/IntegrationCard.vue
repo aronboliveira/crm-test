@@ -8,6 +8,7 @@ interface Integration {
   type: string;
   status: "connected" | "disconnected" | "error" | "pending";
   icon: string;
+  logoUrl?: string;
   color: string;
   features: string[];
   configurable: boolean;
@@ -78,11 +79,16 @@ const handleKeyDown = (event: KeyboardEvent) => {
       @keydown="handleKeyDown"
     >
       <div class="header-left">
-        <div
-          class="icon-wrapper"
-          v-html="getIcon(integration.icon)"
-          :title="integration.name"
-        ></div>
+        <div class="icon-wrapper" :title="integration.name">
+          <img
+            v-if="integration.logoUrl"
+            :src="integration.logoUrl"
+            :alt="`${integration.name} logo`"
+            class="integration-logo"
+            loading="lazy"
+          />
+          <div v-else v-html="getIcon(integration.icon)"></div>
+        </div>
         <div class="header-info">
           <h3 class="card-title">{{ integration.name }}</h3>
           <span class="card-type">{{ integration.type }}</span>

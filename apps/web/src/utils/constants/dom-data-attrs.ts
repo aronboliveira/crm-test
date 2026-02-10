@@ -179,6 +179,14 @@ const _CLIENT_DATA_ATTRS = {
   CLIENT_RATING: "client-rating",
   /** Client segment */
   CLIENT_SEGMENT: "client-segment",
+  /** WhatsApp phone number */
+  WHATSAPP_NUMBER: "whatsapp-number",
+  /** Is WhatsApp the primary/preferred contact method */
+  IS_PRIMARY: "is-primary",
+  /** Has WhatsApp verified */
+  HAS_WHATSAPP: "has-whatsapp",
+  /** Preferred contact method */
+  PREFERRED_CONTACT: "preferred-contact",
 } as const;
 
 // =============================================================================
@@ -217,6 +225,8 @@ const _INTEGRATION_DATA_ATTRS = {
 const _TABLE_DATA_ATTRS = {
   /** Table identifier */
   TABLE_ID: "table-id",
+  /** Column identifier/name */
+  COLUMN: "column",
   /** Column key */
   COLUMN_KEY: "column-key",
   /** Column index */
@@ -229,6 +239,8 @@ const _TABLE_DATA_ATTRS = {
   CELL_VALUE: "cell-value",
   /** Sort order: 'asc' | 'desc' | 'none' */
   SORT_ORDER: "sort-order",
+  /** Sort direction: 'asc' | 'desc' | 'none' */
+  SORT_DIR: "sort-dir",
   /** Sort column key */
   SORT_KEY: "sort-key",
   /** Filter value */
@@ -414,8 +426,9 @@ export const STATE_DATA_ATTRS: DeepReadonly<typeof _STATE_DATA_ATTRS> =
   ObjectDeep.freeze(_STATE_DATA_ATTRS);
 
 /** Frozen validation data attributes */
-export const VALIDATION_DATA_ATTRS: DeepReadonly<typeof _VALIDATION_DATA_ATTRS> =
-  ObjectDeep.freeze(_VALIDATION_DATA_ATTRS);
+export const VALIDATION_DATA_ATTRS: DeepReadonly<
+  typeof _VALIDATION_DATA_ATTRS
+> = ObjectDeep.freeze(_VALIDATION_DATA_ATTRS);
 
 /** Frozen entity data attributes */
 export const ENTITY_DATA_ATTRS: DeepReadonly<typeof _ENTITY_DATA_ATTRS> =
@@ -438,8 +451,9 @@ export const CLIENT_DATA_ATTRS: DeepReadonly<typeof _CLIENT_DATA_ATTRS> =
   ObjectDeep.freeze(_CLIENT_DATA_ATTRS);
 
 /** Frozen integration data attributes */
-export const INTEGRATION_DATA_ATTRS: DeepReadonly<typeof _INTEGRATION_DATA_ATTRS> =
-  ObjectDeep.freeze(_INTEGRATION_DATA_ATTRS);
+export const INTEGRATION_DATA_ATTRS: DeepReadonly<
+  typeof _INTEGRATION_DATA_ATTRS
+> = ObjectDeep.freeze(_INTEGRATION_DATA_ATTRS);
 
 /** Frozen table data attributes */
 export const TABLE_DATA_ATTRS: DeepReadonly<typeof _TABLE_DATA_ATTRS> =
@@ -534,7 +548,10 @@ export const dataAttr = (key: DataAttrKey): string => `data-${key}`;
  * @param value - Optional value to match
  * @returns CSS attribute selector string
  */
-export const dataSelector = (key: DataAttrKey, value?: DataAttrValue): string => {
+export const dataSelector = (
+  key: DataAttrKey,
+  value?: DataAttrValue,
+): string => {
   if (value === undefined) return `[data-${key}]`;
   return `[data-${key}="${value}"]`;
 };
@@ -555,7 +572,7 @@ export const toDatasetKey = (key: DataAttrKey): string => {
  * @returns Object with proper data-* keys
  */
 export const buildDataAttrs = (
-  attrs: Record<DataAttrKey, DataAttrValue>
+  attrs: Record<DataAttrKey, DataAttrValue>,
 ): Record<string, DataAttrValue> => {
   const result: Record<string, DataAttrValue> = {};
   for (const [key, value] of Object.entries(attrs)) {
@@ -572,7 +589,7 @@ export const buildDataAttrs = (
  */
 export const parseDataset = <K extends DataAttrKey>(
   element: HTMLElement,
-  keys: readonly K[]
+  keys: readonly K[],
 ): Partial<Record<K, string>> => {
   const result: Partial<Record<K, string>> = {};
   for (const key of keys) {
@@ -589,19 +606,33 @@ export const parseDataset = <K extends DataAttrKey>(
 // TYPE EXPORTS
 // =============================================================================
 
-export type StateDataAttr = (typeof STATE_DATA_ATTRS)[keyof typeof STATE_DATA_ATTRS];
-export type ValidationDataAttr = (typeof VALIDATION_DATA_ATTRS)[keyof typeof VALIDATION_DATA_ATTRS];
-export type EntityDataAttr = (typeof ENTITY_DATA_ATTRS)[keyof typeof ENTITY_DATA_ATTRS];
-export type ProjectDataAttr = (typeof PROJECT_DATA_ATTRS)[keyof typeof PROJECT_DATA_ATTRS];
-export type TaskDataAttr = (typeof TASK_DATA_ATTRS)[keyof typeof TASK_DATA_ATTRS];
-export type LeadDataAttr = (typeof LEAD_DATA_ATTRS)[keyof typeof LEAD_DATA_ATTRS];
-export type ClientDataAttr = (typeof CLIENT_DATA_ATTRS)[keyof typeof CLIENT_DATA_ATTRS];
-export type IntegrationDataAttr = (typeof INTEGRATION_DATA_ATTRS)[keyof typeof INTEGRATION_DATA_ATTRS];
-export type TableDataAttr = (typeof TABLE_DATA_ATTRS)[keyof typeof TABLE_DATA_ATTRS];
-export type ModalDataAttr = (typeof MODAL_DATA_ATTRS)[keyof typeof MODAL_DATA_ATTRS];
-export type TooltipDataAttr = (typeof TOOLTIP_DATA_ATTRS)[keyof typeof TOOLTIP_DATA_ATTRS];
-export type DropdownDataAttr = (typeof DROPDOWN_DATA_ATTRS)[keyof typeof DROPDOWN_DATA_ATTRS];
+export type StateDataAttr =
+  (typeof STATE_DATA_ATTRS)[keyof typeof STATE_DATA_ATTRS];
+export type ValidationDataAttr =
+  (typeof VALIDATION_DATA_ATTRS)[keyof typeof VALIDATION_DATA_ATTRS];
+export type EntityDataAttr =
+  (typeof ENTITY_DATA_ATTRS)[keyof typeof ENTITY_DATA_ATTRS];
+export type ProjectDataAttr =
+  (typeof PROJECT_DATA_ATTRS)[keyof typeof PROJECT_DATA_ATTRS];
+export type TaskDataAttr =
+  (typeof TASK_DATA_ATTRS)[keyof typeof TASK_DATA_ATTRS];
+export type LeadDataAttr =
+  (typeof LEAD_DATA_ATTRS)[keyof typeof LEAD_DATA_ATTRS];
+export type ClientDataAttr =
+  (typeof CLIENT_DATA_ATTRS)[keyof typeof CLIENT_DATA_ATTRS];
+export type IntegrationDataAttr =
+  (typeof INTEGRATION_DATA_ATTRS)[keyof typeof INTEGRATION_DATA_ATTRS];
+export type TableDataAttr =
+  (typeof TABLE_DATA_ATTRS)[keyof typeof TABLE_DATA_ATTRS];
+export type ModalDataAttr =
+  (typeof MODAL_DATA_ATTRS)[keyof typeof MODAL_DATA_ATTRS];
+export type TooltipDataAttr =
+  (typeof TOOLTIP_DATA_ATTRS)[keyof typeof TOOLTIP_DATA_ATTRS];
+export type DropdownDataAttr =
+  (typeof DROPDOWN_DATA_ATTRS)[keyof typeof DROPDOWN_DATA_ATTRS];
 export type DndDataAttr = (typeof DND_DATA_ATTRS)[keyof typeof DND_DATA_ATTRS];
 export type NavDataAttr = (typeof NAV_DATA_ATTRS)[keyof typeof NAV_DATA_ATTRS];
-export type TestDataAttr = (typeof TEST_DATA_ATTRS)[keyof typeof TEST_DATA_ATTRS];
-export type A11yDataAttr = (typeof A11Y_DATA_ATTRS)[keyof typeof A11Y_DATA_ATTRS];
+export type TestDataAttr =
+  (typeof TEST_DATA_ATTRS)[keyof typeof TEST_DATA_ATTRS];
+export type A11yDataAttr =
+  (typeof A11Y_DATA_ATTRS)[keyof typeof A11Y_DATA_ATTRS];

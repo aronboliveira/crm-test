@@ -138,9 +138,7 @@ export class IntegrationsService {
 
     // Check if adapter has isConfigured method
     const configured =
-      'isConfigured' in adapter
-        ? await (adapter as any).isConfigured()
-        : true;
+      'isConfigured' in adapter ? await (adapter as any).isConfigured() : true;
 
     if (!configured) {
       errors.push('Integration not configured');
@@ -154,7 +152,9 @@ export class IntegrationsService {
       authValid = connected; // If connection works, auth is valid
       info.connectionTest = 'passed';
     } catch (error) {
-      errors.push(`Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      errors.push(
+        `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
       info.connectionTest = 'failed';
       info.connectionError =
         error instanceof Error ? error.message : 'Unknown error';
