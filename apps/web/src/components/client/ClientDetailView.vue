@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import type { ClientRow } from "../../pinia/types/clients.types";
 import type { ProjectRow } from "../../pinia/types/projects.types";
 import type { LeadRow } from "../../pinia/types/leads.types";
+import TemplateCreationModal from "../modal/TemplateCreationModal.vue";
 
 interface Attachment {
   id: string;
@@ -11,12 +12,14 @@ interface Attachment {
   sizeBytes: number;
   createdAt: string;
   uploaderEmail: string;
+  templateContent?: string;
+  isEmailTemplate?: boolean;
 }
 
 interface Task {
   id: string;
   title: string;
-  status: 'todo' | 'doing' | 'done' | 'blocked';
+  status: "todo" | "doing" | "done" | "blocked";
   priority: 1 | 2 | 3 | 4 | 5;
   createdAt: string;
   updatedAt: string;
@@ -38,49 +41,114 @@ const emit = defineEmits<{
 }>();
 
 const showRecentActivity = ref(true);
+const showTemplateModal = ref(false);
+
+/**
+ * Open template creation modal
+ */
+const openTemplateModal = () => {
+  showTemplateModal.value = true;
+};
+
+/**
+ * Close template creation modal
+ */
+const closeTemplateModal = () => {
+  showTemplateModal.value = false;
+};
+
+/**
+ * Handle template form submission
+ */
+const handleTemplateSubmit = async (data: {
+  key: string;
+  name: string;
+  description: string;
+  subject: string;
+  content: string;
+  category: string;
+}) => {
+  // In a real app, this would call the API
+  console.log("Template submission:", data);
+  
+  // Simulate API call
+  // const response = await fetch('/api/project-templates', {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json' },
+  //   body: JSON.stringify(data),
+  // });
+  
+  // Close modal after successful submission
+  closeTemplateModal();
+};
 
 const mockAttachments = computed<Attachment[]>(() => {
-  const clientProjects = props.projects.filter((p) => p.clientId === props.client.id);
+  const clientProjects = props.projects.filter(
+    (p) => p.clientId === props.client.id,
+  );
   if (clientProjects.length === 0) return [];
-  
+
+  // Base64 encoded email template contents (minified)
+  const templates = {
+    proposta: btoa(
+      `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#2563eb">Proposta Comercial</h2><p>Prezado(a) ${props.client.name},</p><p>Seguem os detalhes da nossa proposta para ${props.client.company || "sua empresa"}:</p><ul><li>Escopo do projeto</li><li>Cronograma estimado</li><li>Investimento</li></ul><p>Ficamos à disposição para esclarecer dúvidas.</p><p>Atenciosamente,<br>Equipe Comercial</p></div>`,
+    ),
+    contrato: btoa(
+      `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#2563eb">Minuta de Contrato</h2><p>Prezado(a) ${props.client.name},</p><p>Segue em anexo a minuta do contrato para ${props.client.company || "sua empresa"}.</p><p>Solicitamos a gentileza de revisar os termos e condições.</p><p>Pontos principais:</p><ul><li>Prazo de execução</li><li>Condições de pagamento</li><li>Garantias e SLA</li></ul><p>Aguardamos retorno.</p><p>Atenciosamente,<br>Departamento Jurídico</p></div>`,
+    ),
+    followup: btoa(
+      `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto"><h2 style="color:#2563eb">Acompanhamento - ${props.client.company || props.client.name}</h2><p>Olá ${props.client.name},</p><p>Gostaria de fazer um follow-up sobre nossos projetos em andamento.</p><p>Podemos agendar uma reunião para discutir:</p><ul><li>Status atual dos projetos</li><li>Próximos passos</li><li>Feedback e ajustes necessários</li></ul><p>Por favor, me informe sua disponibilidade.</p><p>Cordialmente,<br>Gerente de Projetos</p></div>`,
+    ),
+  };
+
   return [
     {
       id: `att_${props.client.id}_1`,
-      fileName: "contrato_template.pdf",
-      mimeType: "application/pdf",
-      sizeBytes: 245680,
+      fileName: "proposta_comercial.eml",
+      mimeType: "message/rfc822",
+      sizeBytes: 2456,
       createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
       uploaderEmail: props.client.email || "admin@system.com",
+      templateContent: templates.proposta,
+      isEmailTemplate: true,
     },
     {
       id: `att_${props.client.id}_2`,
-      fileName: "proposta_comercial.docx",
-      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      sizeBytes: 128450,
+      fileName: "contrato_template.eml",
+      mimeType: "message/rfc822",
+      sizeBytes: 1895,
       createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
       uploaderEmail: props.client.email || "admin@system.com",
+      templateContent: templates.contrato,
+      isEmailTemplate: true,
     },
     {
       id: `att_${props.client.id}_3`,
-      fileName: "especificacao_tecnica.xlsx",
-      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      sizeBytes: 89320,
+      fileName: "followup_projeto.eml",
+      mimeType: "message/rfc822",
+      sizeBytes: 1678,
       createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
       uploaderEmail: props.client.email || "admin@system.com",
+      templateContent: templates.followup,
+      isEmailTemplate: true,
     },
   ];
 });
 
 const mockTasks = computed<Task[]>(() => {
-  const clientProjects = props.projects.filter((p) => p.clientId === props.client.id);
+  const clientProjects = props.projects.filter(
+    (p) => p.clientId === props.client.id,
+  );
   if (clientProjects.length === 0) return [];
-  
+
   return clientProjects.slice(0, 3).map((project, i) => ({
     id: `task_${project.id}_${i}`,
     title: `Tarefa relacionada a ${project.name}`,
-    status: (['todo', 'doing', 'done'] as const)[i % 3],
+    status: (["todo", "doing", "done"] as const)[i % 3],
     priority: ((i % 5) + 1) as 1 | 2 | 3 | 4 | 5,
-    createdAt: new Date(Date.now() - (i + 1) * 7 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(
+      Date.now() - (i + 1) * 7 * 24 * 60 * 60 * 1000,
+    ).toISOString(),
     updatedAt: new Date(Date.now() - i * 2 * 24 * 60 * 60 * 1000).toISOString(),
     projectId: project.id,
   }));
@@ -97,36 +165,85 @@ const formatFileSize = (bytes: number): string => {
 };
 
 const getFileIcon = (mimeType: string): string => {
-  if (mimeType.includes('pdf')) return '📄';
-  if (mimeType.includes('word')) return '📝';
-  if (mimeType.includes('sheet') || mimeType.includes('excel')) return '📊';
-  if (mimeType.includes('image')) return '🖼️';
-  return '📎';
+  if (mimeType.includes("pdf")) return "📄";
+  if (mimeType.includes("word")) return "📝";
+  if (mimeType.includes("sheet") || mimeType.includes("excel")) return "📊";
+  if (mimeType.includes("image")) return "🖼️";
+  if (mimeType.includes("rfc822") || mimeType.includes("eml")) return "📧";
+  return "📎";
 };
 
-const getTaskStatusLabel = (status: Task['status']): string => {
+// Minified email template utilities
+const e = (s: string) => encodeURIComponent(s); // URL encode
+const d = (b: string) => {
+  try {
+    return atob(b);
+  } catch {
+    return "";
+  }
+}; // Base64 decode
+const s = (h: string) =>
+  h
+    .replace(/<[^>]*>/g, "")
+    .replace(/\s+/g, " ")
+    .trim(); // Strip HTML (minified)
+
+const generateMailtoLink = (attachment: Attachment): string => {
+  if (!attachment.isEmailTemplate || !attachment.templateContent) {
+    return "#";
+  }
+
+  const clientEmail = props.client.email || "";
+  const subject = e(
+    attachment.fileName
+      .replace(/\.eml$/i, "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase()),
+  );
+
+  // Decode base64 and strip HTML for plain text body
+  const decodedHtml = d(attachment.templateContent);
+  const plainTextBody = s(decodedHtml);
+  const body = e(plainTextBody);
+
+  // Build mailto with query params secured by data attributes
+  return `mailto:${clientEmail}?subject=${subject}&body=${body}`;
+};
+
+const getTemplateSecurityAttrs = (attachment: Attachment) => {
+  return {
+    "data-template-id": attachment.id,
+    "data-client-ref": props.client.id,
+    "data-template-type": attachment.isEmailTemplate ? "email" : "file",
+    "data-secure-hash": btoa(
+      `${attachment.id}:${props.client.id}:${attachment.fileName}`,
+    ).substring(0, 16),
+  };
+};
+
+const getTaskStatusLabel = (status: Task["status"]): string => {
   const labels = {
-    todo: 'A fazer',
-    doing: 'Em andamento',
-    done: 'Concluída',
-    blocked: 'Bloqueada',
+    todo: "A fazer",
+    doing: "Em andamento",
+    done: "Concluída",
+    blocked: "Bloqueada",
   };
   return labels[status];
 };
 
-const getTaskStatusColor = (status: Task['status']): string => {
+const getTaskStatusColor = (status: Task["status"]): string => {
   const colors = {
-    todo: 'status-todo',
-    doing: 'status-doing',
-    done: 'status-done',
-    blocked: 'status-blocked',
+    todo: "status-todo",
+    doing: "status-doing",
+    done: "status-done",
+    blocked: "status-blocked",
   };
   return colors[status];
 };
 
 const getPriorityLabel = (priority: number): string => {
-  const labels = ['', 'Muito baixa', 'Baixa', 'Média', 'Alta', 'Crítica'];
-  return labels[priority] || 'Média';
+  const labels = ["", "Muito baixa", "Baixa", "Média", "Alta", "Crítica"];
+  return labels[priority] || "Média";
 };
 
 const clientProjects = computed(() =>
@@ -339,16 +456,36 @@ const daysSinceUpdated = computed(() => {
                 </span>
               </div>
               <div class="template-meta">
-                <span class="template-date" :title="`Anexado em: ${formatDate(attachment.createdAt)}`">
+                <span
+                  class="template-date"
+                  :title="`Anexado em: ${formatDate(attachment.createdAt)}`"
+                >
                   {{ formatDate(attachment.createdAt) }}
                 </span>
-                <span class="template-uploader" :title="`Enviado por: ${attachment.uploaderEmail}`">
+                <span
+                  class="template-uploader"
+                  :title="`Enviado por: ${attachment.uploaderEmail}`"
+                >
                   Por: {{ attachment.uploaderEmail }}
                 </span>
               </div>
             </div>
             <div class="template-actions">
+              <a
+                v-if="attachment.isEmailTemplate"
+                :href="generateMailtoLink(attachment)"
+                class="btn-template-action btn-template-email"
+                :id="`email-template-${attachment.id}`"
+                v-bind="getTemplateSecurityAttrs(attachment)"
+                :title="`Abrir email com template: ${attachment.fileName.replace('.eml', '')}`"
+                :aria-label="`Abrir cliente de email com template ${attachment.fileName.replace('.eml', '')}`"
+                rel="noopener noreferrer"
+                data-action="email-template"
+              >
+                ✉️
+              </a>
               <button
+                v-else
                 class="btn-template-action"
                 :data-action="'download'"
                 :data-file-id="attachment.id"
@@ -374,11 +511,21 @@ const daysSinceUpdated = computed(() => {
           data-action="add-template"
           :data-client-id="client.id"
           title="Adicionar novo template"
+          @click="openTemplateModal"
         >
           <span class="btn-icon">+</span>
           Adicionar Template
         </button>
       </section>
+
+      <!-- Template Creation Modal -->
+      <TemplateCreationModal
+        :is-open="showTemplateModal"
+        :client-id="client.id"
+        :client-name="client.name"
+        @close="closeTemplateModal"
+        @submit="handleTemplateSubmit"
+      />
 
       <!-- Recent Activity Section (Collapsible) -->
       <section
@@ -399,7 +546,7 @@ const daysSinceUpdated = computed(() => {
             :title="showRecentActivity ? 'Recolher seção' : 'Expandir seção'"
             @click="toggleRecentActivity"
           >
-            {{ showRecentActivity ? '▼' : '▶' }}
+            {{ showRecentActivity ? "▼" : "▶" }}
           </button>
         </div>
 
@@ -428,7 +575,10 @@ const daysSinceUpdated = computed(() => {
                   :data-task-priority="task.priority"
                   role="listitem"
                 >
-                  <div class="task-status-indicator" :class="getTaskStatusColor(task.status)"></div>
+                  <div
+                    class="task-status-indicator"
+                    :class="getTaskStatusColor(task.status)"
+                  ></div>
                   <div class="task-content">
                     <div class="task-header">
                       <span class="task-title" :title="`Tarefa: ${task.title}`">
@@ -443,10 +593,16 @@ const daysSinceUpdated = computed(() => {
                       </span>
                     </div>
                     <div class="task-meta">
-                      <span class="task-priority" :title="`Prioridade: ${getPriorityLabel(task.priority)}`">
+                      <span
+                        class="task-priority"
+                        :title="`Prioridade: ${getPriorityLabel(task.priority)}`"
+                      >
                         Prioridade: {{ getPriorityLabel(task.priority) }}
                       </span>
-                      <span class="task-date" :title="`Atualizado: ${formatDate(task.updatedAt)}`">
+                      <span
+                        class="task-date"
+                        :title="`Atualizado: ${formatDate(task.updatedAt)}`"
+                      >
                         {{ formatDate(task.updatedAt) }}
                       </span>
                     </div>
@@ -471,7 +627,10 @@ const daysSinceUpdated = computed(() => {
                   :data-project-status="project.status"
                   role="listitem"
                 >
-                  <span class="project-activity-name" :title="`Projeto: ${project.name}`">
+                  <span
+                    class="project-activity-name"
+                    :title="`Projeto: ${project.name}`"
+                  >
                     {{ project.name }}
                   </span>
                   <span
@@ -902,11 +1061,32 @@ const daysSinceUpdated = computed(() => {
   cursor: pointer;
   font-size: 1rem;
   transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-template-action:hover {
   background: #f1f5f9;
   border-color: #3b82f6;
+  transform: scale(1.05);
+}
+
+.btn-template-email {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.btn-template-email:hover {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1e40af;
+}
+
+.btn-template-email:active {
+  transform: scale(0.98);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -917,6 +1097,17 @@ const daysSinceUpdated = computed(() => {
   .btn-template-action:hover {
     background: #334155;
     border-color: #60a5fa;
+  }
+
+  .btn-template-email {
+    border-color: #60a5fa;
+    color: #93c5fd;
+  }
+
+  .btn-template-email:hover {
+    background: #1e3a8a;
+    border-color: #3b82f6;
+    color: #bfdbfe;
   }
 }
 
