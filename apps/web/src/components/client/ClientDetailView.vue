@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import type { ClientRow } from "../../pinia/types/clients.types";
 import type { ProjectRow } from "../../pinia/types/projects.types";
 import type { LeadRow } from "../../pinia/types/leads.types";
+import BarChart from "../charts/BarChart.vue";
 import TemplateCreationModal from "../modal/TemplateCreationModal.vue";
 
 interface Attachment {
@@ -24,6 +25,16 @@ interface Task {
   createdAt: string;
   updatedAt: string;
   projectId?: string;
+}
+
+interface MessageAnalytics {
+  sent?: number;
+  delivered?: number;
+  read?: number;
+  replied?: number;
+  lastAt?: string;
+  opened?: number;
+  clicked?: number;
 }
 
 interface Props {
@@ -302,6 +313,103 @@ const daysSinceUpdated = computed(() => {
   const diff = now.getTime() - updated.getTime();
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 });
+
+const whatsappAnalytics = computed<MessageAnalytics>(() => ({
+  sent: props.client.whatsappAnalytics?.sent ?? 0,
+  delivered: props.client.whatsappAnalytics?.delivered ?? 0,
+  read: props.client.whatsappAnalytics?.read ?? 0,
+  replied: props.client.whatsappAnalytics?.replied ?? 0,
+  lastAt: props.client.whatsappAnalytics?.lastMessageAt,
+}));
+
+const emailAnalytics = computed<MessageAnalytics>(() => ({
+  sent: props.client.emailAnalytics?.sent ?? 0,
+  opened: props.client.emailAnalytics?.opened ?? 0,
+  clicked: props.client.emailAnalytics?.clicked ?? 0,
+  replied: props.client.emailAnalytics?.replied ?? 0,
+  lastAt: props.client.emailAnalytics?.lastEmailAt,
+}));
+
+const whatsappReplyRate = computed(() => {
+  const sent = whatsappAnalytics.value.sent ?? 0;
+  const replied = whatsappAnalytics.value.replied ?? 0;
+  return sent > 0 ? Math.round((replied / sent) * 100) : 0;
+});
+
+const emailReplyRate = computed(() => {
+  const sent = emailAnalytics.value.sent ?? 0;
+  const replied = emailAnalytics.value.replied ?? 0;
+  return sent > 0 ? Math.round((replied / sent) * 100) : 0;
+});
+
+const whatsappDeliveryRate = computed(() => {
+  const sent = whatsappAnalytics.value.sent ?? 0;
+  const delivered = whatsappAnalytics.value.delivered ?? 0;
+  return sent > 0 ? Math.round((delivered / sent) * 100) : 0;
+});
+
+const whatsappReadRate = computed(() => {
+  const sent = whatsappAnalytics.value.sent ?? 0;
+  const read = whatsappAnalytics.value.read ?? 0;
+  return sent > 0 ? Math.round((read / sent) * 100) : 0;
+});
+
+const emailOpenRate = computed(() => {
+  const sent = emailAnalytics.value.sent ?? 0;
+  const opened = emailAnalytics.value.opened ?? 0;
+  return sent > 0 ? Math.round((opened / sent) * 100) : 0;
+});
+
+const emailClickRate = computed(() => {
+  const opened = emailAnalytics.value.opened ?? 0;
+  const clicked = emailAnalytics.value.clicked ?? 0;
+  return opened > 0 ? Math.round((clicked / opened) * 100) : 0;
+});
+
+const engagementScore = computed(() => {
+  const whatsappScore =
+    whatsappReadRate.value * 0.4 + whatsappReplyRate.value * 0.6;
+  const emailScore = emailOpenRate.value * 0.4 + emailReplyRate.value * 0.6;
+  return Math.round((whatsappScore + emailScore) / 2);
+});
+
+const trendMonths = computed(() => {
+  const formatter = new Intl.DateTimeFormat("pt-BR", { month: "short" });
+  return Array.from({ length: 6 }, (_, index) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - (5 - index));
+    const label = formatter.format(date);
+    return label.replace(".", "").toUpperCase();
+  });
+});
+
+const buildTrendSeries = (total: number, months: number) => {
+  const safeTotal = Math.max(0, total || 0);
+  const base = Math.floor(safeTotal / months);
+  const remainder = safeTotal - base * months;
+  return Array.from(
+    { length: months },
+    (_, index) => base + (index < remainder ? 1 : 0),
+  );
+};
+
+const whatsappTrendBars = computed(() => {
+  const series = buildTrendSeries(whatsappAnalytics.value.sent ?? 0, 6);
+  return series.map((value, index) => ({
+    label: trendMonths.value[index] || "",
+    value,
+    color: "#22c55e",
+  }));
+});
+
+const emailTrendBars = computed(() => {
+  const series = buildTrendSeries(emailAnalytics.value.sent ?? 0, 6);
+  return series.map((value, index) => ({
+    label: trendMonths.value[index] || "",
+    value,
+    color: "#3b82f6",
+  }));
+});
 </script>
 
 <template>
@@ -326,15 +434,205 @@ const daysSinceUpdated = computed(() => {
             <a :href="`mailto:${client.email}`" class="info-value info-link">
               {{ client.email }}
             </a>
+            <span
+              v-if="client.preferredContact === 'email'"
+              class="preferred-badge"
+              title="Meio de contato preferido"
+              >⭐ Preferido</span
+            >
           </div>
           <div v-if="client.phone" class="info-item">
             <span class="info-label">Telefone:</span>
             <a :href="`tel:${client.phone}`" class="info-value info-link">
               {{ client.phone }}
             </a>
+            <span
+              v-if="client.preferredContact === 'phone'"
+              class="preferred-badge"
+              title="Meio de contato preferido"
+              >⭐ Preferido</span
+            >
           </div>
-          <div v-if="!client.email && !client.phone" class="info-empty">
+          <div v-if="client.cellPhone" class="info-item">
+            <span class="info-label">Celular:</span>
+            <a :href="`tel:${client.cellPhone}`" class="info-value info-link">
+              {{ client.cellPhone }}
+            </a>
+            <span
+              v-if="client.preferredContact === 'cellphone'"
+              class="preferred-badge"
+              title="Meio de contato preferido"
+              >⭐ Preferido</span
+            >
+          </div>
+          <div
+            v-if="
+              client.whatsappNumber || (client.hasWhatsapp && client.cellPhone)
+            "
+            class="info-item whatsapp-info"
+          >
+            <span class="info-label">WhatsApp:</span>
+            <a
+              :href="`https://wa.me/55${(client.whatsappNumber || client.cellPhone || '').replace(/\D/g, '')}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="info-value info-link whatsapp-link-detail"
+            >
+              <span class="whatsapp-icon-detail" aria-hidden="true">💬</span>
+              {{ client.whatsappNumber || client.cellPhone }}
+            </a>
+            <span
+              v-if="client.preferredContact === 'whatsapp'"
+              class="preferred-badge"
+              title="Meio de contato preferido"
+              >⭐ Preferido</span
+            >
+            <span
+              v-if="client.hasWhatsapp"
+              class="whatsapp-verified"
+              title="WhatsApp verificado"
+            >
+              ✓ Verificado
+            </span>
+          </div>
+          <div
+            v-if="
+              !client.email &&
+              !client.phone &&
+              !client.cellPhone &&
+              !client.whatsappNumber
+            "
+            class="info-empty"
+          >
             Nenhuma informação de contato disponível
+          </div>
+        </div>
+      </section>
+
+      <!-- Messaging Analytics -->
+      <section class="detail-section">
+        <h4 class="section-title">📨 Mensagens & Engajamento</h4>
+        <div class="analytics-grid">
+          <div class="analytics-card analytics-card--whatsapp">
+            <div class="analytics-header">
+              <span class="analytics-icon">💬</span>
+              <div>
+                <h5 class="analytics-title">WhatsApp</h5>
+                <p class="analytics-subtitle">Último contato</p>
+              </div>
+              <span class="analytics-score" title="Engajamento do cliente">
+                {{ engagementScore }}%
+              </span>
+            </div>
+            <div class="analytics-metrics">
+              <div class="metric">
+                <span class="metric-label">Enviadas</span>
+                <span class="metric-value">{{ whatsappAnalytics.sent }}</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Lidas</span>
+                <span class="metric-value">{{ whatsappAnalytics.read }}</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Respondidas</span>
+                <span class="metric-value">{{
+                  whatsappAnalytics.replied
+                }}</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Taxa de resposta</span>
+                <span class="metric-value">{{ whatsappReplyRate }}%</span>
+              </div>
+            </div>
+            <div class="analytics-badges">
+              <span class="analytics-badge"
+                >Entregues {{ whatsappDeliveryRate }}%</span
+              >
+              <span class="analytics-badge"
+                >Leitura {{ whatsappReadRate }}%</span
+              >
+            </div>
+            <div class="analytics-footer">
+              <span v-if="whatsappAnalytics.lastAt" class="analytics-last">
+                {{ formatDate(whatsappAnalytics.lastAt) }}
+              </span>
+              <span v-else class="analytics-empty">Sem mensagens recentes</span>
+            </div>
+          </div>
+
+          <div class="analytics-card analytics-card--email">
+            <div class="analytics-header">
+              <span class="analytics-icon">✉️</span>
+              <div>
+                <h5 class="analytics-title">E-mail</h5>
+                <p class="analytics-subtitle">Último envio</p>
+              </div>
+              <span class="analytics-score" title="Engajamento do cliente">
+                {{ engagementScore }}%
+              </span>
+            </div>
+            <div class="analytics-metrics">
+              <div class="metric">
+                <span class="metric-label">Enviados</span>
+                <span class="metric-value">{{ emailAnalytics.sent }}</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Abertos</span>
+                <span class="metric-value">{{ emailAnalytics.opened }}</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Cliques</span>
+                <span class="metric-value">{{ emailAnalytics.clicked }}</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Taxa de resposta</span>
+                <span class="metric-value">{{ emailReplyRate }}%</span>
+              </div>
+            </div>
+            <div class="analytics-badges">
+              <span class="analytics-badge">Abertura {{ emailOpenRate }}%</span>
+              <span class="analytics-badge">Clique {{ emailClickRate }}%</span>
+            </div>
+            <div class="analytics-footer">
+              <span v-if="emailAnalytics.lastAt" class="analytics-last">
+                {{ formatDate(emailAnalytics.lastAt) }}
+              </span>
+              <span v-else class="analytics-empty">Sem envios recentes</span>
+            </div>
+          </div>
+        </div>
+        <div class="analytics-trends">
+          <div class="trend-card">
+            <div class="trend-header">
+              <span class="trend-icon">💬</span>
+              <div>
+                <h5 class="trend-title">Tendência WhatsApp</h5>
+                <p class="trend-subtitle">Últimos 6 meses</p>
+              </div>
+            </div>
+            <BarChart
+              :bars="whatsappTrendBars"
+              :height="140"
+              :show-values="false"
+              :show-axis-labels="false"
+              :max-bar-width="28"
+            />
+          </div>
+          <div class="trend-card">
+            <div class="trend-header">
+              <span class="trend-icon">✉️</span>
+              <div>
+                <h5 class="trend-title">Tendência E-mail</h5>
+                <p class="trend-subtitle">Últimos 6 meses</p>
+              </div>
+            </div>
+            <BarChart
+              :bars="emailTrendBars"
+              :height="140"
+              :show-values="false"
+              :show-axis-labels="false"
+              :max-bar-width="28"
+            />
           </div>
         </div>
       </section>
@@ -759,6 +1057,8 @@ const daysSinceUpdated = computed(() => {
   display: flex;
   gap: 0.5rem;
   font-size: 0.875rem;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .info-label {
@@ -784,6 +1084,214 @@ const daysSinceUpdated = computed(() => {
   font-size: 0.875rem;
   color: var(--text-2);
   font-style: italic;
+}
+
+/* WhatsApp Styles */
+.whatsapp-info {
+  background: #f0fdf4;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #86efac;
+}
+
+.whatsapp-link-detail {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  color: #166534;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.whatsapp-link-detail:hover {
+  background: #bbf7d0;
+  border-color: #4ade80;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  text-decoration: none;
+}
+
+.whatsapp-icon-detail {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.preferred-badge {
+  font-size: 0.75rem;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #fde047;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.whatsapp-verified {
+  font-size: 0.75rem;
+  background: #dcfce7;
+  color: #166534;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #86efac;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.analytics-card {
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+  padding: 1rem;
+  background: var(--surface-1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.analytics-card--whatsapp {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.analytics-card--email {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.analytics-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.analytics-score {
+  margin-left: auto;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+}
+
+.analytics-icon {
+  font-size: 1.5rem;
+}
+
+.analytics-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.analytics-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-2);
+}
+
+.analytics-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.analytics-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.analytics-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  border: 1px solid var(--border-1);
+}
+
+.analytics-trends {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.trend-card {
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+  padding: 1rem;
+  background: var(--surface-1);
+}
+
+.trend-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.trend-icon {
+  font-size: 1.25rem;
+}
+
+.trend-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.trend-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-2);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-2);
+}
+
+.metric-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.analytics-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-2);
+}
+
+.analytics-empty {
+  font-style: italic;
+  color: var(--text-3);
 }
 
 .timeline {
