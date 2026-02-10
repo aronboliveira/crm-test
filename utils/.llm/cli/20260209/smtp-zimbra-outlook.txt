@@ -1,0 +1,28 @@
+CLI snippets for SMTP integration (dual flow)
+
+# Zimbra SMTP
+export ZIMBRA_SMTP_HOST=mail.example.com
+export ZIMBRA_SMTP_PORT=587
+export ZIMBRA_SMTP_SECURE=false
+export ZIMBRA_SMTP_USER=usuario@example.com
+export ZIMBRA_SMTP_PASS=senha
+export ZIMBRA_SMTP_FROM="CRM <usuario@example.com>"
+
+# Outlook SMTP
+export OUTLOOK_SMTP_HOST=smtp.office365.com
+export OUTLOOK_SMTP_PORT=587
+export OUTLOOK_SMTP_SECURE=false
+export OUTLOOK_SMTP_USER=usuario@empresa.com
+export OUTLOOK_SMTP_PASS=senha
+export OUTLOOK_SMTP_FROM="CRM <usuario@empresa.com>"
+
+# Enable SMTP and dual flow
+export SMTP_ENABLED=1
+export SMTP_FLOW_BOTH=1
+
+# Optional default profile when not using dual flow
+export DEFAULT_SMTP_PROFILE=outlook
+
+# Run API
+cd /home/aronboliveira/Desktop/programming/_portfolio/web/crm
+npm run start:dev --prefix apps/api
