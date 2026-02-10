@@ -321,6 +321,21 @@ export default class ApiClientService {
       }
     },
 
+    get: async (id: string) => {
+      try {
+        const response = await api.raw.get(
+          `/clients/${encodeURIComponent(id)}`,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.clients.get] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
     create: async (payload: any) => {
       try {
         const response = await api.raw.post("/clients", payload);
@@ -510,6 +525,35 @@ export default class ApiClientService {
         return response.data;
       } catch (error) {
         console.error(`[ApiClientService.leads.markCtaUsed] Failed:`, error);
+        throw error;
+      }
+    },
+  };
+
+  /* ── Messages ─────────────────────────────────────────────── */
+
+  static messages = {
+    logEvent: async (payload: any) => {
+      try {
+        const response = await api.raw.post("/messages/events", payload);
+        return response.data;
+      } catch (error) {
+        console.error("[ApiClientService.messages.logEvent] Failed:", error);
+        throw error;
+      }
+    },
+
+    getClientAnalytics: async (clientId: string) => {
+      try {
+        const response = await api.raw.get(
+          `/messages/clients/${encodeURIComponent(clientId)}/analytics`,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.messages.getClientAnalytics] Failed for ID ${clientId}:`,
+          error,
+        );
         throw error;
       }
     },

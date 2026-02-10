@@ -8,8 +8,15 @@ import AlertService from "../services/AlertService";
 import { useProjectsStore } from "../pinia/stores/projects.store";
 import { useLeadsStore } from "../pinia/stores/leads.store";
 import type { ClientRow } from "../pinia/types/clients.types";
+import type { ProjectRow } from "../pinia/types/projects.types";
+import type { LeadRow } from "../pinia/types/leads.types";
 import ClientStatisticsDashboard from "../components/dashboard/ClientStatisticsDashboard.vue";
 import ClientDetailView from "../components/client/ClientDetailView.vue";
+import {
+  TABLE_DATA_ATTRS,
+  CLIENT_DATA_ATTRS,
+  TEST_DATA_ATTRS,
+} from "../utils/constants/dom-data-attrs";
 
 const { rows, loading, error, load } = useDashboardClientsPage();
 const projectsStore = useProjectsStore();
@@ -47,14 +54,32 @@ const handleSelectClientFromHighlights = async (clientId: string) => {
   }
 };
 
-const sortKey = ref<"name" | "company" | "email" | "phone">("name");
+const sortKey = ref<"name" | "company" | "email" | "phone" | "whatsapp">(
+  "name",
+);
 const sortDir = ref<"asc" | "desc">("asc");
 
+const safeRows = computed(
+  () => (rows.value || []).filter(Boolean) as ClientRow[],
+);
+const safeProjects = computed(
+  () => (projectsStore.rows || []).filter(Boolean) as ProjectRow[],
+);
+const safeLeads = computed(
+  () => (leadsStore.rows || []).filter(Boolean) as LeadRow[],
+);
+
 const sortedRows = computed(() => {
-  const list = (rows.value || []).filter(Boolean) as ClientRow[];
+  const list = safeRows.value;
   const key = sortKey.value;
   const dir = sortDir.value === "asc" ? 1 : -1;
   return [...list].sort((a, b) => {
+    // Special handling for whatsapp sorting
+    if (key === "whatsapp") {
+      const av = String(a.whatsappNumber || a.cellPhone || "").toLowerCase();
+      const bv = String(b.whatsappNumber || b.cellPhone || "").toLowerCase();
+      return av.localeCompare(bv) * dir;
+    }
     const av = String((a as any)?.[key] ?? "").toLowerCase();
     const bv = String((b as any)?.[key] ?? "").toLowerCase();
     return av.localeCompare(bv) * dir;
@@ -147,9 +172,9 @@ const handleDelete = async (client: ClientRow) => {
     <!-- Statistics Dashboard -->
     <ClientStatisticsDashboard
       v-if="!loading && rows && rows.length > 0"
-      :clients="rows"
-      :projects="projectsStore.rows"
-      :leads="leadsStore.rows"
+      :clients="safeRows"
+      :projects="safeProjects"
+      :leads="safeLeads"
       :loading="loading"
       @select-client="handleSelectClientFromHighlights"
     />
@@ -183,7 +208,7 @@ const handleDelete = async (client: ClientRow) => {
             <th role="columnheader">
               <button
                 class="th-button"
-                data-sort-key="name"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
                 :data-sort-dir="sortKey === 'name' ? sortDir : 'none'"
                 :aria-sort="
                   sortKey === 'name'
@@ -204,7 +229,7 @@ const handleDelete = async (client: ClientRow) => {
             <th role="columnheader">
               <button
                 class="th-button"
-                data-sort-key="company"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
                 :data-sort-dir="sortKey === 'company' ? sortDir : 'none'"
                 :aria-sort="
                   sortKey === 'company'
@@ -225,7 +250,7 @@ const handleDelete = async (client: ClientRow) => {
             <th role="columnheader">
               <button
                 class="th-button"
-                data-sort-key="email"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
                 :data-sort-dir="sortKey === 'email' ? sortDir : 'none'"
                 :aria-sort="
                   sortKey === 'email'
@@ -246,7 +271,7 @@ const handleDelete = async (client: ClientRow) => {
             <th role="columnheader">
               <button
                 class="th-button"
-                data-sort-key="phone"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
                 :data-sort-dir="sortKey === 'phone' ? sortDir : 'none'"
                 :aria-sort="
                   sortKey === 'phone'
@@ -264,6 +289,33 @@ const handleDelete = async (client: ClientRow) => {
                 }}</span>
               </button>
             </th>
+            <th role="columnheader">
+              <button
+                class="th-button"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
+                :data-sort-dir="sortKey === 'whatsapp' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'whatsapp'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por WhatsApp"
+                @click="setSort('whatsapp')"
+              >
+                WhatsApp
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("whatsapp")
+                }}</span>
+              </button>
+            </th>
+            <th role="columnheader" aria-label="Engajamento WhatsApp">
+              Engaj. WhatsApp
+            </th>
+            <th role="columnheader" aria-label="Engajamento Email">
+              Engaj. E-mail
+            </th>
             <th
               class="text-right"
               role="columnheader"
@@ -280,13 +332,13 @@ const handleDelete = async (client: ClientRow) => {
               :id="`client-row-${c.id}`"
               class="client-row"
               role="row"
-              :data-client-id="c.id"
+              :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
             >
               <td role="cell">
                 <button
                   class="btn-expand"
                   :class="{ 'btn-expand--active': expandedClientId === c.id }"
-                  :data-client-id="c.id"
+                  :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
                   :data-expanded="expandedClientId === c.id"
                   :aria-expanded="expandedClientId === c.id"
                   :aria-controls="`client-details-${c.id}`"
@@ -301,36 +353,128 @@ const handleDelete = async (client: ClientRow) => {
                   {{ expandedClientId === c.id ? "▼" : "▶" }}
                 </button>
               </td>
-              <td class="font-medium" role="cell" data-column="name">
-                {{ c.name }}
+              <td
+                class="font-medium"
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+              >
+                <router-link
+                  :to="{ name: 'ClientProfile', params: { id: c.id } }"
+                  class="client-link"
+                >
+                  {{ c.name }}
+                </router-link>
               </td>
               <td
                 role="cell"
-                data-column="company"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
                 :title="c.company || 'Empresa não informada'"
               >
                 {{ c.company || "—" }}
               </td>
               <td
                 role="cell"
-                data-column="email"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
                 :title="c.email || 'Email não informado'"
               >
                 {{ c.email || "—" }}
               </td>
               <td
                 role="cell"
-                data-column="phone"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
                 :title="c.phone || 'Telefone não informado'"
               >
                 {{ c.phone || "—" }}
               </td>
-              <td class="text-right" role="cell" data-column="actions">
+              <td
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+                :class="{ 'has-whatsapp': c.hasWhatsapp }"
+              >
+                <div class="whatsapp-cell">
+                  <a
+                    v-if="c.whatsappNumber || (c.hasWhatsapp && c.cellPhone)"
+                    :href="`https://wa.me/55${(c.whatsappNumber || c.cellPhone || '').replace(/\D/g, '')}`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="whatsapp-link"
+                    :title="`Abrir WhatsApp: ${c.whatsappNumber || c.cellPhone}`"
+                    :data-whatsapp-number="CLIENT_DATA_ATTRS.WHATSAPP_NUMBER"
+                    :data-is-primary="CLIENT_DATA_ATTRS.IS_PRIMARY"
+                  >
+                    <span class="whatsapp-icon" aria-hidden="true">💬</span>
+                    <span class="whatsapp-number">{{
+                      c.whatsappNumber || c.cellPhone || "—"
+                    }}</span>
+                    <span
+                      v-if="c.preferredContact === 'whatsapp'"
+                      class="primary-badge"
+                      title="Meio de contato preferido"
+                      aria-label="Contato preferido"
+                      >⭐</span
+                    >
+                  </a>
+                  <span v-else class="no-whatsapp">—</span>
+                </div>
+              </td>
+              <td
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+                class="analytics-cell analytics-cell--whatsapp"
+              >
+                <div class="analytics-mini">
+                  <span class="analytics-mini__label">S</span>
+                  <span class="analytics-mini__value">
+                    {{ c.whatsappAnalytics?.sent ?? 0 }}
+                  </span>
+                </div>
+                <div class="analytics-mini">
+                  <span class="analytics-mini__label">L</span>
+                  <span class="analytics-mini__value">
+                    {{ c.whatsappAnalytics?.read ?? 0 }}
+                  </span>
+                </div>
+                <div class="analytics-mini">
+                  <span class="analytics-mini__label">R</span>
+                  <span class="analytics-mini__value">
+                    {{ c.whatsappAnalytics?.replied ?? 0 }}
+                  </span>
+                </div>
+              </td>
+              <td
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+                class="analytics-cell analytics-cell--email"
+              >
+                <div class="analytics-mini">
+                  <span class="analytics-mini__label">E</span>
+                  <span class="analytics-mini__value">
+                    {{ c.emailAnalytics?.sent ?? 0 }}
+                  </span>
+                </div>
+                <div class="analytics-mini">
+                  <span class="analytics-mini__label">A</span>
+                  <span class="analytics-mini__value">
+                    {{ c.emailAnalytics?.opened ?? 0 }}
+                  </span>
+                </div>
+                <div class="analytics-mini">
+                  <span class="analytics-mini__label">R</span>
+                  <span class="analytics-mini__value">
+                    {{ c.emailAnalytics?.replied ?? 0 }}
+                  </span>
+                </div>
+              </td>
+              <td
+                class="text-right"
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+              >
                 <div class="client-actions">
                   <button
                     class="btn btn-sm btn-ghost"
-                    data-action="edit"
-                    :data-client-id="c.id"
+                    :data-action="TEST_DATA_ATTRS.ACTION"
+                    :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
                     title="Editar cliente"
                     aria-label="Editar cliente"
                     @click="handleEdit(c)"
@@ -339,8 +483,8 @@ const handleDelete = async (client: ClientRow) => {
                   </button>
                   <button
                     class="btn btn-sm btn-ghost"
-                    data-action="delete"
-                    :data-client-id="c.id"
+                    :data-action="TEST_DATA_ATTRS.ACTION"
+                    :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
                     title="Excluir cliente"
                     aria-label="Excluir cliente"
                     @click="handleDelete(c)"
@@ -349,8 +493,8 @@ const handleDelete = async (client: ClientRow) => {
                   </button>
                   <button
                     class="btn btn-sm btn-outline"
-                    data-action="view-projects"
-                    :data-client-id="c.id"
+                    :data-action="TEST_DATA_ATTRS.ACTION"
+                    :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
                     title="Ver projetos do cliente"
                     aria-label="Ver projetos do cliente"
                     @click="handleCheckProjects(c)"
@@ -365,18 +509,18 @@ const handleDelete = async (client: ClientRow) => {
               class="detail-row"
               :data-detail-for="c.id"
             >
-              <td colspan="6" :id="`client-details-${c.id}`" role="cell">
+              <td colspan="9" :id="`client-details-${c.id}`" role="cell">
                 <ClientDetailView
                   :client="c"
-                  :projects="projectsStore.rows"
-                  :leads="leadsStore.rows"
+                  :projects="safeProjects"
+                  :leads="safeLeads"
                   @close="toggleClientExpand(c.id)"
                 />
               </td>
             </tr>
           </template>
           <tr v-if="rows && rows.length === 0" role="row">
-            <td colspan="6" class="text-center py-8 opacity-60" role="cell">
+            <td colspan="9" class="text-center py-8 opacity-60" role="cell">
               Nenhum cliente encontrado.
             </td>
           </tr>
@@ -419,13 +563,53 @@ const handleDelete = async (client: ClientRow) => {
 }
 
 .table-container {
-  overflow-x: auto;
+  overflow: auto;
   max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, #94a3b8)
+    var(--scrollbar-track, #e2e8f0);
+}
+
+:deep(.table-container::-webkit-scrollbar) {
+  height: 8px;
+}
+
+:deep(.table-container::-webkit-scrollbar-track) {
+  background: var(--scrollbar-track, #e2e8f0);
+  border-radius: 999px;
+}
+
+:deep(.table-container::-webkit-scrollbar-thumb) {
+  background: var(--scrollbar-thumb, #94a3b8);
+  border-radius: 999px;
+}
+
+:deep(.table-container::-webkit-scrollbar-thumb:hover) {
+  background: var(--scrollbar-thumb-hover, #64748b);
+}
+
+@media (prefers-color-scheme: dark) {
+  .table-container {
+    scrollbar-color: var(--scrollbar-thumb, #475569)
+      var(--scrollbar-track, #0f172a);
+  }
+
+  :deep(.table-container::-webkit-scrollbar-track) {
+    background: var(--scrollbar-track, #0f172a);
+  }
+
+  :deep(.table-container::-webkit-scrollbar-thumb) {
+    background: var(--scrollbar-thumb, #475569);
+  }
+
+  :deep(.table-container::-webkit-scrollbar-thumb:hover) {
+    background: var(--scrollbar-thumb-hover, #64748b);
+  }
 }
 
 .data-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 1250px;
   border-collapse: collapse;
   table-layout: auto;
 }
@@ -453,33 +637,154 @@ const handleDelete = async (client: ClientRow) => {
 
 .data-table th:nth-child(2),
 .data-table td:nth-child(2) {
-  width: 22%;
+  width: 18%;
   min-width: 150px;
 }
 
 .data-table th:nth-child(3),
 .data-table td:nth-child(3) {
-  width: 22%;
+  width: 16%;
   min-width: 150px;
 }
 
 .data-table th:nth-child(4),
 .data-table td:nth-child(4) {
-  width: 25%;
-  min-width: 180px;
+  width: 16%;
+  min-width: 140px;
 }
 
 .data-table th:nth-child(5),
 .data-table td:nth-child(5) {
-  width: 20%;
-  min-width: 120px;
+  width: 16%;
+  min-width: 160px;
 }
 
 .data-table th:nth-child(6),
 .data-table td:nth-child(6) {
-  width: 11%;
+  width: 14%;
+  min-width: 160px;
+}
+
+.data-table th:nth-child(7),
+.data-table td:nth-child(7) {
+  width: 10%;
+  min-width: 120px;
+}
+
+.data-table th:nth-child(8),
+.data-table td:nth-child(8) {
+  width: 10%;
+  min-width: 120px;
+}
+
+.data-table th:nth-child(9),
+.data-table td:nth-child(9) {
+  width: 10%;
   min-width: 140px;
   text-align: right;
+}
+
+/* WhatsApp Column Styles */
+.whatsapp-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.whatsapp-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  color: #166534;
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.whatsapp-link:hover {
+  background: #bbf7d0;
+  border-color: #4ade80;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.2);
+}
+
+.whatsapp-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.whatsapp-number {
+  font-weight: 500;
+}
+
+.primary-badge {
+  font-size: 0.75rem;
+  line-height: 1;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  border: 1px solid #fde047;
+  font-weight: 600;
+}
+
+.client-link {
+  color: var(--text-1);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.client-link:hover {
+  text-decoration: underline;
+  color: var(--primary, #3b82f6);
+}
+
+.no-whatsapp {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.has-whatsapp {
+  background: #f0fdf4;
+}
+
+.analytics-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.analytics-cell--whatsapp {
+  background: #f0fdf4;
+}
+
+.analytics-cell--email {
+  background: #eff6ff;
+}
+
+.analytics-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-1);
+  background: var(--surface-2);
+  font-size: 0.75rem;
+}
+
+.analytics-mini__label {
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.analytics-mini__value {
+  font-weight: 600;
+  color: var(--text-1);
 }
 
 .btn-expand {

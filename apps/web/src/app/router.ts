@@ -47,6 +47,12 @@ const routes: RouteRecordRaw[] = [
         meta: { perm: "projects.read" } satisfies RouteMetaGuard,
       },
       {
+        path: "dashboard/clients/:id",
+        name: "ClientProfile",
+        component: () => import("../pages/ClientProfilePage.vue"),
+        meta: { perm: "clients.read" } satisfies RouteMetaGuard,
+      },
+      {
         path: "dashboard/leads",
         name: "DashboardLeads",
         component: () => import("../pages/DashboardLeadsPage.vue"),
