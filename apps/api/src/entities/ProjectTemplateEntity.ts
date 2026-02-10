@@ -9,9 +9,16 @@ export type TemplateTaskBlueprint = Readonly<{
 }>;
 
 /**
+ * Template category types for categorization
+ */
+export type TemplateCategory = 'email' | 'project' | 'task' | 'notification' | 'report';
+
+/**
  * A reusable project template with pre-defined task blueprints.
  * When a user picks a template during project creation, the tasks
  * are automatically generated from the `tasks` array.
+ * 
+ * @version 1.4.0 - Added email template fields (content, subject, isActive, metadata)
  */
 @Entity('project_templates')
 export default class ProjectTemplateEntity {
@@ -29,7 +36,35 @@ export default class ProjectTemplateEntity {
   description?: string;
 
   @Column()
-  category?: string;
+  category?: TemplateCategory | string;
+
+  /**
+   * HTML content for email templates (sanitized via DOMPurify)
+   * @since 1.4.0
+   */
+  @Column()
+  content?: string;
+
+  /**
+   * Email subject line for email templates
+   * @since 1.4.0
+   */
+  @Column()
+  subject?: string;
+
+  /**
+   * Whether the template is active and can be used
+   * @since 1.4.0
+   */
+  @Column()
+  isActive?: boolean;
+
+  /**
+   * Additional metadata for the template (JSON object)
+   * @since 1.4.0
+   */
+  @Column()
+  metadata?: Record<string, unknown>;
 
   /** Pre-defined task blueprints */
   @Column()
