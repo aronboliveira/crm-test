@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import type { ClientRow } from "../../pinia/types/clients.types";
 import type { ProjectRow } from "../../pinia/types/projects.types";
 import type { LeadRow } from "../../pinia/types/leads.types";
 import BarChart from "../charts/BarChart.vue";
 import TemplateCreationModal from "../modal/TemplateCreationModal.vue";
+import ApiClientService from "../../services/ApiClientService";
 
 interface Attachment {
   id: string;
@@ -53,6 +54,11 @@ const emit = defineEmits<{
 
 const showRecentActivity = ref(true);
 const showTemplateModal = ref(false);
+const analyticsOverride = ref<{
+  whatsappAnalytics?: ClientRow["whatsappAnalytics"];
+  emailAnalytics?: ClientRow["emailAnalytics"];
+} | null>(null);
+const analyticsLoading = ref(false);
 
 /**
  * Open template creation modal
@@ -92,6 +98,33 @@ const handleTemplateSubmit = async (data: {
   // Close modal after successful submission
   closeTemplateModal();
 };
+
+const loadClientAnalytics = async () => {
+  if (!props.client?.id) return;
+  analyticsLoading.value = true;
+  try {
+    const data = await ApiClientService.messages.getClientAnalytics(
+      props.client.id,
+    );
+    analyticsOverride.value = {
+      whatsappAnalytics: data?.whatsappAnalytics,
+      emailAnalytics: data?.emailAnalytics,
+    };
+  } catch (error) {
+    console.error("[ClientDetailView] Failed to load analytics:", error);
+  } finally {
+    analyticsLoading.value = false;
+  }
+};
+
+onMounted(loadClientAnalytics);
+watch(
+  () => props.client.id,
+  () => {
+    analyticsOverride.value = null;
+    loadClientAnalytics();
+  },
+);
 
 const mockAttachments = computed<Attachment[]>(() => {
   const clientProjects = props.projects.filter(
@@ -314,21 +347,30 @@ const daysSinceUpdated = computed(() => {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 });
 
-const whatsappAnalytics = computed<MessageAnalytics>(() => ({
-  sent: props.client.whatsappAnalytics?.sent ?? 0,
-  delivered: props.client.whatsappAnalytics?.delivered ?? 0,
-  read: props.client.whatsappAnalytics?.read ?? 0,
-  replied: props.client.whatsappAnalytics?.replied ?? 0,
-  lastAt: props.client.whatsappAnalytics?.lastMessageAt,
-}));
+const whatsappAnalytics = computed<MessageAnalytics>(() => {
+  const source =
+    analyticsOverride.value?.whatsappAnalytics ??
+    props.client.whatsappAnalytics;
+  return {
+    sent: source?.sent ?? 0,
+    delivered: source?.delivered ?? 0,
+    read: source?.read ?? 0,
+    replied: source?.replied ?? 0,
+    lastAt: source?.lastMessageAt,
+  };
+});
 
-const emailAnalytics = computed<MessageAnalytics>(() => ({
-  sent: props.client.emailAnalytics?.sent ?? 0,
-  opened: props.client.emailAnalytics?.opened ?? 0,
-  clicked: props.client.emailAnalytics?.clicked ?? 0,
-  replied: props.client.emailAnalytics?.replied ?? 0,
-  lastAt: props.client.emailAnalytics?.lastEmailAt,
-}));
+const emailAnalytics = computed<MessageAnalytics>(() => {
+  const source =
+    analyticsOverride.value?.emailAnalytics ?? props.client.emailAnalytics;
+  return {
+    sent: source?.sent ?? 0,
+    opened: source?.opened ?? 0,
+    clicked: source?.clicked ?? 0,
+    replied: source?.replied ?? 0,
+    lastAt: source?.lastEmailAt,
+  };
+});
 
 const whatsappReplyRate = computed(() => {
   const sent = whatsappAnalytics.value.sent ?? 0;
