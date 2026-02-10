@@ -1,0 +1,322 @@
+==============================================
+CLI COMMANDS: WEBHOOKS, HEALTH CHECK & ZIMBRA API
+Date: 2026-02-09
+==============================================
+
+## INSTALLATION
+
+# Install dependencies
+cd /path/to/crm/apps/api
+npm install axios @types/axios crypto-js @types/crypto-js
+
+---
+
+## ENVIRONMENT VARIABLES
+
+# Add to .env or docker-compose.yml
+
+# Zimbra Configuration
+ZIMBRA_BASE_URL=https://mail.example.com
+ZIMBRA_USERNAME=user@example.com
+ZIMBRA_PASSWORD=your_secure_password
+ZIMBRA_WEBHOOK_SECRET=your_webhook_secret_for_signature_verification
+
+# Outlook Configuration
+OUTLOOK_WEBHOOK_CLIENT_STATE=your_unique_client_state_value
+
+---
+
+## TEST WEBHOOKS
+
+# Test Zimbra webhook (new email)
+curl -X POST "http://localhost:3000/webhooks/zimbra?userId=user123" \
+  -H "Content-Type: application/json" \
+  -H "x-zimbra-signature: generated_hmac_signature" \
+  -d '{
+    "eventType": "mail.new",
+    "data": {
+      "id": "email-001",
+      "from": "client@example.com",
+      "subject": "Contract approved",
+      "hasAttachments": true,
+      "webLink": "https://mail.example.com/modern/email/email-001"
+    },
+    "timestamp": "2026-02-09T14:30:00Z"
+  }'
+
+# Test Zimbra webhook (calendar reminder)
+curl -X POST "http://localhost:3000/webhooks/zimbra?userId=user123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "eventType": "calendar.reminder",
+    "data": {
+      "id": "cal-001",
+      "subject": "Client meeting",
+      "start": "2026-02-09T15:00:00Z",
+      "minutesBeforeStart": 15,
+      "webLink": "https://mail.example.com/modern/calendar/view/cal-001"
+    },
+    "timestamp": "2026-02-09T14:45:00Z"
+  }'
+
+# Test Outlook webhook validation (MS Graph subscription)
+curl "http://localhost:3000/webhooks/outlook?validationToken=test-token-123"
+# Expected output: test-token-123
+
+# Test Outlook webhook (new message)
+curl -X POST "http://localhost:3000/webhooks/outlook" \
+  -H "Content-Type: application/json" \
+  -H "x-ms-client-state: your_client_state" \
+  -d '{
+    "value": [{
+      "subscriptionId": "subscription-abc-123",
+      "clientState": "your_client_state",
+      "changeType": "created",
+      "resource": "users/user-id-123/messages/msg-456",
+      "resourceData": {
+        "@odata.type": "#microsoft.graph.message",
+        "id": "msg-456",
+        "subject": "Important update",
+        "from": {
+          "emailAddress": {
+            "address": "sender@example.com",
+            "name": "John Doe"
+          }
+        },
+        "hasAttachments": false,
+        "webLink": "https://outlook.office.com/mail/inbox/id/msg-456"
+      }
+    }]
+  }'
+
+---
+
+## TEST HEALTH CHECK API
+
+# Check specific integration health
+curl http://localhost:3000/integrations/zimbra/health | jq
+curl http://localhost:3000/integrations/outlook/health | jq
+curl http://localhost:3000/integrations/nextcloud/health | jq
+
+# Check all integrations in loop
+for integration in zimbra outlook nextcloud whatsapp glpi sat; do
+  echo "=== $integration Health ===" 
+  curl -s "http://localhost:3000/integrations/$integration/health" | jq '.status, .configured, .connected'
+  echo ""
+done
+
+# Filter only unhealthy integrations
+for integration in zimbra outlook nextcloud whatsapp; do
+  status=$(curl -s "http://localhost:3000/integrations/$integration/health" | jq -r '.status')
+  if [ "$status" != "healthy" ]; then
+    echo "$integration: $status"
+    curl -s "http://localhost:3000/integrations/$integration/health" | jq '.details.errors'
+  fi
+done
+
+# Pretty print health with details
+curl -s http://localhost:3000/integrations/zimbra/health | jq '{
+  integration,
+  status,
+  configured,
+  connected,
+  errors: .details.errors,
+  warnings: .details.warnings,
+  smtp: .details.info.smtp
+}'
+
+---
+
+## TEST ZIMBRA REAL API
+
+# Note: Backend must be running with valid ZIMBRA_* env vars
+
+# Trigger notification polling (will use real API if configured)
+curl -X POST http://localhost:3000/integrations/zimbra/sync
+
+# Check notifications created from polling
+curl http://localhost:3000/notifications | jq '.[] | select(.source == "zimbra")'
+
+# Filter unread email notifications
+curl http://localhost:3000/notifications | jq '.[] | select(.type == "NEW_EMAIL" and .source == "zimbra")'
+
+# Filter upcoming call notifications
+curl http://localhost:3000/notifications | jq '.[] | select(.type == "UPCOMING_CALL" and .source == "zimbra")'
+
+---
+
+## SIGNATURE GENERATION (for testing)
+
+# Generate HMAC-SHA256 signature for Zimbra webhook
+# Using Node.js crypto module
+
+node -e "
+const crypto = require('crypto');
+const secret = 'your_webhook_secret';
+const payload = JSON.stringify({
+  eventType: 'mail.new',
+  data: { id: '123', from: 'test@example.com' },
+  timestamp: new Date().toISOString()
+});
+const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+console.log(signature);
+"
+
+# Then use the generated signature in curl:
+# -H "x-zimbra-signature: <generated_signature>"
+
+---
+
+## DEVELOPMENT WORKFLOW
+
+# 1. Start backend with env vars
+cd /path/to/crm
+export ZIMBRA_BASE_URL=https://mail.example.com
+export ZIMBRA_USERNAME=user@example.com
+export ZIMBRA_PASSWORD=password
+export ZIMBRA_WEBHOOK_SECRET=webhook_secret
+npm run start:dev
+
+# 2. In another terminal, test webhook
+curl -X POST "http://localhost:3000/webhooks/zimbra?userId=test-user" \
+  -H "Content-Type: application/json" \
+  -d '{"eventType":"mail.new","data":{"id":"1","from":"test@example.com","subject":"Test"},"timestamp":"2026-02-09T12:00:00Z"}'
+
+# 3. Verify notification was created
+curl http://localhost:3000/notifications | jq '.[] | select(.externalId == "zimbra-email-1")'
+
+# 4. Test health check
+curl http://localhost:3000/integrations/zimbra/health | jq
+
+# 5. Mark notification as read
+curl -X POST http://localhost:3000/notifications/mark-as-read \
+  -H "Content-Type: application/json" \
+  -d '{"notificationIds": ["<notification-id-from-step-3>"]}'
+
+---
+
+## MONITORING
+
+# Watch notifications in real-time (requires watch or similar tool)
+watch -n 2 'curl -s http://localhost:3000/notifications | jq "length"'
+
+# Count notifications by source
+curl -s http://localhost:3000/notifications | jq 'group_by(.source) | map({source: .[0].source, count: length})'
+
+# Count notifications by type
+curl -s http://localhost:3000/notifications | jq 'group_by(.type) | map({type: .[0].type, count: length})'
+
+# Get latest notification timestamp per source
+curl -s http://localhost:3000/notifications | jq 'group_by(.source) | map({source: .[0].source, latest: (map(.createdAt) | max)})'
+
+---
+
+## DEBUGGING
+
+# Check if backend is running
+curl http://localhost:3000/health
+
+# Check available integrations
+curl http://localhost:3000/integrations | jq '.[] | {id, name, status}'
+
+# Test connection for all integrations
+for integration in zimbra outlook nextcloud; do
+  echo "Testing $integration..."
+  curl -X POST "http://localhost:3000/integrations/$integration/test" | jq
+done
+
+# Check backend logs for webhook events
+# (assuming Docker or systemd logs)
+docker logs crm-api-1 --tail 50 | grep -i webhook
+# or
+journalctl -u crm-api --since "10 minutes ago" | grep -i webhook
+
+---
+
+## TROUBLESHOOTING
+
+# Webhook not receiving events?
+# 1. Check if endpoint is accessible (use ngrok for local dev)
+ngrok http 3000
+# Then configure Zimbra/Outlook to POST to ngrok URL
+
+# 2. Verify signature validation (disable temporarily for testing)
+# In webhooks.controller.ts, comment out signature check
+
+# Health check showing unhealthy?
+# 1. Verify environment variables
+env | grep ZIMBRA
+env | grep OUTLOOK
+
+# 2. Test Zimbra auth directly
+curl -X POST "https://mail.example.com/service/soap/AuthRequest" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "Body": {
+      "AuthRequest": {
+        "_jsns": "urn:zimbraAccount",
+        "account": {"_content": "user@example.com", "by": "name"},
+        "password": {"_content": "password"}
+      }
+    }
+  }' | jq
+
+# Zimbra API not returning data?
+# 1. Enable mock mode temporarily
+curl -X POST http://localhost:3000/integrations/zimbra/configure \
+  -H "Content-Type: application/json" \
+  -d '{"mockNotifications": true}'
+
+# 2. Check Zimbra API logs for errors
+docker logs crm-api-1 | grep -i zimbra
+
+---
+
+## GIT WORKFLOW
+
+# Stage webhook implementation
+git add apps/api/src/modules/webhooks/
+git add apps/api/src/app.module.ts
+git commit -m "Add webhooks support for Zimbra and Outlook"
+
+# Stage health check API
+git add apps/api/src/modules/integrations/integrations.controller.ts
+git add apps/api/src/modules/integrations/integrations.service.ts
+git commit -m "Add health check API for integrations"
+
+# Stage Zimbra real API implementation
+git add apps/api/src/modules/integrations/adapters/zimbra.adapter.ts
+git add apps/api/package.json
+git commit -m "Implement real Zimbra REST API integration"
+
+# Stage documentation
+git add utils/.llm/notes/etc/20260209/webhooks-health-zimbra-api.txt
+git add utils/.llm/cli/20260209/webhooks-health-zimbra-api.txt
+git commit -m "Add documentation for webhooks, health check, and Zimbra API"
+
+---
+
+## PRODUCTION DEPLOYMENT
+
+# 1. Set secure environment variables
+# Use secrets management (AWS Secrets Manager, Azure Key Vault, etc.)
+
+# 2. Configure webhook endpoints with external providers
+# Zimbra: Set notification URL in Zimbra admin console
+# Outlook: Create subscription via MS Graph API:
+curl -X POST "https://graph.microsoft.com/v1.0/subscriptions" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "changeType": "created,updated",
+    "notificationUrl": "https://your-domain.com/webhooks/outlook",
+    "resource": "me/messages",
+    "expirationDateTime": "2026-03-09T00:00:00Z",
+    "clientState": "your_unique_client_state"
+  }'
+
+# 3. Monitor webhook delivery rates
+# Set up metrics/alerting for webhook failures
+
+# 4. Implement retry logic for failed notifications
+# Consider using message queue (RabbitMQ, SQS, etc.)

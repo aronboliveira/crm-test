@@ -76,4 +76,28 @@ export class IntegrationsController {
     this.logger.log(`Triggering sync for: ${id}`);
     return this.integrationsService.triggerSync(id);
   }
+
+  /**
+   * Health check endpoint for an integration.
+   * Verifies configuration validity and actual connectivity.
+   */
+  @Get(':id/health')
+  async checkHealth(@Param('id') id: string): Promise<{
+    integration: string;
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    configured: boolean;
+    connected: boolean;
+    details: {
+      configValid: boolean;
+      apiReachable: boolean;
+      authValid: boolean;
+      lastCheck: Date;
+      errors?: string[];
+      warnings?: string[];
+      info?: Record<string, any>;
+    };
+  }> {
+    this.logger.log(`Health check for: ${id}`);
+    return this.integrationsService.checkHealth(id);
+  }
 }

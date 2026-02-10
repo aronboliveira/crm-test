@@ -11,6 +11,7 @@ import UserEntity from './entities/UserEntity';
 import AuthAuditEventEntity from './entities/AuthAuditEventEntity';
 import PasswordResetRequestEntity from './entities/PasswordResetRequestEntity';
 import MailOutboxEntity from './entities/MailOutboxEntity';
+import NotificationEntity from './entities/NotificationEntity';
 
 import CommentEntity from './entities/CommentEntity';
 import NoteEntity from './entities/NoteEntity';
@@ -43,6 +44,10 @@ import ClientEntity from './entities/ClientEntity';
 import { LeadsModule } from './modules/leads/leads.module';
 import LeadEntity from './entities/LeadEntity';
 import { IntegrationsModule } from './modules/integrations/integrations.module';
+import NotificationsModule from './modules/notifications/notificatiions.module';
+import MessageEventEntity from './entities/MessageEventEntity';
+import { MessagesModule } from './modules/messages/messages.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -57,9 +62,11 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
         LeadEntity,
         ProjectEntity,
         TaskEntity,
+        MessageEventEntity,
         AuthAuditEventEntity,
         PasswordResetRequestEntity,
         MailOutboxEntity,
+        NotificationEntity,
         CommentEntity,
         NoteEntity,
         AttachmentEntity,
@@ -87,7 +94,10 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
     MockSeedModule,
     ClientsModule,
     IntegrationsModule,
+    NotificationsModule,
     LeadsModule,
+    MessagesModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],
