@@ -72,7 +72,11 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
 
       // Sanitize if enabled
       let sanitizedValue = value;
-      if (this.options.sanitize && typeof value === 'object' && value !== null) {
+      if (
+        this.options.sanitize &&
+        typeof value === 'object' &&
+        value !== null
+      ) {
         sanitizedValue = this.sanitizer.sanitizeObject(
           value as Record<string, unknown>,
           this.options.allowHtml,
@@ -87,7 +91,9 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
         const formattedErrors = this.formatZodError(error);
 
         if (this.options.logErrors) {
-          this.logger.warn(`Validation failed: ${JSON.stringify(formattedErrors)}`);
+          this.logger.warn(
+            `Validation failed: ${JSON.stringify(formattedErrors)}`,
+          );
         }
 
         throw new BadRequestException({
@@ -117,7 +123,9 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
         const scan = this.sanitizer.fullScan(value);
 
         if (this.options.blockSqlInjection && scan.hasSqlInjection) {
-          this.logger.error(`SQL injection detected in field "${key}": ${scan.patterns.join(', ')}`);
+          this.logger.error(
+            `SQL injection detected in field "${key}": ${scan.patterns.join(', ')}`,
+          );
           throw new BadRequestException({
             message: 'Conteúdo suspeito detectado',
             field: key,
@@ -126,7 +134,9 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
         }
 
         if (scan.hasXss && !this.options.allowHtml) {
-          this.logger.warn(`XSS pattern detected in field "${key}", will be sanitized`);
+          this.logger.warn(
+            `XSS pattern detected in field "${key}", will be sanitized`,
+          );
         }
       } else if (typeof value === 'object' && value !== null) {
         this.scanObjectForThreats(value as Record<string, unknown>);

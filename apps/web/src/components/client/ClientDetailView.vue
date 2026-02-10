@@ -70,14 +70,14 @@ const handleTemplateSubmit = async (data: {
 }) => {
   // In a real app, this would call the API
   console.log("Template submission:", data);
-  
+
   // Simulate API call
   // const response = await fetch('/api/project-templates', {
   //   method: 'POST',
   //   headers: { 'Content-Type': 'application/json' },
   //   body: JSON.stringify(data),
   // });
-  
+
   // Close modal after successful submission
   closeTemplateModal();
 };

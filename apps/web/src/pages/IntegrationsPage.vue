@@ -1,13 +1,34 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import IntegrationCard from "../components/integrations/IntegrationCard.vue";
+import {
+  INTEGRATION_IDS,
+  getIntegrationCardId,
+  getIntegrationHeaderId,
+  getIntegrationBodyId,
+} from "../utils/constants/dom-ids";
+import {
+  INTEGRATION_TITLES,
+  getIntegrationCardTitle,
+} from "../utils/constants/dom-titles";
+import {
+  INTEGRATION_DATA_ATTRS,
+  STATE_DATA_ATTRS,
+  dataAttr,
+  buildDataAttrs,
+} from "../utils/constants/dom-data-attrs";
+import {
+  INTEGRATION_COLORS,
+  STATUS_LABELS,
+  type IntegrationStatus,
+} from "../utils/constants/integration-constants";
 
 interface Integration {
   id: string;
   name: string;
   description: string;
   type: string;
-  status: "connected" | "disconnected" | "error" | "pending";
+  status: IntegrationStatus;
   icon: string;
   color: string;
   features: string[];
@@ -34,18 +55,35 @@ const integrations = ref<Integration[]>([
   },
   {
     id: "sat",
-    name: "SAT",
-    description: "Sistema ERP para gestão financeira e inventário",
+    name: "SAT ERP",
+    description: "Sistema de gestão empresarial com emissão de notas fiscais",
     type: "ERP",
     status: "disconnected",
-    icon: "database",
-    color: "#2563eb",
+    icon: "document",
+    color: INTEGRATION_COLORS.SAT,
     features: [
-      "Sincronização de faturas",
-      "Rastreamento de pagamentos",
-      "Níveis de estoque",
-      "Gestão de pedidos",
-      "Relatórios financeiros",
+      "Emissão e consulta de NFe/NFSe",
+      "Cadastro de clientes sincronizado",
+      "Gestão de produtos e estoque",
+      "Gerenciamento de pedidos",
+      "Registro de pagamentos",
+    ],
+    configurable: true,
+  },
+  {
+    id: "nextcloud",
+    name: "NextCloud",
+    description: "Plataforma de armazenamento e colaboração em nuvem",
+    type: "Armazenamento",
+    status: "disconnected",
+    icon: "cloud",
+    color: INTEGRATION_COLORS.NEXTCLOUD,
+    features: [
+      "Upload e download de arquivos",
+      "Compartilhamentos com links públicos",
+      "Pastas organizadas por entidade",
+      "Feed de atividades recentes",
+      "Sincronização WebDAV",
     ],
     configurable: true,
   },
@@ -56,7 +94,7 @@ const integrations = ref<Integration[]>([
     type: "E-mail/Calendário",
     status: "disconnected",
     icon: "mail",
-    color: "#ef6c00",
+    color: INTEGRATION_COLORS.ZIMBRA,
     features: [
       "Sincronização de e-mails",
       "Integração de calendário",
@@ -72,8 +110,8 @@ const integrations = ref<Integration[]>([
     description: "Integração com Microsoft 365 via Graph API",
     type: "E-mail/Microsoft 365",
     status: "disconnected",
-    icon: "mail",
-    color: "#0078d4",
+    icon: "calendar",
+    color: INTEGRATION_COLORS.OUTLOOK,
     features: [
       "Sincronização de e-mails",
       "Eventos de calendário",

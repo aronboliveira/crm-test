@@ -11,13 +11,18 @@ export type TemplateTaskBlueprint = Readonly<{
 /**
  * Template category types for categorization
  */
-export type TemplateCategory = 'email' | 'project' | 'task' | 'notification' | 'report';
+export type TemplateCategory =
+  | 'email'
+  | 'project'
+  | 'task'
+  | 'notification'
+  | 'report';
 
 /**
  * A reusable project template with pre-defined task blueprints.
  * When a user picks a template during project creation, the tasks
  * are automatically generated from the `tasks` array.
- * 
+ *
  * @version 1.4.0 - Added email template fields (content, subject, isActive, metadata)
  */
 @Entity('project_templates')

@@ -14,5 +14,9 @@ export { SanitizerService, sanitizer } from './sanitizer.service';
 export type { SanitizationResult, ScanResult } from './sanitizer.service';
 
 // Zod validation pipe
-export { ZodValidationPipe, createZodPipe, ZodValidation } from './zod-validation.pipe';
+export {
+  ZodValidationPipe,
+  createZodPipe,
+  ZodValidation,
+} from './zod-validation.pipe';
 export type { ZodValidationPipeOptions } from './zod-validation.pipe';

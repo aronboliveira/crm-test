@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { GlpiAdapter } from './adapters/glpi';
-import { SatAdapter } from './adapters/sat.adapter';
+import { SatAdapter } from './adapters/sat';
+import { NextcloudAdapter } from './adapters/nextcloud';
 import { ZimbraAdapter } from './adapters/zimbra.adapter';
 import { OutlookAdapter } from './adapters/outlook.adapter';
 import type {
@@ -17,12 +18,14 @@ export class IntegrationsService {
   constructor(
     private readonly glpi: GlpiAdapter,
     private readonly sat: SatAdapter,
+    private readonly nextcloud: NextcloudAdapter,
     private readonly zimbra: ZimbraAdapter,
     private readonly outlook: OutlookAdapter,
   ) {
     this.adapters = new Map<string, IntegrationAdapter>([
       ['glpi', glpi as IntegrationAdapter],
       ['sat', sat as IntegrationAdapter],
+      ['nextcloud', nextcloud as IntegrationAdapter],
       ['zimbra', zimbra as IntegrationAdapter],
       ['outlook', outlook as IntegrationAdapter],
     ]);

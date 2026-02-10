@@ -172,70 +172,187 @@ const handleDelete = async (client: ClientRow) => {
         Alguns dados podem estar desatualizados. Recarregue para tentar
         novamente.
       </div>
-      <table class="data-table">
+      <table class="data-table" role="table" aria-label="Tabela de clientes">
         <thead>
-          <tr>
-            <th style="width: 40px"></th>
-            <th>
-              <button class="th-button" @click="setSort('name')">
-                Nome <span class="th-sort">{{ sortIndicator("name") }}</span>
+          <tr role="row">
+            <th
+              style="width: 40px"
+              role="columnheader"
+              aria-label="Expandir detalhes"
+            ></th>
+            <th role="columnheader">
+              <button
+                class="th-button"
+                data-sort-key="name"
+                :data-sort-dir="sortKey === 'name' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'name'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por nome"
+                @click="setSort('name')"
+              >
+                Nome
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("name")
+                }}</span>
               </button>
             </th>
-            <th>
-              <button class="th-button" @click="setSort('company')">
+            <th role="columnheader">
+              <button
+                class="th-button"
+                data-sort-key="company"
+                :data-sort-dir="sortKey === 'company' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'company'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por empresa"
+                @click="setSort('company')"
+              >
                 Empresa
-                <span class="th-sort">{{ sortIndicator("company") }}</span>
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("company")
+                }}</span>
               </button>
             </th>
-            <th>
-              <button class="th-button" @click="setSort('email')">
-                Email <span class="th-sort">{{ sortIndicator("email") }}</span>
+            <th role="columnheader">
+              <button
+                class="th-button"
+                data-sort-key="email"
+                :data-sort-dir="sortKey === 'email' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'email'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por email"
+                @click="setSort('email')"
+              >
+                Email
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("email")
+                }}</span>
               </button>
             </th>
-            <th>
-              <button class="th-button" @click="setSort('phone')">
+            <th role="columnheader">
+              <button
+                class="th-button"
+                data-sort-key="phone"
+                :data-sort-dir="sortKey === 'phone' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'phone'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por telefone"
+                @click="setSort('phone')"
+              >
                 Telefone
-                <span class="th-sort">{{ sortIndicator("phone") }}</span>
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("phone")
+                }}</span>
               </button>
             </th>
-            <th class="text-right">Ações</th>
+            <th
+              class="text-right"
+              role="columnheader"
+              aria-label="Ações disponíveis"
+            >
+              Ações
+            </th>
           </tr>
         </thead>
         <tbody>
           <template v-for="c in sortedRows" :key="c?.id || 'unknown'">
-            <tr v-if="c" :id="`client-row-${c.id}`" class="client-row">
-              <td>
+            <tr
+              v-if="c"
+              :id="`client-row-${c.id}`"
+              class="client-row"
+              role="row"
+              :data-client-id="c.id"
+            >
+              <td role="cell">
                 <button
                   class="btn-expand"
                   :class="{ 'btn-expand--active': expandedClientId === c.id }"
+                  :data-client-id="c.id"
+                  :data-expanded="expandedClientId === c.id"
+                  :aria-expanded="expandedClientId === c.id"
+                  :aria-controls="`client-details-${c.id}`"
+                  :aria-label="
+                    expandedClientId === c.id
+                      ? 'Recolher detalhes do cliente'
+                      : 'Ver detalhes do cliente'
+                  "
                   title="Ver detalhes"
                   @click="toggleClientExpand(c.id)"
                 >
                   {{ expandedClientId === c.id ? "▼" : "▶" }}
                 </button>
               </td>
-              <td class="font-medium">{{ c.name }}</td>
-              <td>{{ c.company || "—" }}</td>
-              <td>{{ c.email || "—" }}</td>
-              <td>{{ c.phone || "—" }}</td>
-              <td class="text-right">
+              <td class="font-medium" role="cell" data-column="name">
+                {{ c.name }}
+              </td>
+              <td
+                role="cell"
+                data-column="company"
+                :title="c.company || 'Empresa não informada'"
+              >
+                {{ c.company || "—" }}
+              </td>
+              <td
+                role="cell"
+                data-column="email"
+                :title="c.email || 'Email não informado'"
+              >
+                {{ c.email || "—" }}
+              </td>
+              <td
+                role="cell"
+                data-column="phone"
+                :title="c.phone || 'Telefone não informado'"
+              >
+                {{ c.phone || "—" }}
+              </td>
+              <td class="text-right" role="cell" data-column="actions">
                 <div class="client-actions">
                   <button
                     class="btn btn-sm btn-ghost"
-                    title="Editar"
+                    data-action="edit"
+                    :data-client-id="c.id"
+                    title="Editar cliente"
+                    aria-label="Editar cliente"
                     @click="handleEdit(c)"
                   >
                     ✏️
                   </button>
                   <button
                     class="btn btn-sm btn-ghost"
-                    title="Excluir"
+                    data-action="delete"
+                    :data-client-id="c.id"
+                    title="Excluir cliente"
+                    aria-label="Excluir cliente"
                     @click="handleDelete(c)"
                   >
                     🗑️
                   </button>
                   <button
                     class="btn btn-sm btn-outline"
+                    data-action="view-projects"
+                    :data-client-id="c.id"
+                    title="Ver projetos do cliente"
+                    aria-label="Ver projetos do cliente"
                     @click="handleCheckProjects(c)"
                   >
                     Projetos
@@ -243,8 +360,12 @@ const handleDelete = async (client: ClientRow) => {
                 </div>
               </td>
             </tr>
-            <tr v-if="c && expandedClientId === c.id" class="detail-row">
-              <td colspan="6">
+            <tr
+              v-if="c && expandedClientId === c.id"
+              class="detail-row"
+              :data-detail-for="c.id"
+            >
+              <td colspan="6" :id="`client-details-${c.id}`" role="cell">
                 <ClientDetailView
                   :client="c"
                   :projects="projectsStore.rows"
@@ -254,8 +375,8 @@ const handleDelete = async (client: ClientRow) => {
               </td>
             </tr>
           </template>
-          <tr v-if="rows && rows.length === 0">
-            <td colspan="6" class="text-center py-8 opacity-60">
+          <tr v-if="rows && rows.length === 0" role="row">
+            <td colspan="6" class="text-center py-8 opacity-60" role="cell">
               Nenhum cliente encontrado.
             </td>
           </tr>
@@ -304,9 +425,9 @@ const handleDelete = async (client: ClientRow) => {
 
 .data-table {
   width: 100%;
-  min-width: 800px;
+  min-width: 900px;
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .data-table th,
@@ -314,9 +435,6 @@ const handleDelete = async (client: ClientRow) => {
   padding: 0.75rem 1rem;
   text-align: left;
   border-bottom: 1px solid var(--border-1);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .data-table th {
@@ -335,32 +453,32 @@ const handleDelete = async (client: ClientRow) => {
 
 .data-table th:nth-child(2),
 .data-table td:nth-child(2) {
-  width: 20%;
+  width: 22%;
   min-width: 150px;
 }
 
 .data-table th:nth-child(3),
 .data-table td:nth-child(3) {
-  width: 18%;
-  min-width: 140px;
+  width: 22%;
+  min-width: 150px;
 }
 
 .data-table th:nth-child(4),
 .data-table td:nth-child(4) {
-  width: 22%;
+  width: 25%;
   min-width: 180px;
 }
 
 .data-table th:nth-child(5),
 .data-table td:nth-child(5) {
-  width: 18%;
-  min-width: 140px;
+  width: 20%;
+  min-width: 120px;
 }
 
 .data-table th:nth-child(6),
 .data-table td:nth-child(6) {
-  width: 22%;
-  min-width: 180px;
+  width: 11%;
+  min-width: 140px;
   text-align: right;
 }
 

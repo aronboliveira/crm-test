@@ -105,8 +105,24 @@ const DOMPURIFY_CONFIG: DOMPurify.Config = {
     /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
   ADD_ATTR: ['target'],
   ADD_TAGS: [],
-  FORBID_TAGS: ['script', 'style', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet'],
-  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'],
+  FORBID_TAGS: [
+    'script',
+    'style',
+    'iframe',
+    'frame',
+    'frameset',
+    'object',
+    'embed',
+    'applet',
+  ],
+  FORBID_ATTR: [
+    'onerror',
+    'onload',
+    'onclick',
+    'onmouseover',
+    'onfocus',
+    'onblur',
+  ],
   KEEP_CONTENT: true,
   RETURN_DOM: false,
   RETURN_DOM_FRAGMENT: false,
@@ -155,7 +171,10 @@ export class SanitizerService {
     if (!html || typeof html !== 'string') {
       return '';
     }
-    return DOMPurify.sanitize(html, DOMPURIFY_CONFIG as unknown as Parameters<typeof DOMPurify.sanitize>[1]);
+    return DOMPurify.sanitize(
+      html,
+      DOMPURIFY_CONFIG as unknown as Parameters<typeof DOMPurify.sanitize>[1],
+    );
   }
 
   /**
@@ -167,7 +186,12 @@ export class SanitizerService {
     if (!text || typeof text !== 'string') {
       return '';
     }
-    return DOMPurify.sanitize(text, DOMPURIFY_STRICT_CONFIG as unknown as Parameters<typeof DOMPurify.sanitize>[1]);
+    return DOMPurify.sanitize(
+      text,
+      DOMPURIFY_STRICT_CONFIG as unknown as Parameters<
+        typeof DOMPurify.sanitize
+      >[1],
+    );
   }
 
   /**
@@ -197,8 +221,12 @@ export class SanitizerService {
     const sqlScan = this.scanForSqlInjection(input);
     if (sqlScan.hasSqlInjection) {
       sqlInjectionDetected = true;
-      warnings.push(`SQL injection pattern detected: ${sqlScan.patterns.join(', ')}`);
-      this.logger.warn(`SQL injection attempt detected: ${sqlScan.patterns.join(', ')}`);
+      warnings.push(
+        `SQL injection pattern detected: ${sqlScan.patterns.join(', ')}`,
+      );
+      this.logger.warn(
+        `SQL injection attempt detected: ${sqlScan.patterns.join(', ')}`,
+      );
     }
 
     // Check for XSS patterns
@@ -210,7 +238,9 @@ export class SanitizerService {
     }
 
     // Sanitize based on allowHtml flag
-    const sanitized = allowHtml ? this.sanitizeHtml(input) : this.sanitizeText(input);
+    const sanitized = allowHtml
+      ? this.sanitizeHtml(input)
+      : this.sanitizeText(input);
 
     return {
       isValid: !sqlInjectionDetected && !xssDetected,
@@ -230,7 +260,12 @@ export class SanitizerService {
    */
   scanForSqlInjection(input: string): ScanResult {
     if (!input || typeof input !== 'string') {
-      return { hasSqlInjection: false, hasXss: false, patterns: [], risk: 'none' };
+      return {
+        hasSqlInjection: false,
+        hasXss: false,
+        patterns: [],
+        risk: 'none',
+      };
     }
 
     const detectedPatterns: string[] = [];
@@ -259,7 +294,12 @@ export class SanitizerService {
    */
   scanForXss(input: string): ScanResult {
     if (!input || typeof input !== 'string') {
-      return { hasSqlInjection: false, hasXss: false, patterns: [], risk: 'none' };
+      return {
+        hasSqlInjection: false,
+        hasXss: false,
+        patterns: [],
+        risk: 'none',
+      };
     }
 
     const detectedPatterns: string[] = [];
@@ -304,7 +344,10 @@ export class SanitizerService {
   /**
    * Calculate risk level based on pattern count
    */
-  private calculateRisk(patternCount: number, type: 'sql' | 'xss'): ScanResult['risk'] {
+  private calculateRisk(
+    patternCount: number,
+    type: 'sql' | 'xss',
+  ): ScanResult['risk'] {
     if (patternCount === 0) return 'none';
     if (patternCount === 1) return 'low';
     if (patternCount <= 3) return 'medium';
@@ -344,7 +387,7 @@ export class SanitizerService {
       '`': '&#x60;',
       '=': '&#x3D;',
     };
-    return str.replace(/[&<>"'`=/]/g, char => htmlEscapes[char]);
+    return str.replace(/[&<>"'`=/]/g, (char) => htmlEscapes[char]);
   }
 
   /**
@@ -353,7 +396,10 @@ export class SanitizerService {
    * @param allowHtml - Whether to allow HTML in string values
    * @returns Sanitized object
    */
-  sanitizeObject<T extends Record<string, unknown>>(obj: T, allowHtml = false): T {
+  sanitizeObject<T extends Record<string, unknown>>(
+    obj: T,
+    allowHtml = false,
+  ): T {
     if (!obj || typeof obj !== 'object') {
       return obj;
     }
@@ -362,9 +408,11 @@ export class SanitizerService {
 
     for (const [key, value] of Object.entries(obj)) {
       if (typeof value === 'string') {
-        result[key] = allowHtml ? this.sanitizeHtml(value) : this.sanitizeText(value);
+        result[key] = allowHtml
+          ? this.sanitizeHtml(value)
+          : this.sanitizeText(value);
       } else if (Array.isArray(value)) {
-        result[key] = value.map(item =>
+        result[key] = value.map((item) =>
           typeof item === 'string'
             ? allowHtml
               ? this.sanitizeHtml(item)
@@ -374,7 +422,10 @@ export class SanitizerService {
               : item,
         );
       } else if (typeof value === 'object' && value !== null) {
-        result[key] = this.sanitizeObject(value as Record<string, unknown>, allowHtml);
+        result[key] = this.sanitizeObject(
+          value as Record<string, unknown>,
+          allowHtml,
+        );
       } else {
         result[key] = value;
       }

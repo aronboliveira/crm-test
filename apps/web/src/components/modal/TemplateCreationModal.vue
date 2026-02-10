@@ -41,7 +41,12 @@ const VALIDATION = {
   },
 } as const;
 
-type TemplateCategory = "email" | "project" | "task" | "notification" | "report";
+type TemplateCategory =
+  | "email"
+  | "project"
+  | "task"
+  | "notification"
+  | "report";
 
 interface FormData {
   key: string;
@@ -98,14 +103,20 @@ const formBlocked = ref(false);
 const submitAttempted = ref(false);
 
 // Security tracking
-const formSessionId = ref(`form_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`);
+const formSessionId = ref(
+  `form_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+);
 
 /**
  * DOMStringMap-compatible data attributes for form state tracking
  */
 const formDataAttrs = computed(() => ({
   "data-form-id": formSessionId.value,
-  "data-form-state": formBlocked.value ? "blocked" : isFormValid.value ? "valid" : "invalid",
+  "data-form-state": formBlocked.value
+    ? "blocked"
+    : isFormValid.value
+      ? "valid"
+      : "invalid",
   "data-form-touched": touchedFields.value.size > 0,
   "data-form-submitted": submitAttempted.value,
   "data-client-ref": props.clientId || "none",
@@ -127,8 +138,11 @@ const fieldsetDataAttrs = computed(() => ({
 const getInputDataAttrs = (fieldName: string) => ({
   "data-field-name": fieldName,
   "data-field-touched": touchedFields.value.has(fieldName),
-  "data-field-valid": !validationErrors.value.some((e) => e.field === fieldName),
-  "data-field-error": validationErrors.value.find((e) => e.field === fieldName)?.message || "",
+  "data-field-valid": !validationErrors.value.some(
+    (e) => e.field === fieldName,
+  ),
+  "data-field-error":
+    validationErrors.value.find((e) => e.field === fieldName)?.message || "",
 });
 
 /**
@@ -143,15 +157,22 @@ const validateField = (field: keyof FormData): ValidationError | null => {
         return { field: "key", message: "Chave é obrigatória" };
       }
       if (value.trim().length < VALIDATION.KEY.MIN_LENGTH) {
-        return { field: "key", message: `Chave deve ter no mínimo ${VALIDATION.KEY.MIN_LENGTH} caracteres` };
+        return {
+          field: "key",
+          message: `Chave deve ter no mínimo ${VALIDATION.KEY.MIN_LENGTH} caracteres`,
+        };
       }
       if (value.trim().length > VALIDATION.KEY.MAX_LENGTH) {
-        return { field: "key", message: `Chave deve ter no máximo ${VALIDATION.KEY.MAX_LENGTH} caracteres` };
+        return {
+          field: "key",
+          message: `Chave deve ter no máximo ${VALIDATION.KEY.MAX_LENGTH} caracteres`,
+        };
       }
       if (!VALIDATION.KEY.PATTERN_REGEX.test(value.trim())) {
         return {
           field: "key",
-          message: "Chave deve começar com letra e conter apenas letras, números, underscores ou hífens",
+          message:
+            "Chave deve começar com letra e conter apenas letras, números, underscores ou hífens",
         };
       }
       break;
@@ -161,22 +182,34 @@ const validateField = (field: keyof FormData): ValidationError | null => {
         return { field: "name", message: "Nome é obrigatório" };
       }
       if (value.trim().length < VALIDATION.NAME.MIN_LENGTH) {
-        return { field: "name", message: `Nome deve ter no mínimo ${VALIDATION.NAME.MIN_LENGTH} caracteres` };
+        return {
+          field: "name",
+          message: `Nome deve ter no mínimo ${VALIDATION.NAME.MIN_LENGTH} caracteres`,
+        };
       }
       if (value.trim().length > VALIDATION.NAME.MAX_LENGTH) {
-        return { field: "name", message: `Nome deve ter no máximo ${VALIDATION.NAME.MAX_LENGTH} caracteres` };
+        return {
+          field: "name",
+          message: `Nome deve ter no máximo ${VALIDATION.NAME.MAX_LENGTH} caracteres`,
+        };
       }
       break;
     }
     case "description": {
       if (value && value.length > VALIDATION.DESCRIPTION.MAX_LENGTH) {
-        return { field: "description", message: `Descrição deve ter no máximo ${VALIDATION.DESCRIPTION.MAX_LENGTH} caracteres` };
+        return {
+          field: "description",
+          message: `Descrição deve ter no máximo ${VALIDATION.DESCRIPTION.MAX_LENGTH} caracteres`,
+        };
       }
       break;
     }
     case "subject": {
       if (value && value.length > VALIDATION.SUBJECT.MAX_LENGTH) {
-        return { field: "subject", message: `Assunto deve ter no máximo ${VALIDATION.SUBJECT.MAX_LENGTH} caracteres` };
+        return {
+          field: "subject",
+          message: `Assunto deve ter no máximo ${VALIDATION.SUBJECT.MAX_LENGTH} caracteres`,
+        };
       }
       break;
     }
@@ -185,12 +218,21 @@ const validateField = (field: keyof FormData): ValidationError | null => {
         return { field: "content", message: "Conteúdo é obrigatório" };
       }
       if (value.length > VALIDATION.CONTENT.MAX_LENGTH) {
-        return { field: "content", message: `Conteúdo deve ter no máximo ${VALIDATION.CONTENT.MAX_LENGTH} caracteres` };
+        return {
+          field: "content",
+          message: `Conteúdo deve ter no máximo ${VALIDATION.CONTENT.MAX_LENGTH} caracteres`,
+        };
       }
       break;
     }
     case "category": {
-      const validCategories: TemplateCategory[] = ["email", "project", "task", "notification", "report"];
+      const validCategories: TemplateCategory[] = [
+        "email",
+        "project",
+        "task",
+        "notification",
+        "report",
+      ];
       if (!validCategories.includes(value as TemplateCategory)) {
         return { field: "category", message: "Categoria inválida" };
       }
@@ -205,7 +247,14 @@ const validateField = (field: keyof FormData): ValidationError | null => {
  */
 const validateForm = (): boolean => {
   const errors: ValidationError[] = [];
-  const fields: (keyof FormData)[] = ["key", "name", "description", "subject", "content", "category"];
+  const fields: (keyof FormData)[] = [
+    "key",
+    "name",
+    "description",
+    "subject",
+    "content",
+    "category",
+  ];
 
   for (const field of fields) {
     const error = validateField(field);
@@ -242,9 +291,9 @@ const blockForm = () => {
     // Focus on first field with error
     const firstError = validationErrors.value[0];
     if (firstError) {
-      const input = formRef.value?.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-        `[name="${firstError.field}"]`
-      );
+      const input = formRef.value?.querySelector<
+        HTMLInputElement | HTMLTextAreaElement
+      >(`[name="${firstError.field}"]`);
       input?.focus();
     }
   }, 1500);
@@ -291,8 +340,10 @@ const getFieldError = (field: string): string | undefined => {
  * Check if field has error (for CSS styling)
  */
 const hasFieldError = (field: string): boolean => {
-  return (touchedFields.value.has(field) || submitAttempted.value) &&
-    validationErrors.value.some((e) => e.field === field);
+  return (
+    (touchedFields.value.has(field) || submitAttempted.value) &&
+    validationErrors.value.some((e) => e.field === field)
+  );
 };
 
 /**
@@ -375,7 +426,7 @@ const focusTrap = (event: KeyboardEvent) => {
   if (event.key !== "Tab" || !formRef.value) return;
 
   const focusableElements = formRef.value.querySelectorAll<HTMLElement>(
-    'input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])'
+    "input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])",
   );
   const firstElement = focusableElements[0];
   const lastElement = focusableElements[focusableElements.length - 1];
@@ -403,7 +454,7 @@ watch(
       document.removeEventListener("keydown", handleKeydown);
       document.removeEventListener("keydown", focusTrap);
     }
-  }
+  },
 );
 
 // Cleanup listeners on unmount
@@ -468,7 +519,10 @@ const contentCharCount = computed(() => formData.value.content.length);
             ref="formRef"
             v-bind="formDataAttrs"
             class="template-form"
-            :class="{ 'form--blocked': formBlocked, 'form--invalid': !isFormValid && submitAttempted }"
+            :class="{
+              'form--blocked': formBlocked,
+              'form--invalid': !isFormValid && submitAttempted,
+            }"
             novalidate
             autocomplete="off"
             @submit="handleSubmit"
@@ -532,20 +586,34 @@ const contentCharCount = computed(() => formData.value.content.length);
                     spellcheck="false"
                     aria-required="true"
                     :aria-invalid="hasFieldError('key')"
-                    :aria-describedby="hasFieldError('key') ? 'key-error' : 'key-help'"
+                    :aria-describedby="
+                      hasFieldError('key') ? 'key-error' : 'key-help'
+                    "
                     @blur="handleFieldBlur('key')"
                     @input="handleFieldInput('key')"
                   />
-                  <span class="char-count" :class="{ 'char-count--warning': keyCharCount > VALIDATION.KEY.MAX_LENGTH * 0.9 }">
+                  <span
+                    class="char-count"
+                    :class="{
+                      'char-count--warning':
+                        keyCharCount > VALIDATION.KEY.MAX_LENGTH * 0.9,
+                    }"
+                  >
                     {{ keyCharCount }}/{{ VALIDATION.KEY.MAX_LENGTH }}
                   </span>
                 </div>
                 <p id="key-help" class="form-help">
-                  Identificador único. Apenas letras, números, underscores e hífens.
+                  Identificador único. Apenas letras, números, underscores e
+                  hífens.
                 </p>
                 <Transition name="fade">
-                  <p v-if="hasFieldError('key')" id="key-error" class="form-error" role="alert">
-                    {{ getFieldError('key') }}
+                  <p
+                    v-if="hasFieldError('key')"
+                    id="key-error"
+                    class="form-error"
+                    role="alert"
+                  >
+                    {{ getFieldError("key") }}
                   </p>
                 </Transition>
               </div>
@@ -576,11 +644,19 @@ const contentCharCount = computed(() => formData.value.content.length);
                     spellcheck="true"
                     aria-required="true"
                     :aria-invalid="hasFieldError('name')"
-                    :aria-describedby="hasFieldError('name') ? 'name-error' : 'name-help'"
+                    :aria-describedby="
+                      hasFieldError('name') ? 'name-error' : 'name-help'
+                    "
                     @blur="handleFieldBlur('name')"
                     @input="handleFieldInput('name')"
                   />
-                  <span class="char-count" :class="{ 'char-count--warning': nameCharCount > VALIDATION.NAME.MAX_LENGTH * 0.9 }">
+                  <span
+                    class="char-count"
+                    :class="{
+                      'char-count--warning':
+                        nameCharCount > VALIDATION.NAME.MAX_LENGTH * 0.9,
+                    }"
+                  >
                     {{ nameCharCount }}/{{ VALIDATION.NAME.MAX_LENGTH }}
                   </span>
                 </div>
@@ -588,8 +664,13 @@ const contentCharCount = computed(() => formData.value.content.length);
                   Nome descritivo para identificação do template.
                 </p>
                 <Transition name="fade">
-                  <p v-if="hasFieldError('name')" id="name-error" class="form-error" role="alert">
-                    {{ getFieldError('name') }}
+                  <p
+                    v-if="hasFieldError('name')"
+                    id="name-error"
+                    class="form-error"
+                    role="alert"
+                  >
+                    {{ getFieldError("name") }}
                   </p>
                 </Transition>
               </div>
@@ -613,7 +694,11 @@ const contentCharCount = computed(() => formData.value.content.length);
                   required
                   aria-required="true"
                   :aria-invalid="hasFieldError('category')"
-                  :aria-describedby="hasFieldError('category') ? 'category-error' : 'category-help'"
+                  :aria-describedby="
+                    hasFieldError('category')
+                      ? 'category-error'
+                      : 'category-help'
+                  "
                   @blur="handleFieldBlur('category')"
                   @change="handleFieldInput('category')"
                 >
@@ -627,8 +712,13 @@ const contentCharCount = computed(() => formData.value.content.length);
                   Tipo de template para organização.
                 </p>
                 <Transition name="fade">
-                  <p v-if="hasFieldError('category')" id="category-error" class="form-error" role="alert">
-                    {{ getFieldError('category') }}
+                  <p
+                    v-if="hasFieldError('category')"
+                    id="category-error"
+                    class="form-error"
+                    role="alert"
+                  >
+                    {{ getFieldError("category") }}
                   </p>
                 </Transition>
               </div>
@@ -657,11 +747,22 @@ const contentCharCount = computed(() => formData.value.content.length);
                       autocomplete="off"
                       spellcheck="true"
                       :aria-invalid="hasFieldError('subject')"
-                      :aria-describedby="hasFieldError('subject') ? 'subject-error' : 'subject-help'"
+                      :aria-describedby="
+                        hasFieldError('subject')
+                          ? 'subject-error'
+                          : 'subject-help'
+                      "
                       @blur="handleFieldBlur('subject')"
                       @input="handleFieldInput('subject')"
                     />
-                    <span class="char-count" :class="{ 'char-count--warning': subjectCharCount > VALIDATION.SUBJECT.MAX_LENGTH * 0.9 }">
+                    <span
+                      class="char-count"
+                      :class="{
+                        'char-count--warning':
+                          subjectCharCount >
+                          VALIDATION.SUBJECT.MAX_LENGTH * 0.9,
+                      }"
+                    >
                       {{ subjectCharCount }}/{{ VALIDATION.SUBJECT.MAX_LENGTH }}
                     </span>
                   </div>
@@ -669,8 +770,13 @@ const contentCharCount = computed(() => formData.value.content.length);
                     Linha de assunto para emails gerados com este template.
                   </p>
                   <Transition name="fade">
-                    <p v-if="hasFieldError('subject')" id="subject-error" class="form-error" role="alert">
-                      {{ getFieldError('subject') }}
+                    <p
+                      v-if="hasFieldError('subject')"
+                      id="subject-error"
+                      class="form-error"
+                      role="alert"
+                    >
+                      {{ getFieldError("subject") }}
                     </p>
                   </Transition>
                 </div>
@@ -697,20 +803,38 @@ const contentCharCount = computed(() => formData.value.content.length);
                     :maxlength="VALIDATION.DESCRIPTION.MAX_LENGTH"
                     spellcheck="true"
                     :aria-invalid="hasFieldError('description')"
-                    :aria-describedby="hasFieldError('description') ? 'description-error' : 'description-help'"
+                    :aria-describedby="
+                      hasFieldError('description')
+                        ? 'description-error'
+                        : 'description-help'
+                    "
                     @blur="handleFieldBlur('description')"
                     @input="handleFieldInput('description')"
                   ></textarea>
-                  <span class="char-count char-count--textarea" :class="{ 'char-count--warning': descriptionCharCount > VALIDATION.DESCRIPTION.MAX_LENGTH * 0.9 }">
-                    {{ descriptionCharCount }}/{{ VALIDATION.DESCRIPTION.MAX_LENGTH }}
+                  <span
+                    class="char-count char-count--textarea"
+                    :class="{
+                      'char-count--warning':
+                        descriptionCharCount >
+                        VALIDATION.DESCRIPTION.MAX_LENGTH * 0.9,
+                    }"
+                  >
+                    {{ descriptionCharCount }}/{{
+                      VALIDATION.DESCRIPTION.MAX_LENGTH
+                    }}
                   </span>
                 </div>
                 <p id="description-help" class="form-help">
                   Descrição opcional do propósito do template.
                 </p>
                 <Transition name="fade">
-                  <p v-if="hasFieldError('description')" id="description-error" class="form-error" role="alert">
-                    {{ getFieldError('description') }}
+                  <p
+                    v-if="hasFieldError('description')"
+                    id="description-error"
+                    class="form-error"
+                    role="alert"
+                  >
+                    {{ getFieldError("description") }}
                   </p>
                 </Transition>
               </div>
@@ -739,20 +863,38 @@ const contentCharCount = computed(() => formData.value.content.length);
                     spellcheck="true"
                     aria-required="true"
                     :aria-invalid="hasFieldError('content')"
-                    :aria-describedby="hasFieldError('content') ? 'content-error' : 'content-help'"
+                    :aria-describedby="
+                      hasFieldError('content')
+                        ? 'content-error'
+                        : 'content-help'
+                    "
                     @blur="handleFieldBlur('content')"
                     @input="handleFieldInput('content')"
                   ></textarea>
-                  <span class="char-count char-count--textarea" :class="{ 'char-count--warning': contentCharCount > VALIDATION.CONTENT.MAX_LENGTH * 0.9 }">
-                    {{ contentCharCount.toLocaleString('pt-BR') }}/{{ VALIDATION.CONTENT.MAX_LENGTH.toLocaleString('pt-BR') }}
+                  <span
+                    class="char-count char-count--textarea"
+                    :class="{
+                      'char-count--warning':
+                        contentCharCount > VALIDATION.CONTENT.MAX_LENGTH * 0.9,
+                    }"
+                  >
+                    {{ contentCharCount.toLocaleString("pt-BR") }}/{{
+                      VALIDATION.CONTENT.MAX_LENGTH.toLocaleString("pt-BR")
+                    }}
                   </span>
                 </div>
                 <p id="content-help" class="form-help">
-                  Conteúdo HTML do template. Tags seguras são permitidas (p, br, b, i, a, ul, ol, li, h1-h6, etc.)
+                  Conteúdo HTML do template. Tags seguras são permitidas (p, br,
+                  b, i, a, ul, ol, li, h1-h6, etc.)
                 </p>
                 <Transition name="fade">
-                  <p v-if="hasFieldError('content')" id="content-error" class="form-error" role="alert">
-                    {{ getFieldError('content') }}
+                  <p
+                    v-if="hasFieldError('content')"
+                    id="content-error"
+                    class="form-error"
+                    role="alert"
+                  >
+                    {{ getFieldError("content") }}
                   </p>
                 </Transition>
               </div>
@@ -774,8 +916,12 @@ const contentCharCount = computed(() => formData.value.content.length);
                 :disabled="isSubmitting || formBlocked"
                 :data-submitting="isSubmitting"
               >
-                <span v-if="isSubmitting" class="btn-spinner" aria-hidden="true"></span>
-                {{ isSubmitting ? 'Salvando...' : 'Criar Template' }}
+                <span
+                  v-if="isSubmitting"
+                  class="btn-spinner"
+                  aria-hidden="true"
+                ></span>
+                {{ isSubmitting ? "Salvando..." : "Criar Template" }}
               </button>
             </div>
 
@@ -789,7 +935,9 @@ const contentCharCount = computed(() => formData.value.content.length);
                 <div class="block-message">
                   <span class="block-icon" aria-hidden="true">⚠️</span>
                   <p>Formulário bloqueado temporariamente.</p>
-                  <p class="block-submessage">Por favor, corrija os erros acima.</p>
+                  <p class="block-submessage">
+                    Por favor, corrija os erros acima.
+                  </p>
                 </div>
               </div>
             </Transition>

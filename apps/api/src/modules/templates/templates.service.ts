@@ -38,9 +38,11 @@ export default class TemplatesService {
    * @param query - Query parameters (validated by Zod)
    * @returns Array of templates
    */
-  async list(query?: TemplateQueryDto): Promise<readonly ProjectTemplateEntity[]> {
+  async list(
+    query?: TemplateQueryDto,
+  ): Promise<readonly ProjectTemplateEntity[]> {
     const where: Record<string, unknown> = {};
-    
+
     if (query?.key) {
       where.key = query.key;
     }
@@ -91,7 +93,7 @@ export default class TemplatesService {
   async findById(id: string): Promise<ProjectTemplateEntity> {
     const oid = ObjectId.isValid(id) ? new ObjectId(id) : null;
     if (!oid) throw new BadRequestException('Invalid id format');
-    
+
     const row = await this.repo.findOne({ where: { _id: oid } as any });
     if (!row) throw new NotFoundException('Template not found');
     return row;
@@ -107,7 +109,7 @@ export default class TemplatesService {
    */
   async create(dto: CreateTemplateDto): Promise<ProjectTemplateEntity> {
     const key = dto.key.trim().toLowerCase().replace(/\s+/g, '-');
-    
+
     const exists = await this.repo.findOne({ where: { key } as any });
     if (exists) {
       this.logger.warn(`Attempted to create duplicate template key: ${key}`);
@@ -115,7 +117,7 @@ export default class TemplatesService {
     }
 
     const now = new Date().toISOString();
-    
+
     const entity = this.repo.create({
       key,
       name: dto.name.trim(),
@@ -143,7 +145,10 @@ export default class TemplatesService {
    * @throws NotFoundException if template doesn't exist
    * @throws BadRequestException if new key conflicts with existing
    */
-  async update(id: string, dto: UpdateTemplateDto): Promise<ProjectTemplateEntity> {
+  async update(
+    id: string,
+    dto: UpdateTemplateDto,
+  ): Promise<ProjectTemplateEntity> {
     const template = await this.findById(id);
 
     // Check if key is being changed and new key doesn't conflict
@@ -193,7 +198,7 @@ export default class TemplatesService {
   async remove(id: string): Promise<void> {
     const oid = ObjectId.isValid(id) ? new ObjectId(id) : null;
     if (!oid) throw new BadRequestException('Invalid id format');
-    
+
     this.logger.log(`Removing template: ${id}`);
     await this.repo.delete(oid as any);
   }

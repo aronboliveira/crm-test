@@ -11,7 +11,14 @@ import ImportService from './import.service';
 import JwtAuthGuard from '../auth/guards/jwt-auth.guard';
 import PermissionsGuard from '../rbac/permissions.guard';
 import { Permissions } from '../rbac/permissions.decorator';
-import type { Multer } from 'multer';
+
+/** File upload interface for Multer-compatible files */
+interface UploadedFileData {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+  size: number;
+}
 
 @Controller('/import')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -28,7 +35,7 @@ export default class ImportController {
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )
-  async importFile(@UploadedFile() file: Multer.File, @Req() req: any) {
+  async importFile(@UploadedFile() file: UploadedFileData, @Req() req: any) {
     const email: string = req.user?.email ?? 'unknown';
     const result = await this.svc.importFile(file.buffer, file.mimetype, email);
     return {

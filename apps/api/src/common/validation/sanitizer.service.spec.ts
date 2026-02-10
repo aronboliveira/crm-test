@@ -18,12 +18,15 @@ jest.mock('isomorphic-dompurify', () => ({
         .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
         .replace(/\s*on\w+="[^"]*"/gi, '')
         .replace(/javascript:/gi, '');
-      
+
       // If no tags allowed, strip all HTML
       if (config?.ALLOWED_TAGS?.length === 0) {
-        result = result.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+        result = result
+          .replace(/<[^>]*>/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
       }
-      
+
       return result;
     },
   },
@@ -41,7 +44,9 @@ describe('SanitizerService', () => {
   describe('sanitizeHtml', () => {
     it('should allow safe HTML tags', () => {
       const input = '<p>Hello <strong>World</strong></p>';
-      expect(sanitizer.sanitizeHtml(input)).toBe('<p>Hello <strong>World</strong></p>');
+      expect(sanitizer.sanitizeHtml(input)).toBe(
+        '<p>Hello <strong>World</strong></p>',
+      );
     });
 
     it('should remove script tags', () => {
@@ -63,12 +68,16 @@ describe('SanitizerService', () => {
 
     it('should allow safe anchor links', () => {
       const input = '<a href="https://example.com">Link</a>';
-      expect(sanitizer.sanitizeHtml(input)).toContain('href="https://example.com"');
+      expect(sanitizer.sanitizeHtml(input)).toContain(
+        'href="https://example.com"',
+      );
     });
 
     it('should allow mailto links', () => {
       const input = '<a href="mailto:test@example.com">Email</a>';
-      expect(sanitizer.sanitizeHtml(input)).toContain('href="mailto:test@example.com"');
+      expect(sanitizer.sanitizeHtml(input)).toContain(
+        'href="mailto:test@example.com"',
+      );
     });
 
     it('should remove iframes', () => {
@@ -88,7 +97,8 @@ describe('SanitizerService', () => {
     });
 
     it('should allow table elements', () => {
-      const input = '<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Cell</td></tr></tbody></table>';
+      const input =
+        '<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Cell</td></tr></tbody></table>';
       expect(sanitizer.sanitizeHtml(input)).toContain('<table>');
       expect(sanitizer.sanitizeHtml(input)).toContain('<th>Header</th>');
       expect(sanitizer.sanitizeHtml(input)).toContain('<td>Cell</td>');
@@ -96,7 +106,9 @@ describe('SanitizerService', () => {
 
     it('should allow images with safe src', () => {
       const input = '<img src="https://example.com/image.png" alt="Test">';
-      expect(sanitizer.sanitizeHtml(input)).toContain('src="https://example.com/image.png"');
+      expect(sanitizer.sanitizeHtml(input)).toContain(
+        'src="https://example.com/image.png"',
+      );
       expect(sanitizer.sanitizeHtml(input)).toContain('alt="Test"');
     });
 
@@ -136,12 +148,12 @@ describe('SanitizerService', () => {
     const sqlInjectionPatterns = [
       "'; DROP TABLE users; --",
       "1' OR '1'='1",
-      "1 OR 1=1",
+      '1 OR 1=1',
       "'; SELECT * FROM users --",
-      "UNION SELECT password FROM users",
+      'UNION SELECT password FROM users',
       "'; EXEC xp_cmdshell('dir'); --",
       "1'; DELETE FROM users WHERE '1'='1",
-      "1 UNION ALL SELECT * FROM users",
+      '1 UNION ALL SELECT * FROM users',
     ];
 
     // These patterns are too subtle for basic regex detection
@@ -150,18 +162,24 @@ describe('SanitizerService', () => {
       "admin'--", // Simple comment injection
     ];
 
-    it.each(sqlInjectionPatterns)('should detect SQL injection: %s', (pattern) => {
-      const result = sanitizer.scanForSqlInjection(pattern);
-      expect(result.hasSqlInjection).toBe(true);
-      expect(result.patterns.length).toBeGreaterThan(0);
-    });
+    it.each(sqlInjectionPatterns)(
+      'should detect SQL injection: %s',
+      (pattern) => {
+        const result = sanitizer.scanForSqlInjection(pattern);
+        expect(result.hasSqlInjection).toBe(true);
+        expect(result.patterns.length).toBeGreaterThan(0);
+      },
+    );
 
-    it.each(subtlePatterns)('subtle injection pattern may not be detected: %s', (pattern) => {
-      // These are edge cases that may require more sophisticated detection
-      const result = sanitizer.scanForSqlInjection(pattern);
-      // Document current behavior - some subtle patterns may not be caught
-      expect(typeof result.hasSqlInjection).toBe('boolean');
-    });
+    it.each(subtlePatterns)(
+      'subtle injection pattern may not be detected: %s',
+      (pattern) => {
+        // These are edge cases that may require more sophisticated detection
+        const result = sanitizer.scanForSqlInjection(pattern);
+        // Document current behavior - some subtle patterns may not be caught
+        expect(typeof result.hasSqlInjection).toBe('boolean');
+      },
+    );
 
     const safeInputs = [
       'Hello World',
@@ -185,8 +203,12 @@ describe('SanitizerService', () => {
     });
 
     it('should handle null/undefined', () => {
-      expect(sanitizer.scanForSqlInjection(null as any).hasSqlInjection).toBe(false);
-      expect(sanitizer.scanForSqlInjection(undefined as any).hasSqlInjection).toBe(false);
+      expect(sanitizer.scanForSqlInjection(null as any).hasSqlInjection).toBe(
+        false,
+      );
+      expect(
+        sanitizer.scanForSqlInjection(undefined as any).hasSqlInjection,
+      ).toBe(false);
     });
 
     it('should calculate risk level based on pattern count', () => {
@@ -196,7 +218,7 @@ describe('SanitizerService', () => {
 
       // Multiple patterns = higher risk
       const highRisk = sanitizer.scanForSqlInjection(
-        "'; DROP TABLE users; SELECT * FROM passwords; UNION SELECT * FROM admin; EXEC xp_cmdshell"
+        "'; DROP TABLE users; SELECT * FROM passwords; UNION SELECT * FROM admin; EXEC xp_cmdshell",
       );
       expect(['medium', 'high', 'critical']).toContain(highRisk.risk);
     });
@@ -227,7 +249,7 @@ describe('SanitizerService', () => {
     it('should detect both SQL injection and XSS', () => {
       const malicious = "<script>'; DROP TABLE users; --</script>";
       const result = sanitizer.fullScan(malicious);
-      
+
       expect(result.hasSqlInjection).toBe(true);
       expect(result.hasXss).toBe(true);
       expect(result.patterns.length).toBeGreaterThan(0);
@@ -236,7 +258,7 @@ describe('SanitizerService', () => {
     it('should return none risk for safe input', () => {
       const safe = 'This is perfectly safe text';
       const result = sanitizer.fullScan(safe);
-      
+
       expect(result.hasSqlInjection).toBe(false);
       expect(result.hasXss).toBe(false);
       expect(result.risk).toBe('none');

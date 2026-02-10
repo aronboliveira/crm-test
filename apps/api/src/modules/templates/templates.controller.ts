@@ -25,10 +25,7 @@ import {
   type UpdateTemplateDto,
   type TemplateQueryDto,
 } from '../../common/validation';
-import {
-  ZodValidationPipe,
-  SanitizerService,
-} from '../../common/validation';
+import { ZodValidationPipe, SanitizerService } from '../../common/validation';
 
 /**
  * @controller TemplatesController
@@ -62,7 +59,7 @@ export default class TemplatesController {
   async list(@Query() query: TemplateQueryDto) {
     const rows = await this.svc.list(query);
     return {
-      items: rows.map(t => ({
+      items: rows.map((t) => ({
         id: String(t._id),
         key: t.key,
         name: t.name,
@@ -86,7 +83,8 @@ export default class TemplatesController {
   @Get('/:key')
   @Permissions('projects.read')
   async findByKey(
-    @Param('key', new ZodValidationPipe(TemplateKeySchema.shape.key)) key: string,
+    @Param('key', new ZodValidationPipe(TemplateKeySchema.shape.key))
+    key: string,
   ) {
     const t = await this.svc.findByKey(key);
     return {
@@ -127,12 +125,16 @@ export default class TemplatesController {
     // Additional sanitization for content field (HTML allowed)
     const sanitizedDto = {
       ...dto,
-      content: dto.content ? this.sanitizer.sanitizeHtml(dto.content) : undefined,
+      content: dto.content
+        ? this.sanitizer.sanitizeHtml(dto.content)
+        : undefined,
       name: this.sanitizer.sanitizeText(dto.name),
       description: dto.description
         ? this.sanitizer.sanitizeText(dto.description)
         : undefined,
-      subject: dto.subject ? this.sanitizer.sanitizeText(dto.subject) : undefined,
+      subject: dto.subject
+        ? this.sanitizer.sanitizeText(dto.subject)
+        : undefined,
     };
 
     const t = await this.svc.create(sanitizedDto);

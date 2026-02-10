@@ -62,9 +62,12 @@ export const TEMPLATE_VALIDATION = {
 /**
  * Category enum for template types
  */
-export const TemplateCategorySchema = z.enum(TEMPLATE_VALIDATION.CATEGORY.VALUES, {
-  message: TEMPLATE_VALIDATION.CATEGORY.ERROR_INVALID,
-});
+export const TemplateCategorySchema = z.enum(
+  TEMPLATE_VALIDATION.CATEGORY.VALUES,
+  {
+    message: TEMPLATE_VALIDATION.CATEGORY.ERROR_INVALID,
+  },
+);
 
 export type TemplateCategory = z.infer<typeof TemplateCategorySchema>;
 
@@ -79,24 +82,42 @@ export const CreateTemplateSchema = z
         error: 'Chave é obrigatória',
       })
       .trim()
-      .min(TEMPLATE_VALIDATION.KEY.MIN_LENGTH, TEMPLATE_VALIDATION.KEY.ERROR_MIN)
-      .max(TEMPLATE_VALIDATION.KEY.MAX_LENGTH, TEMPLATE_VALIDATION.KEY.ERROR_MAX)
-      .regex(TEMPLATE_VALIDATION.KEY.PATTERN, TEMPLATE_VALIDATION.KEY.ERROR_PATTERN),
+      .min(
+        TEMPLATE_VALIDATION.KEY.MIN_LENGTH,
+        TEMPLATE_VALIDATION.KEY.ERROR_MIN,
+      )
+      .max(
+        TEMPLATE_VALIDATION.KEY.MAX_LENGTH,
+        TEMPLATE_VALIDATION.KEY.ERROR_MAX,
+      )
+      .regex(
+        TEMPLATE_VALIDATION.KEY.PATTERN,
+        TEMPLATE_VALIDATION.KEY.ERROR_PATTERN,
+      ),
 
     name: z
       .string({
         error: 'Nome é obrigatório',
       })
       .trim()
-      .min(TEMPLATE_VALIDATION.NAME.MIN_LENGTH, TEMPLATE_VALIDATION.NAME.ERROR_MIN)
-      .max(TEMPLATE_VALIDATION.NAME.MAX_LENGTH, TEMPLATE_VALIDATION.NAME.ERROR_MAX),
+      .min(
+        TEMPLATE_VALIDATION.NAME.MIN_LENGTH,
+        TEMPLATE_VALIDATION.NAME.ERROR_MIN,
+      )
+      .max(
+        TEMPLATE_VALIDATION.NAME.MAX_LENGTH,
+        TEMPLATE_VALIDATION.NAME.ERROR_MAX,
+      ),
 
     description: z
       .string({
         error: 'Descrição deve ser uma string',
       })
       .trim()
-      .max(TEMPLATE_VALIDATION.DESCRIPTION.MAX_LENGTH, TEMPLATE_VALIDATION.DESCRIPTION.ERROR_MAX)
+      .max(
+        TEMPLATE_VALIDATION.DESCRIPTION.MAX_LENGTH,
+        TEMPLATE_VALIDATION.DESCRIPTION.ERROR_MAX,
+      )
       .optional()
       .default(''),
 
@@ -104,17 +125,25 @@ export const CreateTemplateSchema = z
       .string({
         error: 'Conteúdo é obrigatório',
       })
-      .max(TEMPLATE_VALIDATION.CONTENT.MAX_LENGTH, TEMPLATE_VALIDATION.CONTENT.ERROR_MAX),
+      .max(
+        TEMPLATE_VALIDATION.CONTENT.MAX_LENGTH,
+        TEMPLATE_VALIDATION.CONTENT.ERROR_MAX,
+      ),
 
     subject: z
       .string({
         error: 'Assunto deve ser uma string',
       })
       .trim()
-      .max(TEMPLATE_VALIDATION.SUBJECT.MAX_LENGTH, TEMPLATE_VALIDATION.SUBJECT.ERROR_MAX)
+      .max(
+        TEMPLATE_VALIDATION.SUBJECT.MAX_LENGTH,
+        TEMPLATE_VALIDATION.SUBJECT.ERROR_MAX,
+      )
       .optional(),
 
-    category: TemplateCategorySchema.optional().default(TEMPLATE_VALIDATION.CATEGORY.DEFAULT),
+    category: TemplateCategorySchema.optional().default(
+      TEMPLATE_VALIDATION.CATEGORY.DEFAULT,
+    ),
 
     isActive: z.boolean().optional().default(true),
 
@@ -133,33 +162,57 @@ export const UpdateTemplateSchema = z
     key: z
       .string()
       .trim()
-      .min(TEMPLATE_VALIDATION.KEY.MIN_LENGTH, TEMPLATE_VALIDATION.KEY.ERROR_MIN)
-      .max(TEMPLATE_VALIDATION.KEY.MAX_LENGTH, TEMPLATE_VALIDATION.KEY.ERROR_MAX)
-      .regex(TEMPLATE_VALIDATION.KEY.PATTERN, TEMPLATE_VALIDATION.KEY.ERROR_PATTERN)
+      .min(
+        TEMPLATE_VALIDATION.KEY.MIN_LENGTH,
+        TEMPLATE_VALIDATION.KEY.ERROR_MIN,
+      )
+      .max(
+        TEMPLATE_VALIDATION.KEY.MAX_LENGTH,
+        TEMPLATE_VALIDATION.KEY.ERROR_MAX,
+      )
+      .regex(
+        TEMPLATE_VALIDATION.KEY.PATTERN,
+        TEMPLATE_VALIDATION.KEY.ERROR_PATTERN,
+      )
       .optional(),
 
     name: z
       .string()
       .trim()
-      .min(TEMPLATE_VALIDATION.NAME.MIN_LENGTH, TEMPLATE_VALIDATION.NAME.ERROR_MIN)
-      .max(TEMPLATE_VALIDATION.NAME.MAX_LENGTH, TEMPLATE_VALIDATION.NAME.ERROR_MAX)
+      .min(
+        TEMPLATE_VALIDATION.NAME.MIN_LENGTH,
+        TEMPLATE_VALIDATION.NAME.ERROR_MIN,
+      )
+      .max(
+        TEMPLATE_VALIDATION.NAME.MAX_LENGTH,
+        TEMPLATE_VALIDATION.NAME.ERROR_MAX,
+      )
       .optional(),
 
     description: z
       .string()
       .trim()
-      .max(TEMPLATE_VALIDATION.DESCRIPTION.MAX_LENGTH, TEMPLATE_VALIDATION.DESCRIPTION.ERROR_MAX)
+      .max(
+        TEMPLATE_VALIDATION.DESCRIPTION.MAX_LENGTH,
+        TEMPLATE_VALIDATION.DESCRIPTION.ERROR_MAX,
+      )
       .optional(),
 
     content: z
       .string()
-      .max(TEMPLATE_VALIDATION.CONTENT.MAX_LENGTH, TEMPLATE_VALIDATION.CONTENT.ERROR_MAX)
+      .max(
+        TEMPLATE_VALIDATION.CONTENT.MAX_LENGTH,
+        TEMPLATE_VALIDATION.CONTENT.ERROR_MAX,
+      )
       .optional(),
 
     subject: z
       .string()
       .trim()
-      .max(TEMPLATE_VALIDATION.SUBJECT.MAX_LENGTH, TEMPLATE_VALIDATION.SUBJECT.ERROR_MAX)
+      .max(
+        TEMPLATE_VALIDATION.SUBJECT.MAX_LENGTH,
+        TEMPLATE_VALIDATION.SUBJECT.ERROR_MAX,
+      )
       .optional(),
 
     category: TemplateCategorySchema.optional(),
@@ -180,7 +233,7 @@ export const TemplateQuerySchema = z.object({
   category: TemplateCategorySchema.optional(),
   isActive: z
     .string()
-    .transform(val => val === 'true')
+    .transform((val) => val === 'true')
     .optional(),
   search: z.string().max(128).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),

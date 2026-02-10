@@ -118,36 +118,69 @@ const getScoreBadgeColor = (score: number): string => {
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="isOpen" class="modal-backdrop" @click="handleClose">
+      <div
+        v-if="isOpen"
+        class="modal-backdrop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="highlights-modal-title"
+        aria-describedby="highlights-modal-description"
+        @click="handleClose"
+      >
         <div class="modal-container" @click.stop>
           <div class="modal-header">
             <div>
-              <h2 class="modal-title">✨ Destaques de Clientes</h2>
-              <p class="modal-subtitle">
+              <h2 id="highlights-modal-title" class="modal-title">
+                ✨ Destaques de Clientes
+              </h2>
+              <p id="highlights-modal-description" class="modal-subtitle">
                 Clientes com maior potencial de negócio identificados
               </p>
             </div>
-            <button class="modal-close" title="Fechar" @click="handleClose">
+            <button
+              class="modal-close"
+              title="Fechar modal de destaques"
+              aria-label="Fechar modal de destaques"
+              @click="handleClose"
+            >
               ×
             </button>
           </div>
 
           <div class="modal-body">
-            <div v-if="highlights.length === 0" class="empty-state">
+            <div
+              v-if="highlights.length === 0"
+              class="empty-state"
+              role="status"
+            >
               <p>Nenhum destaque identificado no momento.</p>
               <p class="empty-hint">
                 Continue adicionando projetos e leads para ver destaques aqui.
               </p>
             </div>
 
-            <div v-else class="highlights-list">
+            <div
+              v-else
+              class="highlights-list"
+              role="list"
+              aria-label="Lista de clientes em destaque"
+            >
               <div
                 v-for="(highlight, index) in highlights"
                 :key="highlight.client.id"
+                :id="`highlight-${highlight.client.id}`"
                 class="highlight-card"
+                role="listitem"
+                :data-client-id="highlight.client.id"
+                :data-score="highlight.score"
+                :data-rank="index + 1"
               >
                 <div class="highlight-rank">
-                  <span class="rank-number">{{ index + 1 }}</span>
+                  <span
+                    class="rank-number"
+                    :aria-label="`Posição ${index + 1}`"
+                    >{{ index + 1 }}</span
+                  >
                 </div>
 
                 <div class="highlight-content">
@@ -166,6 +199,9 @@ const getScoreBadgeColor = (score: number): string => {
                     <div
                       class="highlight-score"
                       :class="getScoreBadgeColor(highlight.score)"
+                      role="status"
+                      :aria-label="`Pontuação: ${highlight.score} pontos`"
+                      :title="`Pontuação de relevância: ${highlight.score} pontos`"
                     >
                       {{ highlight.score }} pts
                     </div>
@@ -175,8 +211,12 @@ const getScoreBadgeColor = (score: number): string => {
                     <p class="reasons-title">
                       Por que este cliente se destaca:
                     </p>
-                    <ul class="reasons-list">
-                      <li v-for="(reason, i) in highlight.reasons" :key="i">
+                    <ul class="reasons-list" role="list">
+                      <li
+                        v-for="(reason, i) in highlight.reasons"
+                        :key="i"
+                        role="listitem"
+                      >
                         {{ reason }}
                       </li>
                     </ul>
@@ -185,6 +225,9 @@ const getScoreBadgeColor = (score: number): string => {
                   <div class="highlight-actions">
                     <button
                       class="btn btn-sm btn-primary"
+                      :data-client-id="highlight.client.id"
+                      :aria-label="`Ver detalhes do cliente ${highlight.client.name}`"
+                      :title="`Ver detalhes do cliente ${highlight.client.name}`"
                       @click="handleSelectClient(highlight.client.id)"
                     >
                       Ver Detalhes
