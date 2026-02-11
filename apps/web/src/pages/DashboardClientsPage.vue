@@ -158,6 +158,74 @@ const handleDelete = async (client: ClientRow) => {
     await AlertService.error("Erro", "Falha ao excluir cliente.");
   }
 };
+
+// Calculate engagement score for WhatsApp (0-100)
+const calcWhatsappScore = (client: ClientRow): number => {
+  const analytics = client.whatsappAnalytics;
+  if (!analytics) return 0;
+  const sent = analytics.sent || 0;
+  if (sent === 0) return 0;
+  const delivered = analytics.delivered || 0;
+  const read = analytics.read || 0;
+  const replied = analytics.replied || 0;
+  // Weighted score: delivered 20%, read 40%, replied 40%
+  const deliveryRate = sent > 0 ? (delivered / sent) * 20 : 0;
+  const readRate = sent > 0 ? (read / sent) * 40 : 0;
+  const replyRate = sent > 0 ? (replied / sent) * 40 : 0;
+  return Math.min(100, Math.round(deliveryRate + readRate + replyRate));
+};
+
+// Calculate engagement score for Email (0-100)
+const calcEmailScore = (client: ClientRow): number => {
+  const analytics = client.emailAnalytics;
+  if (!analytics) return 0;
+  const sent = analytics.sent || 0;
+  if (sent === 0) return 0;
+  const opened = analytics.opened || 0;
+  const clicked = analytics.clicked || 0;
+  const replied = analytics.replied || 0;
+  // Weighted score: opened 30%, clicked 30%, replied 40%
+  const openRate = sent > 0 ? (opened / sent) * 30 : 0;
+  const clickRate = sent > 0 ? (clicked / sent) * 30 : 0;
+  const replyRate = sent > 0 ? (replied / sent) * 40 : 0;
+  return Math.min(100, Math.round(openRate + clickRate + replyRate));
+};
+
+// Get project count for a client
+const getClientProjectCount = (clientId: string): number => {
+  return safeProjects.value.filter((p) => p.clientId === clientId).length;
+};
+
+// Engagement Details Modal
+const EngagementDetailsModal = defineAsyncComponent(
+  () => import("../components/dashboard/EngagementDetailsModal.vue"),
+);
+
+const handleShowWhatsappEngagement = async (client: ClientRow) => {
+  await ModalService.open(EngagementDetailsModal, {
+    title: `Engajamento WhatsApp - ${client.name}`,
+    size: "md",
+    data: {
+      type: "whatsapp",
+      client,
+      analytics: client.whatsappAnalytics,
+      score: calcWhatsappScore(client),
+    },
+  });
+};
+
+const handleShowEmailEngagement = async (client: ClientRow) => {
+  await ModalService.open(EngagementDetailsModal, {
+    title: `Engajamento E-mail - ${client.name}`,
+    size: "md",
+    data: {
+      type: "email",
+      client,
+      analytics: client.emailAnalytics,
+      score: calcEmailScore(client),
+    },
+  });
+};
 </script>
 
 <template>
@@ -200,11 +268,6 @@ const handleDelete = async (client: ClientRow) => {
       <table class="data-table" role="table" aria-label="Tabela de clientes">
         <thead>
           <tr role="row">
-            <th
-              style="width: 40px"
-              role="columnheader"
-              aria-label="Expandir detalhes"
-            ></th>
             <th role="columnheader">
               <button
                 class="th-button"
@@ -310,14 +373,17 @@ const handleDelete = async (client: ClientRow) => {
                 }}</span>
               </button>
             </th>
-            <th role="columnheader" aria-label="Engajamento WhatsApp">
+            <th role="columnheader" class="text-center" aria-label="Engajamento WhatsApp">
               Engaj. WhatsApp
             </th>
-            <th role="columnheader" aria-label="Engajamento Email">
+            <th role="columnheader" class="text-center" aria-label="Engajamento Email">
               Engaj. E-mail
             </th>
+            <th role="columnheader" class="text-center" aria-label="Projetos do cliente">
+              Projetos
+            </th>
             <th
-              class="text-right"
+              class="text-center"
               role="columnheader"
               aria-label="Ações disponíveis"
             >
@@ -334,36 +400,36 @@ const handleDelete = async (client: ClientRow) => {
               role="row"
               :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
             >
-              <td role="cell">
-                <button
-                  class="btn-expand"
-                  :class="{ 'btn-expand--active': expandedClientId === c.id }"
-                  :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
-                  :data-expanded="expandedClientId === c.id"
-                  :aria-expanded="expandedClientId === c.id"
-                  :aria-controls="`client-details-${c.id}`"
-                  :aria-label="
-                    expandedClientId === c.id
-                      ? 'Recolher detalhes do cliente'
-                      : 'Ver detalhes do cliente'
-                  "
-                  title="Ver detalhes"
-                  @click="toggleClientExpand(c.id)"
-                >
-                  {{ expandedClientId === c.id ? "▼" : "▶" }}
-                </button>
-              </td>
               <td
-                class="font-medium"
+                class="name-cell"
                 role="cell"
                 :data-column="TABLE_DATA_ATTRS.COLUMN"
               >
-                <router-link
-                  :to="{ name: 'ClientProfile', params: { id: c.id } }"
-                  class="client-link"
-                >
-                  {{ c.name }}
-                </router-link>
+                <div class="name-cell__content">
+                  <button
+                    class="btn-expand"
+                    :class="{ 'btn-expand--active': expandedClientId === c.id }"
+                    :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
+                    :data-expanded="expandedClientId === c.id"
+                    :aria-expanded="expandedClientId === c.id"
+                    :aria-controls="`client-details-${c.id}`"
+                    :aria-label="
+                      expandedClientId === c.id
+                        ? 'Recolher detalhes do cliente'
+                        : 'Ver detalhes do cliente'
+                    "
+                    title="Ver detalhes"
+                    @click="toggleClientExpand(c.id)"
+                  >
+                    {{ expandedClientId === c.id ? "▼" : "▶" }}
+                  </button>
+                  <router-link
+                    :to="{ name: 'ClientProfile', params: { id: c.id } }"
+                    class="client-link"
+                  >
+                    {{ c.name }}
+                  </router-link>
+                </div>
               </td>
               <td
                 role="cell"
@@ -420,53 +486,61 @@ const handleDelete = async (client: ClientRow) => {
               <td
                 role="cell"
                 :data-column="TABLE_DATA_ATTRS.COLUMN"
-                class="analytics-cell analytics-cell--whatsapp"
+                class="text-center"
               >
-                <div class="analytics-mini">
-                  <span class="analytics-mini__label">S</span>
-                  <span class="analytics-mini__value">
-                    {{ c.whatsappAnalytics?.sent ?? 0 }}
-                  </span>
-                </div>
-                <div class="analytics-mini">
-                  <span class="analytics-mini__label">L</span>
-                  <span class="analytics-mini__value">
-                    {{ c.whatsappAnalytics?.read ?? 0 }}
-                  </span>
-                </div>
-                <div class="analytics-mini">
-                  <span class="analytics-mini__label">R</span>
-                  <span class="analytics-mini__value">
-                    {{ c.whatsappAnalytics?.replied ?? 0 }}
-                  </span>
-                </div>
+                <button
+                  class="score-chip score-chip--whatsapp"
+                  :class="{
+                    'score-chip--low': calcWhatsappScore(c) < 30,
+                    'score-chip--medium': calcWhatsappScore(c) >= 30 && calcWhatsappScore(c) < 60,
+                    'score-chip--high': calcWhatsappScore(c) >= 60,
+                  }"
+                  :title="`Ver detalhes de engajamento WhatsApp (Score: ${calcWhatsappScore(c)}%)`"
+                  @click="handleShowWhatsappEngagement(c)"
+                >
+                  <span class="score-chip__icon">💬</span>
+                  <span class="score-chip__value">{{ calcWhatsappScore(c) }}%</span>
+                </button>
               </td>
               <td
                 role="cell"
                 :data-column="TABLE_DATA_ATTRS.COLUMN"
-                class="analytics-cell analytics-cell--email"
+                class="text-center"
               >
-                <div class="analytics-mini">
-                  <span class="analytics-mini__label">E</span>
-                  <span class="analytics-mini__value">
-                    {{ c.emailAnalytics?.sent ?? 0 }}
-                  </span>
-                </div>
-                <div class="analytics-mini">
-                  <span class="analytics-mini__label">A</span>
-                  <span class="analytics-mini__value">
-                    {{ c.emailAnalytics?.opened ?? 0 }}
-                  </span>
-                </div>
-                <div class="analytics-mini">
-                  <span class="analytics-mini__label">R</span>
-                  <span class="analytics-mini__value">
-                    {{ c.emailAnalytics?.replied ?? 0 }}
-                  </span>
-                </div>
+                <button
+                  class="score-chip score-chip--email"
+                  :class="{
+                    'score-chip--low': calcEmailScore(c) < 30,
+                    'score-chip--medium': calcEmailScore(c) >= 30 && calcEmailScore(c) < 60,
+                    'score-chip--high': calcEmailScore(c) >= 60,
+                  }"
+                  :title="`Ver detalhes de engajamento E-mail (Score: ${calcEmailScore(c)}%)`"
+                  @click="handleShowEmailEngagement(c)"
+                >
+                  <span class="score-chip__icon">📧</span>
+                  <span class="score-chip__value">{{ calcEmailScore(c) }}%</span>
+                </button>
               </td>
               <td
-                class="text-right"
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+                class="text-center"
+              >
+                <button
+                  class="score-chip score-chip--projects"
+                  :class="{
+                    'score-chip--none': getClientProjectCount(c.id) === 0,
+                    'score-chip--some': getClientProjectCount(c.id) > 0,
+                  }"
+                  :title="`Ver ${getClientProjectCount(c.id)} projeto(s) do cliente`"
+                  @click="handleCheckProjects(c)"
+                >
+                  <span class="score-chip__icon">📁</span>
+                  <span class="score-chip__value">{{ getClientProjectCount(c.id) }}</span>
+                </button>
+              </td>
+              <td
+                class="text-center"
                 role="cell"
                 :data-column="TABLE_DATA_ATTRS.COLUMN"
               >
@@ -490,16 +564,6 @@ const handleDelete = async (client: ClientRow) => {
                     @click="handleDelete(c)"
                   >
                     🗑️
-                  </button>
-                  <button
-                    class="btn btn-sm btn-outline"
-                    :data-action="TEST_DATA_ATTRS.ACTION"
-                    :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
-                    title="Ver projetos do cliente"
-                    aria-label="Ver projetos do cliente"
-                    @click="handleCheckProjects(c)"
-                  >
-                    Projetos
                   </button>
                 </div>
               </td>
@@ -656,57 +720,60 @@ const handleDelete = async (client: ClientRow) => {
 
 .data-table th:nth-child(1),
 .data-table td:nth-child(1) {
-  width: 50px;
-  min-width: 50px;
-}
-
-.data-table th:nth-child(2),
-.data-table td:nth-child(2) {
-  width: 15%;
-  min-width: 140px;
-}
-
-.data-table th:nth-child(3),
-.data-table td:nth-child(3) {
-  width: 14%;
-  min-width: 130px;
-}
-
-.data-table th:nth-child(4),
-.data-table td:nth-child(4) {
   width: 18%;
   min-width: 180px;
 }
 
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) {
+  width: 12%;
+  min-width: 120px;
+}
+
+.data-table th:nth-child(3),
+.data-table td:nth-child(3) {
+  width: 16%;
+  min-width: 160px;
+}
+
+.data-table th:nth-child(4),
+.data-table td:nth-child(4) {
+  width: 11%;
+  min-width: 120px;
+}
+
 .data-table th:nth-child(5),
 .data-table td:nth-child(5) {
-  width: 12%;
+  width: 13%;
   min-width: 130px;
 }
 
 .data-table th:nth-child(6),
 .data-table td:nth-child(6) {
-  width: 14%;
-  min-width: 150px;
+  width: 10%;
+  min-width: 100px;
+  text-align: center;
 }
 
 .data-table th:nth-child(7),
 .data-table td:nth-child(7) {
-  width: 11%;
-  min-width: 130px;
+  width: 10%;
+  min-width: 100px;
+  text-align: center;
 }
 
 .data-table th:nth-child(8),
 .data-table td:nth-child(8) {
-  width: 11%;
-  min-width: 130px;
+  width: 8%;
+  min-width: 80px;
+  text-align: center;
 }
 
 .data-table th:nth-child(9),
 .data-table td:nth-child(9) {
-  width: 15%;
-  min-width: 160px;
-  text-align: right;
+  width: 10%;
+  min-width: 100px;
+  text-align: center;
 }
 
 /* WhatsApp Column Styles */
@@ -821,89 +888,161 @@ const handleDelete = async (client: ClientRow) => {
   }
 }
 
-.analytics-cell {
+/* Name cell with expand button */
+.name-cell__content {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-wrap: nowrap;
 }
 
-.analytics-cell--whatsapp {
-  background: #f0fdf4;
-}
-
-@media (prefers-color-scheme: dark) {
-  .analytics-cell--whatsapp {
-    background: #052e16;
-  }
-}
-
-.analytics-cell--email {
-  background: #eff6ff;
-}
-
-@media (prefers-color-scheme: dark) {
-  .analytics-cell--email {
-    background: #082f49;
-  }
-}
-
-.analytics-mini {
+/* Score Chip Button Styles */
+.score-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.4rem;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: white;
-  font-size: 0.75rem;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
   white-space: nowrap;
 }
 
+.score-chip:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.score-chip__icon {
+  font-size: 0.9rem;
+}
+
+.score-chip__value {
+  font-weight: 700;
+}
+
+/* WhatsApp Score Chip */
+.score-chip--whatsapp {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.score-chip--whatsapp:hover {
+  background: #bbf7d0;
+  border-color: #4ade80;
+}
+
 @media (prefers-color-scheme: dark) {
-  .analytics-mini {
-    border-color: #334155;
-    background: #0f172a;
+  .score-chip--whatsapp {
+    background: #14532d;
+    border-color: #166534;
+    color: #86efac;
+  }
+
+  .score-chip--whatsapp:hover {
+    background: #15803d;
+    border-color: #22c55e;
   }
 }
 
-.analytics-mini__label {
-  font-weight: 600;
-  color: #64748b;
-  font-size: 0.7rem;
+/* Email Score Chip */
+.score-chip--email {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+
+.score-chip--email:hover {
+  background: #bfdbfe;
+  border-color: #60a5fa;
 }
 
 @media (prefers-color-scheme: dark) {
-  .analytics-mini__label {
+  .score-chip--email {
+    background: #1e3a5f;
+    border-color: #1e40af;
+    color: #93c5fd;
+  }
+
+  .score-chip--email:hover {
+    background: #1e4080;
+    border-color: #3b82f6;
+  }
+}
+
+/* Projects Score Chip */
+.score-chip--projects {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.score-chip--projects:hover {
+  background: #fde68a;
+  border-color: #f59e0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .score-chip--projects {
+    background: #713f12;
+    border-color: #a16207;
+    color: #fcd34d;
+  }
+
+  .score-chip--projects:hover {
+    background: #854d0e;
+    border-color: #d97706;
+  }
+}
+
+/* Score level modifiers */
+.score-chip--low {
+  opacity: 0.7;
+}
+
+.score-chip--medium {
+  opacity: 0.85;
+}
+
+.score-chip--high {
+  opacity: 1;
+}
+
+.score-chip--none {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .score-chip--none {
+    background: #1e293b;
+    border-color: #334155;
     color: #94a3b8;
   }
 }
 
-.analytics-mini__value {
-  font-weight: 700;
-  color: #0f172a;
-  font-size: 0.75rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  .analytics-mini__value {
-    color: #e2e8f0;
-  }
+.score-chip--some {
+  /* Already styled by --projects */
 }
 
 .btn-expand {
   background: transparent;
   border: 1px solid #cbd5e1;
-  color: var(--text-2);
-  font-size: 0.75rem;
-  width: 24px;
-  height: 24px;
+  color: #64748b;
+  font-size: 0.65rem;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .btn-expand:hover {
@@ -977,7 +1116,7 @@ const handleDelete = async (client: ClientRow) => {
 
 .client-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
   gap: 0.5rem;
 }

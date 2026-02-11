@@ -1,0 +1,328 @@
+@scope (.popupRoot) {
+  :scope {
+    --assistant-inline-offset: clamp(0.9rem, 2vw, 1.35rem);
+    --assistant-block-offset: clamp(0.9rem, 2.6vh, 1.4rem);
+    --assistant-trigger-size: clamp(3.2rem, 4.2vw, 3.75rem);
+    position: fixed;
+    right: var(--assistant-inline-offset);
+    bottom: calc(
+      var(--assistant-block-offset) + var(--assistant-trigger-size) + 0.9rem
+    );
+    width: min(24rem, calc(100vw - 1.8rem));
+    max-height: min(72vh, 39rem);
+    border-radius: 1rem;
+    border: 1px solid var(--border-1);
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--surface-1) 95%, var(--primary-soft) 5%),
+      var(--surface-1)
+    );
+    box-shadow:
+      0 22px 45px color-mix(in oklab, var(--text-1) 18%, transparent),
+      0 2px 0 color-mix(in oklab, white 40%, transparent) inset;
+    display: grid;
+    grid-template-rows: auto minmax(9rem, 1fr) auto;
+    overflow: hidden;
+    z-index: 71;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(0.8rem) scale(0.97);
+    transition:
+      opacity var(--transition-mid, 220ms) var(--easing-standard, ease),
+      transform var(--transition-mid, 220ms) var(--easing-bounce, ease),
+      box-shadow var(--transition-mid, 220ms) var(--easing-standard, ease);
+    animation: popupLift 340ms var(--easing-bounce, ease) both;
+  }
+
+  :scope[data-open="true"] {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  :scope[data-open="false"] {
+    opacity: 0;
+    transform: translateY(0.9rem) scale(0.96);
+    pointer-events: none;
+  }
+}
+
+.popupOpen,
+.popupClosed {
+  isolation: isolate;
+}
+
+.popupRoot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 92% 8%,
+      color-mix(in oklab, var(--primary) 18%, transparent),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 10% 100%,
+      color-mix(in oklab, var(--accent) 10%, transparent),
+      transparent 58%
+    );
+  pointer-events: none;
+}
+
+.popupRoot::after {
+  content: "";
+  position: absolute;
+  right: 1.35rem;
+  bottom: -0.38rem;
+  width: 0.92rem;
+  height: 0.92rem;
+  border-right: 1px solid var(--border-1);
+  border-bottom: 1px solid var(--border-1);
+  background: var(--surface-1);
+  transform: rotate(45deg);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.92rem 0.98rem 0.8rem;
+  border-bottom: 1px solid var(--border-1);
+  position: relative;
+}
+
+.titleWrap {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-1);
+  font-size: 0.95rem;
+  font-weight: var(--font-weight-semibold, 600);
+  letter-spacing: 0.01em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.74rem;
+}
+
+.closeButton {
+  inline-size: 2rem;
+  block-size: 2rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-1);
+  background: color-mix(in oklab, var(--surface-2) 70%, transparent);
+  color: var(--text-2);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition:
+    transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
+    background var(--transition-fast, 140ms) var(--easing-standard, ease),
+    color var(--transition-fast, 140ms) var(--easing-standard, ease);
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  color: var(--text-1);
+  background: var(--surface-2);
+  transform: scale(1.04);
+}
+
+.closeButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.messages {
+  padding: 0.95rem;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 0.62rem;
+}
+
+.botMessage {
+  margin: 0;
+  padding: 0.8rem 0.86rem;
+  max-width: 90%;
+  border-radius: 0.9rem 0.9rem 0.9rem 0.3rem;
+  background: color-mix(in oklab, var(--primary-soft) 64%, var(--surface-1));
+  color: var(--text-1);
+  line-height: 1.45;
+  font-size: 0.88rem;
+  border: 1px solid color-mix(in oklab, var(--primary) 22%, transparent);
+  transform-origin: left bottom;
+  animation: messageReveal 340ms var(--easing-bounce, ease) both;
+}
+
+.composer {
+  padding: 0.78rem 0.84rem 0.84rem;
+  border-top: 1px solid var(--border-1);
+  background: color-mix(in oklab, var(--surface-1) 95%, var(--surface-2) 5%);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.composerLabel {
+  font-size: 0.75rem;
+  color: var(--text-3);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.composerInput {
+  width: 100%;
+  min-height: 3.8rem;
+  resize: vertical;
+  max-height: 9.8rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
+  color: var(--text-1);
+  font: inherit;
+  line-height: 1.4;
+  padding: 0.58rem 0.64rem;
+  transition:
+    border-color var(--transition-fast, 140ms) var(--easing-standard, ease),
+    box-shadow var(--transition-fast, 140ms) var(--easing-standard, ease),
+    transform var(--transition-fast, 140ms) var(--easing-bounce, ease);
+}
+
+.composerInput:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 24%, transparent);
+  transform: translateY(-1px);
+}
+
+.composerFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+}
+
+.hint::before {
+  content: "";
+  width: 0.52rem;
+  height: 0.52rem;
+  border-radius: 999px;
+  background: var(--warning);
+  animation: hintPulse 1800ms ease infinite;
+}
+
+.sendButton {
+  border: 1px solid color-mix(in oklab, var(--primary) 48%, transparent);
+  border-radius: 999px;
+  background: linear-gradient(
+    140deg,
+    var(--primary),
+    color-mix(in oklab, var(--primary-active) 68%, var(--primary))
+  );
+  color: var(--primary-fg, #fff);
+  min-width: 6.2rem;
+  min-height: 2.15rem;
+  font-size: 0.8rem;
+  font-weight: var(--font-weight-semibold, 600);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
+    filter var(--transition-fast, 140ms) var(--easing-standard, ease),
+    opacity var(--transition-fast, 140ms) var(--easing-standard, ease);
+}
+
+.sendButton:hover:not(:disabled),
+.sendButton:focus-visible:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.sendButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@supports (position-try: flip-block) {
+  .popupRoot {
+    position-try: flip-block, flip-inline;
+  }
+}
+
+@supports (animation-timeline: auto) {
+  @starting-style {
+    .popupRoot[data-open="true"] {
+      opacity: 0;
+      transform: translateY(1.2rem) scale(0.92);
+    }
+  }
+}
+
+@keyframes popupLift {
+  from {
+    opacity: 0;
+    transform: translateY(1.2rem) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes messageReveal {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes hintPulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+}
+
+@media (max-width: 700px) {
+  .popupRoot {
+    width: min(24rem, calc(100vw - 1rem));
+    right: 0.5rem;
+    bottom: calc(var(--assistant-block-offset) + var(--assistant-trigger-size) + 0.6rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .botMessage,
+  .hint::before,
+  .popupRoot {
+    animation: none;
+  }
+}
