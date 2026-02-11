@@ -76,36 +76,138 @@ export default class MockSeedService {
     }
 
     const now = new Date().toISOString();
+
+    // Define engagement profiles for realistic variation
+    const engagementProfiles = [
+      {
+        name: 'high-engagement',
+        weight: 0.2, // 20% of clients
+        whatsappRange: { min: 80, max: 200 },
+        emailRange: { min: 60, max: 150 },
+        deliveryRate: { min: 0.9, max: 0.98 },
+        readRate: { min: 0.6, max: 0.85 },
+        replyRate: { min: 0.4, max: 0.7 },
+        openRate: { min: 0.5, max: 0.75 },
+        clickRate: { min: 0.3, max: 0.5 },
+        emailReplyRate: { min: 0.25, max: 0.45 },
+      },
+      {
+        name: 'medium-engagement',
+        weight: 0.35, // 35% of clients
+        whatsappRange: { min: 30, max: 80 },
+        emailRange: { min: 20, max: 60 },
+        deliveryRate: { min: 0.85, max: 0.95 },
+        readRate: { min: 0.3, max: 0.6 },
+        replyRate: { min: 0.15, max: 0.4 },
+        openRate: { min: 0.25, max: 0.5 },
+        clickRate: { min: 0.1, max: 0.3 },
+        emailReplyRate: { min: 0.1, max: 0.25 },
+      },
+      {
+        name: 'low-engagement',
+        weight: 0.3, // 30% of clients
+        whatsappRange: { min: 5, max: 30 },
+        emailRange: { min: 5, max: 20 },
+        deliveryRate: { min: 0.75, max: 0.9 },
+        readRate: { min: 0.1, max: 0.3 },
+        replyRate: { min: 0.05, max: 0.2 },
+        openRate: { min: 0.1, max: 0.3 },
+        clickRate: { min: 0.05, max: 0.15 },
+        emailReplyRate: { min: 0.05, max: 0.15 },
+      },
+      {
+        name: 'inactive',
+        weight: 0.15, // 15% of clients
+        whatsappRange: { min: 0, max: 5 },
+        emailRange: { min: 0, max: 5 },
+        deliveryRate: { min: 0.6, max: 0.8 },
+        readRate: { min: 0, max: 0.15 },
+        replyRate: { min: 0, max: 0.1 },
+        openRate: { min: 0, max: 0.2 },
+        clickRate: { min: 0, max: 0.1 },
+        emailReplyRate: { min: 0, max: 0.1 },
+      },
+    ];
+
+    // Helper function to select profile based on weighted probability
+    const selectProfile = () => {
+      const rand = Math.random();
+      let cumulative = 0;
+      for (const profile of engagementProfiles) {
+        cumulative += profile.weight;
+        if (rand <= cumulative) return profile;
+      }
+      return engagementProfiles[0];
+    };
+
+    const preferredContacts: Array<
+      'email' | 'phone' | 'whatsapp' | 'cellphone'
+    > = ['email', 'phone', 'whatsapp', 'cellphone'];
+
     for (let i = 0; i < 15; i++) {
+      const profile = selectProfile();
       const name = faker.company.name();
       const email = faker.internet.email();
       const cellPhone = faker.phone.number();
-      const hasWhatsapp = faker.datatype.boolean(0.7); // 70% have WhatsApp
-      const preferredContacts: Array<
-        'email' | 'phone' | 'whatsapp' | 'cellphone'
-      > = ['email', 'phone', 'whatsapp', 'cellphone'];
-      const whatsappSent = faker.number.int({ min: 0, max: 120 });
-      const whatsappRead = Math.min(
-        whatsappSent,
-        faker.number.int({ min: 0, max: whatsappSent }),
-      );
-      const whatsappReplied = Math.min(
-        whatsappRead,
-        faker.number.int({ min: 0, max: whatsappRead }),
-      );
-      const emailSent = faker.number.int({ min: 0, max: 80 });
-      const emailOpened = Math.min(
-        emailSent,
-        faker.number.int({ min: 0, max: emailSent }),
-      );
-      const emailClicked = Math.min(
-        emailOpened,
-        faker.number.int({ min: 0, max: emailOpened }),
-      );
-      const emailReplied = Math.min(
-        emailOpened,
-        faker.number.int({ min: 0, max: emailOpened }),
-      );
+      const hasWhatsapp =
+        profile.name !== 'inactive'
+          ? faker.datatype.boolean(0.8)
+          : faker.datatype.boolean(0.3); // inactive clients less likely to have WhatsApp
+
+      // WhatsApp metrics with realistic progression
+      const whatsappSent = faker.number.int(profile.whatsappRange);
+      const deliveryRate = faker.number.float({
+        min: profile.deliveryRate.min,
+        max: profile.deliveryRate.max,
+        fractionDigits: 2,
+      });
+      const readRateOfDelivered = faker.number.float({
+        min: profile.readRate.min,
+        max: profile.readRate.max,
+        fractionDigits: 2,
+      });
+      const replyRateOfRead = faker.number.float({
+        min: profile.replyRate.min,
+        max: profile.replyRate.max,
+        fractionDigits: 2,
+      });
+
+      const whatsappDelivered = Math.floor(whatsappSent * deliveryRate);
+      const whatsappRead = Math.floor(whatsappDelivered * readRateOfDelivered);
+      const whatsappReplied = Math.floor(whatsappRead * replyRateOfRead);
+
+      // Email metrics with realistic progression
+      const emailSent = faker.number.int(profile.emailRange);
+      const openRate = faker.number.float({
+        min: profile.openRate.min,
+        max: profile.openRate.max,
+        fractionDigits: 2,
+      });
+      const clickRateOfOpened = faker.number.float({
+        min: profile.clickRate.min,
+        max: profile.clickRate.max,
+        fractionDigits: 2,
+      });
+      const replyRateOfOpened = faker.number.float({
+        min: profile.emailReplyRate.min,
+        max: profile.emailReplyRate.max,
+        fractionDigits: 2,
+      });
+
+      const emailOpened = Math.floor(emailSent * openRate);
+      const emailClicked = Math.floor(emailOpened * clickRateOfOpened);
+      const emailReplied = Math.floor(emailOpened * replyRateOfOpened);
+
+      // Determine preferred contact based on engagement
+      let preferredContact: (typeof preferredContacts)[number];
+      if (profile.name === 'inactive') {
+        preferredContact = 'email';
+      } else if (whatsappSent > emailSent && hasWhatsapp) {
+        preferredContact = 'whatsapp';
+      } else {
+        preferredContact =
+          preferredContacts[faker.number.int({ min: 0, max: 3 })];
+      }
 
       const client = this.clientsRepo.create({
         id: crypto.randomUUID(),
@@ -115,11 +217,10 @@ export default class MockSeedService {
         cellPhone,
         whatsappNumber: hasWhatsapp ? cellPhone : undefined,
         hasWhatsapp,
-        preferredContact:
-          preferredContacts[faker.number.int({ min: 0, max: 3 })],
+        preferredContact,
         whatsappAnalytics: {
           sent: whatsappSent,
-          delivered: whatsappRead,
+          delivered: whatsappDelivered,
           read: whatsappRead,
           replied: whatsappReplied,
           lastMessageAt:
@@ -370,12 +471,63 @@ export default class MockSeedService {
       },
     };
 
+    // Create client project distribution for realistic variation
+    // Some clients get multiple projects, some get one, some get none
+    const clientProjectDistribution: Map<string, number> = new Map();
+    const clientIds = clients.map((c) => c.id);
+
+    // Assign project counts to clients with realistic distribution
+    // 20% get 0 projects (new/inactive clients)
+    // 40% get 1 project
+    // 25% get 2 projects
+    // 10% get 3 projects
+    // 5% get 4+ projects (high-value clients)
+    const distributions = [
+      { count: 0, weight: 0.2 },
+      { count: 1, weight: 0.4 },
+      { count: 2, weight: 0.25 },
+      { count: 3, weight: 0.1 },
+      { count: 4, weight: 0.05 },
+    ];
+
+    for (const clientId of clientIds) {
+      const rand = Math.random();
+      let cumulative = 0;
+      let projectCount = 1; // default
+      for (const dist of distributions) {
+        cumulative += dist.weight;
+        if (rand <= cumulative) {
+          projectCount = dist.count;
+          break;
+        }
+      }
+      clientProjectDistribution.set(clientId, projectCount);
+    }
+
+    // Flatten the distribution to an array of client IDs, repeated by count
+    const clientIdsForProjects: string[] = [];
+    for (const [clientId, count] of clientProjectDistribution.entries()) {
+      for (let i = 0; i < count; i++) {
+        clientIdsForProjects.push(clientId);
+      }
+    }
+
+    // Shuffle the array for randomness
+    for (let i = clientIdsForProjects.length - 1; i > 0; i--) {
+      const j = faker.number.int({ min: 0, max: i });
+      [clientIdsForProjects[i], clientIdsForProjects[j]] = [
+        clientIdsForProjects[j],
+        clientIdsForProjects[i],
+      ];
+    }
+
     for (const name of names) {
       const exists = await this.projectsRepo.findOne({
         where: { name } as any,
       });
       let row: ProjectEntity;
       const config = projectConfigs[name] || { status: 'active' };
+      const clientId = clientIdsForProjects.shift(); // Take from distributed list
       if (exists) {
         // Update ownerEmail if missing
         if (!(exists as any).ownerEmail) {
@@ -383,6 +535,7 @@ export default class MockSeedService {
             exists._id as any,
             {
               ownerEmail: pick(),
+              clientId: clientId,
               updatedAt: now,
             } as any,
           );
@@ -403,7 +556,7 @@ export default class MockSeedService {
           ownerEmail: pick(),
           createdAt: now,
           updatedAt: now,
-          clientId: pickClient()?.id,
+          clientId: clientId,
         } as any);
       }
 

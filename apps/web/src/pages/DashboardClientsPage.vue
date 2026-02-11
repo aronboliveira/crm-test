@@ -373,13 +373,25 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                 }}</span>
               </button>
             </th>
-            <th role="columnheader" class="text-center" aria-label="Engajamento WhatsApp">
+            <th
+              role="columnheader"
+              class="text-center"
+              aria-label="Engajamento WhatsApp"
+            >
               Engaj. WhatsApp
             </th>
-            <th role="columnheader" class="text-center" aria-label="Engajamento Email">
+            <th
+              role="columnheader"
+              class="text-center"
+              aria-label="Engajamento Email"
+            >
               Engaj. E-mail
             </th>
-            <th role="columnheader" class="text-center" aria-label="Projetos do cliente">
+            <th
+              role="columnheader"
+              class="text-center"
+              aria-label="Projetos do cliente"
+            >
               Projetos
             </th>
             <th
@@ -492,14 +504,17 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                   class="score-chip score-chip--whatsapp"
                   :class="{
                     'score-chip--low': calcWhatsappScore(c) < 30,
-                    'score-chip--medium': calcWhatsappScore(c) >= 30 && calcWhatsappScore(c) < 60,
+                    'score-chip--medium':
+                      calcWhatsappScore(c) >= 30 && calcWhatsappScore(c) < 60,
                     'score-chip--high': calcWhatsappScore(c) >= 60,
                   }"
                   :title="`Ver detalhes de engajamento WhatsApp (Score: ${calcWhatsappScore(c)}%)`"
                   @click="handleShowWhatsappEngagement(c)"
                 >
                   <span class="score-chip__icon">💬</span>
-                  <span class="score-chip__value">{{ calcWhatsappScore(c) }}%</span>
+                  <span class="score-chip__value"
+                    >{{ calcWhatsappScore(c) }}%</span
+                  >
                 </button>
               </td>
               <td
@@ -511,14 +526,17 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                   class="score-chip score-chip--email"
                   :class="{
                     'score-chip--low': calcEmailScore(c) < 30,
-                    'score-chip--medium': calcEmailScore(c) >= 30 && calcEmailScore(c) < 60,
+                    'score-chip--medium':
+                      calcEmailScore(c) >= 30 && calcEmailScore(c) < 60,
                     'score-chip--high': calcEmailScore(c) >= 60,
                   }"
                   :title="`Ver detalhes de engajamento E-mail (Score: ${calcEmailScore(c)}%)`"
                   @click="handleShowEmailEngagement(c)"
                 >
                   <span class="score-chip__icon">📧</span>
-                  <span class="score-chip__value">{{ calcEmailScore(c) }}%</span>
+                  <span class="score-chip__value"
+                    >{{ calcEmailScore(c) }}%</span
+                  >
                 </button>
               </td>
               <td
@@ -536,7 +554,9 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                   @click="handleCheckProjects(c)"
                 >
                   <span class="score-chip__icon">📁</span>
-                  <span class="score-chip__value">{{ getClientProjectCount(c.id) }}</span>
+                  <span class="score-chip__value">{{
+                    getClientProjectCount(c.id)
+                  }}</span>
                 </button>
               </td>
               <td

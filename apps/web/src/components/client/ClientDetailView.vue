@@ -1205,9 +1205,23 @@ const emailTrendBars = computed(() => {
   background: #f0fdf4;
 }
 
+@media (prefers-color-scheme: dark) {
+  .analytics-card--whatsapp {
+    border-color: #166534;
+    background: #052e16;
+  }
+}
+
 .analytics-card--email {
   border-color: #bfdbfe;
   background: #eff6ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .analytics-card--email {
+    border-color: #1e40af;
+    background: #082f49;
+  }
 }
 
 .analytics-header {

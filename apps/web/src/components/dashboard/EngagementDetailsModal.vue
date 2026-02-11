@@ -186,7 +186,11 @@ const calcRate = (value: number, total: number): string => {
     <div class="engagement-modal__footer">
       <p class="engagement-modal__note">
         O score é calculado com base nas taxas de
-        {{ isWhatsApp ? "entrega, leitura e resposta" : "abertura, cliques e resposta" }}.
+        {{
+          isWhatsApp
+            ? "entrega, leitura e resposta"
+            : "abertura, cliques e resposta"
+        }}.
       </p>
     </div>
   </div>
