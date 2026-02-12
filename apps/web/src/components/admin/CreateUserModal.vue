@@ -356,7 +356,4 @@ const {
   }
 }
 
-@supports (position-try: flip-block) {
-  @position-try flip-block;
-}
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useUserDetailsDrawer } from "../../assets/scripts/admin/useUserDetailsDrawer";
+import SafeJsonService from "../../services/SafeJsonService";
 
 const props = defineProps<{
   open: boolean;
@@ -21,6 +22,9 @@ const {
   forceReset,
   DateMapper,
 } = useUserDetailsDrawer(props, emit);
+
+const formatAuditMeta = (meta: unknown): string =>
+  SafeJsonService.stringify(meta, "-");
 </script>
 
 <template>
@@ -112,7 +116,7 @@ const {
                   </td>
                   <td class="py-2 pr-3">
                     <code class="opacity-80" style="word-break: break-word">{{
-                      e.meta ? JSON.stringify(e.meta) : "-"
+                      e.meta ? formatAuditMeta(e.meta) : "-"
                     }}</code>
                   </td>
                 </tr>
@@ -225,7 +229,4 @@ const {
   }
 }
 
-@supports (position-try: flip-block) {
-  @position-try flip-block;
-}
 </style>

@@ -1,6 +1,8 @@
 import { Entity, Column, ObjectIdColumn, Index } from 'typeorm';
 import { ObjectId } from 'mongodb';
 
+export type ClientType = 'pessoa' | 'empresa';
+
 @Entity('clients')
 export default class ClientEntity {
   @ObjectIdColumn()
@@ -12,6 +14,9 @@ export default class ClientEntity {
   @Index()
   @Column()
   name!: string;
+
+  @Column()
+  type?: ClientType;
 
   @Column()
   email?: string;
@@ -51,6 +56,12 @@ export default class ClientEntity {
 
   @Column()
   company?: string;
+
+  @Column()
+  cnpj?: string;
+
+  @Column()
+  cep?: string;
 
   @Column()
   notes?: string;

@@ -19,31 +19,83 @@ const busy = ref(false);
 const error = ref("");
 
 const name = ref(props.client?.name ?? "");
+const clientType = ref<"pessoa" | "empresa">(props.client?.type ?? "pessoa");
 const company = ref(props.client?.company ?? "");
 const email = ref(props.client?.email ?? "");
 const phone = ref(props.client?.phone ?? "");
 const cellPhone = ref(props.client?.cellPhone ?? "");
 const whatsappNumber = ref(props.client?.whatsappNumber ?? "");
+const cnpj = ref(props.client?.cnpj ?? "");
+const cep = ref(props.client?.cep ?? "");
 const hasWhatsapp = ref(props.client?.hasWhatsapp ?? false);
 const preferredContact = ref<"email" | "phone" | "whatsapp" | "cellphone">(
   props.client?.preferredContact ?? "email",
 );
 const notes = ref(props.client?.notes ?? "");
 
+const CNPJ_PATTERN = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
+const CEP_PATTERN = /^\d{5}-\d{3}$/;
+
+const normalizeCnpj = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  if (!digits) return "";
+  if (digits.length < 14) return value;
+  return digits.replace(
+    /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+    "$1.$2.$3/$4-$5",
+  );
+};
+
+const normalizeCep = (value: string): string => {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  if (!digits) return "";
+  if (digits.length < 8) return value;
+  return digits.replace(/^(\d{5})(\d{3})$/, "$1-$2");
+};
+
+const isCompanyType = computed(() => clientType.value === "empresa");
+
 const emailValid = computed(() => {
   if (!email.value.trim()) return true;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim());
 });
 
+const cnpjValid = computed(() => {
+  if (!isCompanyType.value) return true;
+  return CNPJ_PATTERN.test(cnpj.value.trim());
+});
+
+const cepValid = computed(() => {
+  if (!isCompanyType.value) return true;
+  return CEP_PATTERN.test(cep.value.trim());
+});
+
 const formValid = computed(() => {
-  return !!name.value.trim() && emailValid.value;
+  return (
+    !!name.value.trim() &&
+    emailValid.value &&
+    (!isCompanyType.value || (cnpjValid.value && cepValid.value))
+  );
 });
 
 const submit = async () => {
   if (!formValid.value) {
-    error.value = !name.value.trim()
-      ? "Nome é obrigatório."
-      : "E-mail inválido.";
+    if (!name.value.trim()) {
+      error.value = "Nome é obrigatório.";
+      return;
+    }
+    if (!emailValid.value) {
+      error.value = "E-mail inválido.";
+      return;
+    }
+    if (isCompanyType.value && !cnpjValid.value) {
+      error.value = "CNPJ inválido.";
+      return;
+    }
+    if (isCompanyType.value && !cepValid.value) {
+      error.value = "CEP inválido.";
+      return;
+    }
     return;
   }
 
@@ -52,11 +104,14 @@ const submit = async () => {
   try {
     const payload = {
       name: name.value.trim(),
+      type: clientType.value,
       company: company.value.trim() || undefined,
       email: email.value.trim() || undefined,
       phone: phone.value.trim() || undefined,
       cellPhone: cellPhone.value.trim() || undefined,
       whatsappNumber: whatsappNumber.value.trim() || undefined,
+      cnpj: isCompanyType.value ? normalizeCnpj(cnpj.value.trim()) : undefined,
+      cep: isCompanyType.value ? normalizeCep(cep.value.trim()) : undefined,
       hasWhatsapp: hasWhatsapp.value,
       preferredContact: preferredContact.value,
       notes: notes.value.trim() || undefined,
@@ -72,11 +127,14 @@ const submit = async () => {
     const out: ClientRow = {
       id: props.client?.id ?? crypto.randomUUID(),
       name: payload.name,
+      type: payload.type,
       company: payload.company,
       email: payload.email,
       phone: payload.phone,
       cellPhone: payload.cellPhone,
       whatsappNumber: payload.whatsappNumber,
+      cnpj: payload.cnpj,
+      cep: payload.cep,
       hasWhatsapp: payload.hasWhatsapp,
       preferredContact: payload.preferredContact,
       notes: payload.notes,
@@ -120,6 +178,19 @@ const submit = async () => {
 
     <div class="form-row">
       <div class="form-field">
+        <label class="form-label" for="client-type">Tipo</label>
+        <select
+          id="client-type"
+          v-model="clientType"
+          class="form-input"
+          :disabled="busy"
+          required
+        >
+          <option value="pessoa">Pessoa</option>
+          <option value="empresa">Empresa</option>
+        </select>
+      </div>
+      <div class="form-field">
         <label class="form-label" for="client-company">Empresa</label>
         <input
           id="client-company"
@@ -130,6 +201,50 @@ const submit = async () => {
           :disabled="busy"
         />
       </div>
+    </div>
+
+    <div v-if="isCompanyType" class="form-row">
+      <div class="form-field">
+        <label class="form-label" for="client-cnpj">CNPJ</label>
+        <input
+          id="client-cnpj"
+          v-model="cnpj"
+          class="form-input"
+          type="text"
+          placeholder="12.345.678/0001-90"
+          pattern="\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}"
+          :disabled="busy"
+          :required="isCompanyType"
+          autocomplete="off"
+          inputmode="numeric"
+          @blur="cnpj = normalizeCnpj(cnpj)"
+        />
+        <small v-if="!cnpjValid" class="form-hint form-hint--error">
+          Informe um CNPJ no formato 00.000.000/0000-00.
+        </small>
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="client-cep">CEP</label>
+        <input
+          id="client-cep"
+          v-model="cep"
+          class="form-input"
+          type="text"
+          placeholder="00000-000"
+          pattern="\d{5}-\d{3}"
+          :disabled="busy"
+          :required="isCompanyType"
+          autocomplete="postal-code"
+          inputmode="numeric"
+          @blur="cep = normalizeCep(cep)"
+        />
+        <small v-if="!cepValid" class="form-hint form-hint--error">
+          Informe um CEP no formato 00000-000.
+        </small>
+      </div>
+    </div>
+
+    <div class="form-row">
       <div class="form-field">
         <label class="form-label" for="client-phone">Telefone Fixo</label>
         <input
@@ -141,9 +256,6 @@ const submit = async () => {
           :disabled="busy"
         />
       </div>
-    </div>
-
-    <div class="form-row">
       <div class="form-field">
         <label class="form-label" for="client-cellphone">Celular</label>
         <input

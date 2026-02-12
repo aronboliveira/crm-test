@@ -15,10 +15,8 @@ FROM base AS development
 
 WORKDIR /app
 
-# Install ALL dependencies (including devDependencies for nest CLI)
-RUN npm ci && \
-    cd apps/api && \
-    npm ci
+# Install ALL workspace dependencies (including devDependencies for nest CLI)
+RUN npm ci
 
 # Copy all source files
 COPY . .

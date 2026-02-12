@@ -39,6 +39,53 @@ else
 fi
 
 # ──────────────────────────────────────────────────────────
+#  Cleanup stale containers and docker-proxy processes
+#  This handles cases where a previous run was interrupted
+# ──────────────────────────────────────────────────────────
+cleanup_stale_resources() {
+    echo -e "${YELLOW}Cleaning up stale resources...${NC}"
+    
+    # Stop and remove any crm containers that are stuck in "Created" state
+    for container in crm-api crm-web crm-redis crm-mongodb; do
+        local state
+        state=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "none")
+        if [ "$state" = "created" ] || [ "$state" = "exited" ] || [ "$state" = "dead" ]; then
+            docker rm -f "$container" &>/dev/null || true
+        fi
+    done
+    
+    # Kill any orphaned docker-proxy processes holding our ports
+    for port in 3000 5173 6379 27017; do
+        local pids
+        pids=$(ss -tlnp 2>/dev/null | grep ":$port" | grep -oP 'pid=\K[0-9]+' | sort -u || true)
+        if [ -n "$pids" ]; then
+            # Check if any running CRM container is using this port
+            local in_use=false
+            for container in crm-api crm-web crm-redis crm-mongodb; do
+                if docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null | grep -q "running"; then
+                    in_use=true
+                    break
+                fi
+            done
+            # Only kill if no CRM container is running
+            if ! $in_use; then
+                for pid in $pids; do
+                    local cmd
+                    cmd=$(ps -p "$pid" -o comm= 2>/dev/null || true)
+                    if [ "$cmd" = "docker-proxy" ]; then
+                        kill "$pid" 2>/dev/null || true
+                    fi
+                done
+            fi
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Cleanup complete${NC}"
+}
+
+cleanup_stale_resources
+
+# ──────────────────────────────────────────────────────────
 #  Dynamic port helper
 #  find_available_port <base_port> <max_attempts>
 #  Prints the first port starting at base_port that is not
@@ -192,7 +239,27 @@ echo ""
 #  3. Start API and Web (depend on the above)
 # ──────────────────────────────────────────────────────────
 echo -e "${YELLOW}Building and starting API & Web...${NC}"
-$DOCKER_COMPOSE up -d --build api web 2>&1 | grep -v "^[[:space:]]*$" || true
+
+# Find available ports for API and Web
+if docker ps --filter "name=crm-api" --filter "status=running" | grep -q crm-api; then
+    API_HOST_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "3000/tcp") 0).HostPort}}' crm-api 2>/dev/null || echo "3000")
+else
+    API_HOST_PORT=$(find_available_port 3000 10)
+fi
+export API_HOST_PORT
+echo -e "${CYAN}  → API will use host port $API_HOST_PORT${NC}"
+
+if docker ps --filter "name=crm-web" --filter "status=running" | grep -q crm-web; then
+    WEB_HOST_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "5173/tcp") 0).HostPort}}' crm-web 2>/dev/null || echo "5173")
+else
+    WEB_HOST_PORT=$(find_available_port 5173 10)
+fi
+export WEB_HOST_PORT
+echo -e "${CYAN}  → Web will use host port $WEB_HOST_PORT${NC}"
+
+# Use --no-recreate to avoid recreating already-running mongodb/redis services
+# which would cause port conflicts when the dynamic port env vars aren't preserved
+$DOCKER_COMPOSE up -d --build --no-recreate api web 2>&1 | grep -v "^[[:space:]]*$" || true
 
 echo ""
 echo -e "${YELLOW}Waiting for API container to start...${NC}"
@@ -276,8 +343,8 @@ echo -e "${GREEN}  🚀 Application is running!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "${BLUE}Services:${NC}"
-echo -e "  ${GREEN}Frontend:${NC}  http://localhost:5173"
-echo -e "  ${GREEN}Backend API:${NC} http://localhost:3000"
+echo -e "  ${GREEN}Frontend:${NC}  http://localhost:${WEB_HOST_PORT:-5173}"
+echo -e "  ${GREEN}Backend API:${NC} http://localhost:${API_HOST_PORT:-3000}"
 echo -e "  ${GREEN}MongoDB:${NC}   mongodb://localhost:${MONGO_HOST_PORT:-27017}"
 echo -e "  ${GREEN}Redis:${NC}     localhost:${REDIS_HOST_PORT:-6379}"
 echo ""
@@ -290,5 +357,5 @@ echo -e "  Stop services:    ${YELLOW}${DOCKER_COMPOSE} down${NC}"
 echo -e "  Restart services: ${YELLOW}${DOCKER_COMPOSE} restart${NC}"
 echo -e "  Remove volumes:   ${YELLOW}${DOCKER_COMPOSE} down -v${NC}"
 echo ""
-echo -e "${GREEN}Open your browser at: http://localhost:5173${NC}"
+echo -e "${GREEN}Open your browser at: http://localhost:${WEB_HOST_PORT:-5173}${NC}"
 echo ""

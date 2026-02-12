@@ -8,6 +8,28 @@ import AlertService from "../services/AlertService";
 import StorageService from "../services/StorageService";
 import type { TaskRow } from "../pinia/types/tasks.types";
 import type { FilterState } from "../components/ui/AdvancedFilter.vue";
+import {
+  TASKS_DEFAULT_VIEW_MODE,
+  TASKS_EMPTY_DATE_LABEL,
+  TASKS_EMPTY_VALUE_LABEL,
+  TASKS_VIEW_MODE_STORAGE_KEY,
+  TASK_FILTER_DEFAULTS,
+  TASK_PRIORITY_OPTIONS,
+  TASK_STATUS_LABEL_BY_ID,
+  TASK_STATUS_OPTIONS,
+  type TaskViewMode,
+} from "../utils/constants/dashboard-tasks.constants";
+import {
+  DASHBOARD_TASKS_EXPORT_CENTERED_COLUMNS,
+  DASHBOARD_TASKS_EXPORT_COLUMNS,
+  DASHBOARD_TASKS_EXPORT_COLUMN_KEYS,
+  DASHBOARD_TASKS_EXPORT_COLUMN_WIDTHS,
+  DashboardTasksCsvBlueprint,
+  SpreadsheetExporter,
+  type DashboardTasksExportColumnKey,
+  type DashboardTasksExportRow,
+  type SpreadsheetExportFormat,
+} from "../utils/export";
 
 const TaskFormModal = defineAsyncComponent(
   () => import("../components/forms/TaskFormModal.vue"),
@@ -29,6 +51,10 @@ const AttachmentsPanel = defineAsyncComponent(
   () => import("../components/ui/AttachmentsPanel.vue"),
 );
 
+const DashboardTableExportModal = defineAsyncComponent(
+  () => import("../components/dashboard/DashboardTableExportModal.vue"),
+);
+
 const TaskDetailPanel = defineAsyncComponent(
   () => import("../components/tasks/TaskDetailPanel.vue"),
 );
@@ -45,14 +71,14 @@ const { rows, q, loading, error, nextCursor, load, more } =
 
 /* ── View mode toggle (table / kanban) ──────────────── */
 
-type ViewMode = "table" | "kanban";
-
-const viewMode = ref<ViewMode>(
-  (StorageService.local.getStr("tasks_view_mode", "table") as ViewMode) ||
-    "table",
+const viewMode = ref<TaskViewMode>(
+  (StorageService.local.getStr(
+    TASKS_VIEW_MODE_STORAGE_KEY,
+    TASKS_DEFAULT_VIEW_MODE,
+  ) as TaskViewMode) || TASKS_DEFAULT_VIEW_MODE,
 );
 
-watch(viewMode, (v) => StorageService.local.setStr("tasks_view_mode", v));
+watch(viewMode, (v) => StorageService.local.setStr(TASKS_VIEW_MODE_STORAGE_KEY, v));
 
 /* ── Query param taskId → detail panel ──────────────── */
 
@@ -62,45 +88,153 @@ const hasTaskDetail = computed(
 
 /* ── Filtering ──────────────────────────────────────── */
 
-const filter = ref<FilterState>({
-  status: "",
-  priority: "",
-  assignee: "",
-  tag: "",
-  dueBefore: "",
-  dueAfter: "",
-});
+const createDefaultTaskFilter = (): FilterState => ({ ...TASK_FILTER_DEFAULTS });
+
+const filter = ref<FilterState>(createDefaultTaskFilter());
 
 const selectedTask = ref<TaskRow | null>(null);
 
+const safeRows = computed(() => (rows.value || []).filter(Boolean) as TaskRow[]);
+
+const normalizedFilter = computed<FilterState>(() => {
+  const current = filter.value;
+  return {
+    ...createDefaultTaskFilter(),
+    ...current,
+    assignee: (current.assignee || "").trim(),
+    tag: (current.tag || "").trim(),
+  };
+});
+
 const filteredRows = computed(() => {
-  let out = rows.value;
-  const f = filter.value;
-  if (f.status) out = out.filter((t) => t?.status === f.status);
-  if (f.priority) out = out.filter((t) => String(t?.priority) === f.priority);
+  let out = safeRows.value;
+  const f = normalizedFilter.value;
+  if (f.status) out = out.filter((t) => t.status === f.status);
+  if (f.priority) out = out.filter((t) => String(t.priority) === f.priority);
   if (f.assignee)
     out = out.filter((t) =>
-      (t?.assigneeEmail || "").toLowerCase().includes(f.assignee.toLowerCase()),
+      (t.assigneeEmail || "").toLowerCase().includes(f.assignee.toLowerCase()),
     );
-  if (f.tag) out = out.filter((t) => (t as any)?.tags?.includes(f.tag));
-  if (f.dueAfter) out = out.filter((t) => (t?.dueAt || "") >= f.dueAfter);
-  if (f.dueBefore) out = out.filter((t) => (t?.dueAt || "") <= f.dueBefore);
+  if (f.tag) out = out.filter((t) => t.tags?.includes(f.tag));
+  if (f.dueAfter) out = out.filter((t) => (t.dueAt || "") >= f.dueAfter);
+  if (f.dueBefore) out = out.filter((t) => (t.dueAt || "") <= f.dueBefore);
   return out;
 });
 
 const onFilter = (s: FilterState) => {
-  filter.value = s;
+  filter.value = { ...createDefaultTaskFilter(), ...s };
 };
 
 const onReset = () => {
-  filter.value = {
-    status: "",
-    priority: "",
-    assignee: "",
-    tag: "",
-    dueBefore: "",
-    dueAfter: "",
-  };
+  filter.value = createDefaultTaskFilter();
+};
+
+type DashboardTableExportDialogResult = {
+  formats: SpreadsheetExportFormat[];
+  columnKeys: string[];
+};
+
+const DEFAULT_EXPORT_COLUMN_KEYS = [
+  ...DASHBOARD_TASKS_EXPORT_COLUMN_KEYS,
+] as DashboardTasksExportColumnKey[];
+
+const tasksExporter = new SpreadsheetExporter<
+  DashboardTasksExportRow,
+  DashboardTasksExportColumnKey,
+  DashboardTasksCsvBlueprint
+>({
+  fileNamePrefix: "tarefas-dashboard",
+  sheetName: "Tarefas",
+  defaultColumnKeys: DEFAULT_EXPORT_COLUMN_KEYS,
+  buildBlueprint: (columnKeys) =>
+    new DashboardTasksCsvBlueprint({ columns: columnKeys }),
+  columnWidthByKey: DASHBOARD_TASKS_EXPORT_COLUMN_WIDTHS,
+  centeredColumnKeys: DASHBOARD_TASKS_EXPORT_CENTERED_COLUMNS,
+  resolveCellStyle: ({ columnKey, record }) => {
+    if (columnKey === "status" && record.status === "Bloqueado") {
+      return {
+        fillColor: "FFFEE2E2",
+        fontColor: "FFB91C1C",
+        bold: true,
+        align: "center",
+      };
+    }
+    if (columnKey === "prioridade" && ["P1", "P2"].includes(record.prioridade)) {
+      return {
+        fillColor: "FFFFF7ED",
+        fontColor: "FF9A3412",
+        bold: true,
+        align: "center",
+      };
+    }
+    return null;
+  },
+});
+
+const mapTaskStatusLabel = (status: string): string => {
+  return (TASK_STATUS_LABEL_BY_ID[status] ?? status) || TASKS_EMPTY_VALUE_LABEL;
+};
+
+const toTaskPriorityLabel = (priority: number): string => `P${priority || 0}`;
+const toDateLabel = (iso: string | null | undefined): string =>
+  iso ? iso.slice(0, 10) : TASKS_EMPTY_DATE_LABEL;
+
+const taskExportRows = computed<DashboardTasksExportRow[]>(() =>
+  filteredRows.value.map((task) => ({
+    titulo: task.title || TASKS_EMPTY_VALUE_LABEL,
+    projeto: task.projectId || TASKS_EMPTY_VALUE_LABEL,
+    responsavel: task.assigneeEmail || TASKS_EMPTY_VALUE_LABEL,
+    status: mapTaskStatusLabel(task.status),
+    prioridade: toTaskPriorityLabel(task.priority),
+    tags: task.tags?.length ? task.tags.join(", ") : TASKS_EMPTY_VALUE_LABEL,
+    entrega: toDateLabel(task.dueAt),
+  })),
+);
+
+const openExportDialog =
+  async (): Promise<DashboardTableExportDialogResult | null> =>
+    ModalService.open<DashboardTableExportDialogResult>(
+      DashboardTableExportModal,
+      {
+        title: "Exportar Tarefas",
+        size: "md",
+        data: {
+          totalRows: filteredRows.value.length,
+          entityLabel: "tarefa(s)",
+          columnOptions: DASHBOARD_TASKS_EXPORT_COLUMNS,
+          defaultColumnKeys: [...DEFAULT_EXPORT_COLUMN_KEYS],
+          defaultFormats: ["csv", "xlsx"] as SpreadsheetExportFormat[],
+        },
+      },
+    );
+
+const handleOpenExportModal = async (): Promise<void> => {
+  try {
+    const selection = await openExportDialog();
+    if (!selection) return;
+
+    const records = taskExportRows.value;
+    if (!records.length) {
+      await AlertService.error(
+        "Exportação",
+        "Não há tarefas para exportar com os filtros selecionados.",
+      );
+      return;
+    }
+
+    const exportedFormats = await tasksExporter.export(records, {
+      formats: selection.formats,
+      columnKeys: selection.columnKeys as DashboardTasksExportColumnKey[],
+    });
+
+    await AlertService.success(
+      "Exportação concluída",
+      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
+    );
+  } catch (caughtError) {
+    console.error("[DashboardTasksPage] Export failed:", caughtError);
+    await AlertService.error("Erro ao exportar", caughtError);
+  }
 };
 
 /* ── CRUD actions ───────────────────────────────────── */
@@ -149,20 +283,11 @@ const selectAndOpenDetail = (task: TaskRow) => {
   });
 };
 
-const taskStatusOptions = [
-  { label: "A Fazer", value: "todo" },
-  { label: "Em Progresso", value: "doing" },
-  { label: "Concluído", value: "done" },
-  { label: "Bloqueado", value: "blocked" },
-];
+const getTaskRowKey = (task: TaskRow, index: number): string =>
+  task.id || `task-row-${index}`;
 
-const taskPriorityOptions = [
-  { label: "P1 — Crítica", value: "1" },
-  { label: "P2 — Alta", value: "2" },
-  { label: "P3 — Média", value: "3" },
-  { label: "P4 — Baixa", value: "4" },
-  { label: "P5 — Mínima", value: "5" },
-];
+const taskStatusOptions = TASK_STATUS_OPTIONS.map((option) => ({ ...option }));
+const taskPriorityOptions = TASK_PRIORITY_OPTIONS.map((option) => ({ ...option }));
 </script>
 
 <template>
@@ -236,6 +361,14 @@ const taskPriorityOptions = [
           </button>
         </div>
 
+        <button
+          class="btn btn-ghost"
+          type="button"
+          title="Exportar tarefas da visão atual"
+          @click="handleOpenExportModal"
+        >
+          Exportar...
+        </button>
         <button class="btn btn-primary" type="button" @click="openCreateTask">
           + Nova
         </button>
@@ -253,7 +386,7 @@ const taskPriorityOptions = [
 
     <div class="dt-layout mt-3">
       <!-- Table view -->
-      <template v-if="viewMode === 'table'">
+      <div v-show="viewMode === 'table'" class="dt-table-shell">
         <div
           class="dt-card card p-2 overflow-auto flex-1"
           role="region"
@@ -275,21 +408,27 @@ const taskPriorityOptions = [
 
             <tbody>
               <tr
-                v-for="t in filteredRows"
-                :key="t?.id || (Math.random() * Math.random()).toString(36)"
+                v-for="(t, taskIndex) in filteredRows"
+                :key="getTaskRowKey(t, taskIndex)"
                 class="border-t border-white/10 cursor-pointer"
-                :class="{ 'bg-white/5': selectedTask?.id === t?.id }"
-                @click="selectAndOpenDetail(t!)"
+                :class="{ 'bg-white/5': selectedTask?.id === t.id }"
+                @click="selectAndOpenDetail(t)"
               >
-                <td class="py-2 pr-3 font-semibold">{{ t?.title ?? "-" }}</td>
-                <td class="py-2 pr-3">{{ t?.projectId ?? "-" }}</td>
-                <td class="py-2 pr-3">{{ t?.assigneeEmail ?? "-" }}</td>
-                <td class="py-2 pr-3">{{ t?.status ?? "-" }}</td>
-                <td class="py-2 pr-3">{{ t?.priority ?? "-" }}</td>
+                <td class="py-2 pr-3 font-semibold">
+                  {{ t.title || TASKS_EMPTY_VALUE_LABEL }}
+                </td>
+                <td class="py-2 pr-3">
+                  {{ t.projectId || TASKS_EMPTY_VALUE_LABEL }}
+                </td>
+                <td class="py-2 pr-3">
+                  {{ t.assigneeEmail || TASKS_EMPTY_VALUE_LABEL }}
+                </td>
+                <td class="py-2 pr-3">{{ mapTaskStatusLabel(t.status) }}</td>
+                <td class="py-2 pr-3">{{ toTaskPriorityLabel(t.priority) }}</td>
                 <td class="py-2 pr-3">
                   <div class="flex gap-0.5 flex-wrap">
                     <span
-                      v-for="tag in ((t as any)?.tags ?? []).slice(0, 3)"
+                      v-for="tag in t.tags.slice(0, 3)"
                       :key="tag"
                       class="text-xs bg-indigo-500/15 px-1 rounded"
                     >
@@ -297,14 +436,14 @@ const taskPriorityOptions = [
                     </span>
                   </div>
                 </td>
-                <td class="py-2 pr-3">{{ t?.dueAt?.slice(0, 10) ?? "-" }}</td>
+                <td class="py-2 pr-3">{{ toDateLabel(t.dueAt) }}</td>
                 <td class="py-2 pr-3">
                   <div class="flex gap-1">
                     <button
                       class="btn btn-ghost btn-sm"
                       type="button"
                       aria-label="Editar tarefa"
-                      @click.stop="openEditTask(t!)"
+                      @click.stop="openEditTask(t)"
                     >
                       Editar
                     </button>
@@ -312,7 +451,7 @@ const taskPriorityOptions = [
                       class="btn btn-ghost btn-sm text-danger"
                       type="button"
                       aria-label="Excluir tarefa"
-                      @click.stop="deleteTask(t!)"
+                      @click.stop="deleteTask(t)"
                     >
                       Excluir
                     </button>
@@ -359,16 +498,16 @@ const taskPriorityOptions = [
             :target-id="selectedTask.id"
           />
         </aside>
-      </template>
+      </div>
 
       <!-- Kanban view -->
-      <KanbanBoard v-if="viewMode === 'kanban'" />
+      <KanbanBoard v-show="viewMode === 'kanban'" />
 
       <!-- Task detail panel (driven by ?taskId=xxx) -->
       <TaskDetailPanel v-if="hasTaskDetail" />
     </div>
 
-    <div class="mt-3 flex justify-end" v-if="viewMode === 'table'">
+    <div class="mt-3 flex justify-end" v-show="viewMode === 'table'">
       <button
         class="btn btn-ghost"
         type="button"
@@ -384,116 +523,5 @@ const taskPriorityOptions = [
 </template>
 
 <style lang="scss">
-@keyframes dtIn {
-  0% {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dt-actions {
-  align-items: end;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: space-between;
-}
-
-.dt-card {
-  animation: dtIn 160ms ease both;
-
-  &:hover {
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
-  }
-  &:active {
-    transform: translateY(1px);
-  }
-
-  ::selection {
-    background: rgba(120, 120, 200, 0.22);
-  }
-}
-
-.dt-page {
-  padding: 1rem;
-}
-
-.dt-layout {
-  display: flex;
-  gap: 1rem;
-}
-
-.dt-detail {
-  width: 340px;
-  min-width: 280px;
-  max-height: calc(100vh - 200px);
-}
-
-/* ── View toggle ─────────────────────────────────── */
-
-.dt-view-toggle {
-  display: inline-flex;
-  border: 1px solid var(--border-1);
-  border-radius: var(--radius-md, 10px);
-  overflow: hidden;
-}
-
-.dt-view-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.375rem 0.5rem;
-  background: transparent;
-  border: none;
-  color: var(--text-3);
-  cursor: pointer;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
-
-  &:hover {
-    background: var(--surface-2);
-    color: var(--text-1);
-  }
-
-  &.active {
-    background: var(--primary);
-    color: #fff;
-  }
-
-  & + & {
-    border-left: 1px solid var(--border-1);
-  }
-}
-
-@media (max-width: 960px) {
-  .dt-layout {
-    flex-direction: column;
-  }
-  .dt-detail {
-    width: 100%;
-    max-height: 50vh;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dt-card {
-    animation: none;
-  }
-}
-
-@starting-style {
-  .dt-card {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
-
-@supports (position-try: flip-block) {
-  @position-try flip-block;
-}
+@use "../styles/pages/dashboard-tasks.module";
 </style>

@@ -23,9 +23,9 @@ describe('GlpiAdapter', () => {
 
     it('should report configured when config is set', async () => {
       await adapter.configure({
-        baseUrl: 'https://glpi.example.com',
-        apiKey: 'test-api-key',
-        username: 'admin',
+        apiUrl: 'https://glpi.example.com',
+        appToken: 'test-app-token',
+        userToken: 'test-user-token',
       });
 
       const status = await adapter.getStatus();
@@ -36,10 +36,25 @@ describe('GlpiAdapter', () => {
   describe('configure', () => {
     it('should merge configuration', async () => {
       await adapter.configure({ baseUrl: 'https://glpi.example.com' });
-      await adapter.configure({ apiKey: 'test-key' });
+      await adapter.configure({ appToken: 'test-key' });
 
       const status = await adapter.getStatus();
       expect(status.configured).toBe(false);
+    });
+
+    it('should require username and password when user token is absent', async () => {
+      await adapter.configure({
+        baseUrl: 'https://glpi.example.com',
+        appToken: 'test-app-token',
+        username: 'admin',
+      });
+
+      const status = await adapter.getStatus();
+      expect(status.configured).toBe(false);
+
+      await adapter.configure({ password: 'password' });
+      const statusWithPassword = await adapter.getStatus();
+      expect(statusWithPassword.configured).toBe(true);
     });
   });
 

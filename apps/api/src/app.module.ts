@@ -12,6 +12,11 @@ import AuthAuditEventEntity from './entities/AuthAuditEventEntity';
 import PasswordResetRequestEntity from './entities/PasswordResetRequestEntity';
 import MailOutboxEntity from './entities/MailOutboxEntity';
 import NotificationEntity from './entities/NotificationEntity';
+import AssistantChatMessageEntity from './entities/AssistantChatMessageEntity';
+import IntegrationConfigEntity from './entities/IntegrationConfigEntity';
+import IntegrationSyncJobEntity from './entities/IntegrationSyncJobEntity';
+import IntegrationSyncRecordEntity from './entities/IntegrationSyncRecordEntity';
+import ImportTemplateEntity from './entities/ImportTemplateEntity';
 
 import CommentEntity from './entities/CommentEntity';
 import NoteEntity from './entities/NoteEntity';
@@ -30,6 +35,7 @@ import TaskEntity from './entities/TaskEntity';
 
 import ProjectsModule from './modules/projects/projects.module';
 import TasksModule from './modules/tasks/tasks.module';
+import DashboardModule from './modules/dashboard/dashboard.module';
 import AdminModule from './modules/admin/admin.module';
 
 import CommentsModule from './modules/comments/comments.module';
@@ -48,6 +54,7 @@ import NotificationsModule from './modules/notifications/notifications.module';
 import MessageEventEntity from './entities/MessageEventEntity';
 import { MessagesModule } from './modules/messages/messages.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { AssistantWsModule } from './modules/assistant/assistant-ws.module';
 
 @Module({
   imports: [
@@ -67,6 +74,11 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
         PasswordResetRequestEntity,
         MailOutboxEntity,
         NotificationEntity,
+        AssistantChatMessageEntity,
+        IntegrationConfigEntity,
+        IntegrationSyncJobEntity,
+        IntegrationSyncRecordEntity,
+        ImportTemplateEntity,
         CommentEntity,
         NoteEntity,
         AttachmentEntity,
@@ -83,6 +95,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     AuthModule,
     ProjectsModule,
     TasksModule,
+    DashboardModule,
     AdminModule,
     CommentsModule,
     NotesModule,
@@ -98,6 +111,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     LeadsModule,
     MessagesModule,
     WebhooksModule,
+    AssistantWsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

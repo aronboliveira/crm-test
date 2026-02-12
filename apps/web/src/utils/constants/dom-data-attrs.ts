@@ -17,9 +17,6 @@ type DataAttrKey = string;
 /** Data attribute value type */
 type DataAttrValue = string | number | boolean;
 
-/** Data attribute dictionary */
-type DataAttrDict = Readonly<Record<string, DataAttrKey>>;
-
 // =============================================================================
 // STATE TRACKING DATA ATTRIBUTES
 // =============================================================================

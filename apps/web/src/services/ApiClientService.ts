@@ -91,6 +91,44 @@ class ApiClient {
   }
 }
 
+export type ImportTemplateKind = "clients" | "projects" | "users";
+
+export type ImportTemplateVersionSnapshot = Readonly<{
+  version: number;
+  createdAt: string;
+  createdByEmail: string;
+  changeNote?: string;
+  profileKey?: string;
+  columnMapping: Readonly<Record<string, string>>;
+  defaultValues: Readonly<Record<string, string>>;
+}>;
+
+export type ImportTemplateRecord = Readonly<{
+  id: string;
+  kind: ImportTemplateKind;
+  name: string;
+  description?: string;
+  profileKey?: string;
+  latestVersion: number;
+  usageCount: number;
+  columnMapping: Readonly<Record<string, string>>;
+  defaultValues: Readonly<Record<string, string>>;
+  versions: readonly ImportTemplateVersionSnapshot[];
+  createdAt: string;
+  updatedAt: string;
+  createdByEmail: string;
+  updatedByEmail: string;
+}>;
+
+export type ImportSourceProfile = Readonly<{
+  key: string;
+  label: string;
+  description: string;
+  kind: ImportTemplateKind;
+  columnMapping: Readonly<Record<string, string>>;
+  defaultValues: Readonly<Record<string, string>>;
+}>;
+
 const api = new ApiClient(
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000",
 );
@@ -371,6 +409,43 @@ export default class ApiClientService {
           `[ApiClientService.clients.remove] Failed for ID ${id}:`,
           error,
         );
+        throw error;
+      }
+    },
+  };
+
+  /* ── Dashboard ────────────────────────────────────────────── */
+
+  static dashboard = {
+    growth: async (params?: {
+      window?: 3 | 6 | 12;
+      metrics?: readonly ("projects" | "tasks" | "clients")[];
+      owner?: string;
+      statuses?: readonly string[];
+    }) => {
+      try {
+        const query: Record<string, string> = {};
+        if (params?.window) {
+          query.window = String(params.window);
+        }
+        if (Array.isArray(params?.metrics) && params.metrics.length > 0) {
+          query.metrics = params.metrics.join(",");
+        }
+        if (typeof params?.owner === "string" && params.owner.trim()) {
+          query.owner = params.owner.trim();
+        }
+        if (Array.isArray(params?.statuses) && params.statuses.length > 0) {
+          query.status = params.statuses
+            .map((status) => String(status || "").trim())
+            .filter(Boolean)
+            .join(",");
+        }
+        const response = await api.raw.get("/dashboard/growth", {
+          params: query,
+        });
+        return response.data;
+      } catch (error) {
+        console.error("[ApiClientService.dashboard.growth] Request failed:", error);
         throw error;
       }
     },
@@ -694,6 +769,86 @@ export default class ApiClientService {
         timeout: 60_000,
       });
       return r.data;
+    },
+    listTemplates: async (kind?: ImportTemplateKind) => {
+      const r = await api.raw.get("/import/templates", {
+        params: kind ? { kind } : undefined,
+      });
+      return (r.data ?? { items: [] }) as { items: ImportTemplateRecord[] };
+    },
+    getTemplate: async (id: string) => {
+      const r = await api.raw.get(`/import/templates/${encodeURIComponent(id)}`);
+      return r.data as ImportTemplateRecord;
+    },
+    createTemplate: async (payload: Readonly<Record<string, unknown>>) => {
+      const r = await api.raw.post("/import/templates", payload);
+      return r.data as { id: string; latestVersion: number; name: string };
+    },
+    updateTemplate: async (
+      id: string,
+      payload: Readonly<Record<string, unknown>>,
+    ) => {
+      const r = await api.raw.patch(
+        `/import/templates/${encodeURIComponent(id)}`,
+        payload,
+      );
+      return r.data as {
+        id: string;
+        latestVersion: number;
+        name: string;
+        updatedAt: string;
+      };
+    },
+    deleteTemplate: async (id: string) => {
+      const r = await api.raw.delete(`/import/templates/${encodeURIComponent(id)}`);
+      return r.data as { ok: boolean };
+    },
+    markTemplateUsed: async (id: string) => {
+      const r = await api.raw.post(
+        `/import/templates/${encodeURIComponent(id)}/mark-used`,
+      );
+      return r.data as { id: string; usageCount: number };
+    },
+    previewTemplateApply: async (
+      id: string,
+      payload: Readonly<Record<string, unknown>>,
+    ) => {
+      const r = await api.raw.post(
+        `/import/templates/${encodeURIComponent(id)}/preview-apply`,
+        payload,
+      );
+      return r.data as Readonly<{
+        templateId: string;
+        templateName: string;
+        targetVersion: number;
+        targetProfileKey?: string;
+        targetColumnMapping: Readonly<Record<string, string>>;
+        targetDefaultValues: Readonly<Record<string, string>>;
+        diff: Readonly<{
+          mapping: Readonly<{
+            added: ReadonlyArray<{ key: string; to?: string }>;
+            removed: ReadonlyArray<{ key: string; from?: string }>;
+            changed: ReadonlyArray<{ key: string; from?: string; to?: string }>;
+          }>;
+          defaults: Readonly<{
+            added: ReadonlyArray<{ key: string; to?: string }>;
+            removed: ReadonlyArray<{ key: string; from?: string }>;
+            changed: ReadonlyArray<{ key: string; from?: string; to?: string }>;
+          }>;
+          summary: Readonly<{
+            mappingChanged: boolean;
+            defaultsChanged: boolean;
+            mappingDeltaCount: number;
+            defaultsDeltaCount: number;
+          }>;
+        }>;
+      }>;
+    },
+    listProfiles: async (kind: ImportTemplateKind) => {
+      const r = await api.raw.get("/import/templates/profiles", {
+        params: { kind },
+      });
+      return (r.data ?? { items: [] }) as { items: ImportSourceProfile[] };
     },
   };
 }

@@ -82,6 +82,13 @@ export interface IntegrationDefinition {
   readonly configurable: boolean;
   readonly docsUrl?: string;
   readonly apiVersion?: string;
+  readonly logoPresentation?: IntegrationLogoPresentation;
+}
+
+/** Per-provider logo rendering tokens for card normalization */
+export interface IntegrationLogoPresentation {
+  readonly scale: number;
+  readonly offsetYRem?: number;
 }
 
 // =============================================================================
@@ -686,6 +693,34 @@ const _WHATSAPP_FEATURES: readonly IntegrationFeature[] = [
 // INTEGRATION REGISTRY
 // =============================================================================
 
+/** Logo sizing tokens for consistent card presentation across providers */
+const _INTEGRATION_LOGO_PRESENTATION: Record<string, IntegrationLogoPresentation> = {
+  glpi: {
+    scale: 0.88,
+    offsetYRem: 0,
+  },
+  sat: {
+    scale: 0.9,
+    offsetYRem: 0,
+  },
+  nextcloud: {
+    scale: 1.08,
+    offsetYRem: -0.01,
+  },
+  zimbra: {
+    scale: 0.94,
+    offsetYRem: 0,
+  },
+  outlook: {
+    scale: 1.02,
+    offsetYRem: 0.01,
+  },
+  whatsapp: {
+    scale: 0.98,
+    offsetYRem: 0,
+  },
+};
+
 /** Complete integration definitions */
 const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
   glpi: {
@@ -701,6 +736,8 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     configurable: true,
     docsUrl: "https://glpi-project.org/documentation/",
     apiVersion: "v1",
+    logoUrl: "glpi.png",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.glpi,
   },
   sat: {
     id: "sat",
@@ -715,6 +752,8 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     configurable: true,
     docsUrl: "https://sat.example.com/docs",
     apiVersion: "v2",
+    logoUrl: "sat.png",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.sat,
   },
   nextcloud: {
     id: "nextcloud",
@@ -731,6 +770,7 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     configurable: true,
     docsUrl: "https://docs.nextcloud.com/",
     apiVersion: "WebDAV/OCS",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.nextcloud,
   },
   zimbra: {
     id: "zimbra",
@@ -739,14 +779,14 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     type: "Email",
     category: "email",
     icon: "mail",
-    logoUrl:
-      "https://raw.githubusercontent.com/Zimbra/zm-web-client/master/webapps/zimbra/branding/logo/zimbra.svg",
+    logoUrl: "zimbra.webp",
     color: _INTEGRATION_COLORS.ZIMBRA,
     features: _ZIMBRA_FEATURES,
     configFields: _ZIMBRA_CONFIG_FIELDS,
     configurable: true,
     docsUrl: "https://wiki.zimbra.com/",
     apiVersion: "SOAP/REST",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.zimbra,
   },
   outlook: {
     id: "outlook",
@@ -755,14 +795,14 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     type: "Email",
     category: "email",
     icon: "calendar",
-    logoUrl:
-      "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Mail/Fill/SVG/ic_fluent_mail_24_filled.svg",
+    logoUrl: "msotl.svg",
     color: _INTEGRATION_COLORS.OUTLOOK,
     features: _OUTLOOK_FEATURES,
     configFields: _OUTLOOK_CONFIG_FIELDS,
     configurable: true,
     docsUrl: "https://docs.microsoft.com/graph/",
     apiVersion: "Microsoft Graph",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.outlook,
   },
   whatsapp: {
     id: "whatsapp",
@@ -771,14 +811,14 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     type: "Mensagens/Analytics",
     category: "communication",
     icon: "message-circle",
-    logoUrl:
-      "https://raw.githubusercontent.com/WhatsApp/WhatsApp-Business-API-Setup/master/assets/whatsapp-logo.svg",
+    logoUrl: "wpp.png",
     color: _INTEGRATION_COLORS.WHATSAPP,
     features: _WHATSAPP_FEATURES,
     configFields: _WHATSAPP_CONFIG_FIELDS,
     configurable: true,
     docsUrl: "https://developers.facebook.com/docs/whatsapp/",
     apiVersion: "Meta Graph API v18.0",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.whatsapp,
   },
 } as const;
 
@@ -806,6 +846,11 @@ export const STATUS_LABELS: DeepReadonly<typeof _STATUS_LABELS> =
 /** Frozen integration definitions */
 export const INTEGRATIONS: DeepReadonly<typeof _INTEGRATIONS> =
   ObjectDeep.freeze(_INTEGRATIONS);
+
+/** Frozen provider logo rendering tokens */
+export const INTEGRATION_LOGO_PRESENTATION: DeepReadonly<
+  typeof _INTEGRATION_LOGO_PRESENTATION
+> = ObjectDeep.freeze(_INTEGRATION_LOGO_PRESENTATION);
 
 /** Frozen GLPI config fields */
 export const GLPI_CONFIG_FIELDS: DeepReadonly<typeof _GLPI_CONFIG_FIELDS> =
@@ -925,6 +970,7 @@ export const hasFeature = (
 export const INTEGRATION_CONSTANTS = ObjectDeep.freeze({
   icons: INTEGRATION_ICONS,
   colors: INTEGRATION_COLORS,
+  logoPresentation: INTEGRATION_LOGO_PRESENTATION,
   categories: INTEGRATION_CATEGORIES,
   statusLabels: STATUS_LABELS,
   integrations: INTEGRATIONS,

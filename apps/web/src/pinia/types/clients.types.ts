@@ -1,6 +1,7 @@
 export interface ClientRow {
   id: string;
   name: string;
+  type?: "pessoa" | "empresa";
   email?: string;
   phone?: string;
   cellPhone?: string;
@@ -22,6 +23,8 @@ export interface ClientRow {
     lastEmailAt?: string;
   };
   company?: string;
+  cnpj?: string;
+  cep?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;

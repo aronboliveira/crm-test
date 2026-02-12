@@ -1,5 +1,29 @@
 <script setup lang="ts">
+import { defineAsyncComponent } from "vue";
 import { useAdminMailOutboxPage } from "../assets/scripts/pages/useAdminMailOutboxPage";
+import SafeJsonService from "../services/SafeJsonService";
+import ModalService from "../services/ModalService";
+import AlertService from "../services/AlertService";
+import type { MailOutboxItem } from "../services/AdminApiService";
+import {
+  ADMIN_MAIL_OUTBOX_EXPORT_CENTERED_COLUMNS,
+  ADMIN_MAIL_OUTBOX_EXPORT_COLUMNS,
+  ADMIN_MAIL_OUTBOX_EXPORT_COLUMN_KEYS,
+  ADMIN_MAIL_OUTBOX_EXPORT_COLUMN_WIDTHS,
+  AdminMailOutboxCsvBlueprint,
+  SpreadsheetExporter,
+  type AdminMailOutboxExportColumnKey,
+  type AdminMailOutboxExportRow,
+  type SpreadsheetExportFormat,
+} from "../utils/export";
+
+const formatMeta = (meta: unknown): string =>
+  SafeJsonService.stringify(meta, "-", 2);
+
+const DashboardTableExportModal = defineAsyncComponent(
+  () => import("../components/dashboard/DashboardTableExportModal.vue"),
+);
+
 const {
   st,
   busy,
@@ -13,6 +37,98 @@ const {
   close,
   DateMapper,
 } = useAdminMailOutboxPage();
+
+type DashboardTableExportDialogResult = {
+  formats: SpreadsheetExportFormat[];
+  columnKeys: string[];
+};
+
+const DEFAULT_EXPORT_COLUMN_KEYS = [
+  ...ADMIN_MAIL_OUTBOX_EXPORT_COLUMN_KEYS,
+] as AdminMailOutboxExportColumnKey[];
+
+const outboxExporter = new SpreadsheetExporter<
+  AdminMailOutboxExportRow,
+  AdminMailOutboxExportColumnKey,
+  AdminMailOutboxCsvBlueprint
+>({
+  fileNamePrefix: "caixa-saida-admin",
+  sheetName: "Caixa de Saída",
+  defaultColumnKeys: DEFAULT_EXPORT_COLUMN_KEYS,
+  buildBlueprint: (columnKeys) =>
+    new AdminMailOutboxCsvBlueprint({ columns: columnKeys }),
+  columnWidthByKey: ADMIN_MAIL_OUTBOX_EXPORT_COLUMN_WIDTHS,
+  centeredColumnKeys: ADMIN_MAIL_OUTBOX_EXPORT_CENTERED_COLUMNS,
+  resolveCellStyle: ({ columnKey, record }) => {
+    if (columnKey === "tipo" && record.tipo === "password_invite") {
+      return {
+        fillColor: "FFEFF6FF",
+        fontColor: "FF1E3A8A",
+        bold: true,
+        align: "center",
+      };
+    }
+    return null;
+  },
+});
+
+const buildOutboxExportRows = (): AdminMailOutboxExportRow[] =>
+  items.value
+    .filter((item): item is MailOutboxItem => !!item)
+    .map((item) => ({
+      data: DateMapper.fmtIso(item.createdAt) || "—",
+      para: String(item.to || "—"),
+      tipo: String(item.kind || "—"),
+      assunto: String(item.subject || "—"),
+      texto: String(item.text || "—"),
+      meta: item.meta ? formatMeta(item.meta) : "—",
+    }));
+
+const openExportDialog =
+  async (): Promise<DashboardTableExportDialogResult | null> =>
+    ModalService.open<DashboardTableExportDialogResult>(
+      DashboardTableExportModal,
+      {
+        title: "Exportar Caixa de Saída",
+        size: "md",
+        data: {
+          totalRows: items.value.length,
+          entityLabel: "mensagem(ns)",
+          columnOptions: ADMIN_MAIL_OUTBOX_EXPORT_COLUMNS,
+          defaultColumnKeys: [...DEFAULT_EXPORT_COLUMN_KEYS],
+          defaultFormats: ["csv", "xlsx"] as SpreadsheetExportFormat[],
+        },
+      },
+    );
+
+const handleOpenExportModal = async (): Promise<void> => {
+  try {
+    const selection = await openExportDialog();
+    if (!selection) return;
+
+    const records = buildOutboxExportRows();
+    if (!records.length) {
+      await AlertService.error(
+        "Exportação",
+        "Não há mensagens na caixa de saída para exportar.",
+      );
+      return;
+    }
+
+    const exportedFormats = await outboxExporter.export(records, {
+      formats: selection.formats,
+      columnKeys: selection.columnKeys as AdminMailOutboxExportColumnKey[],
+    });
+
+    await AlertService.success(
+      "Exportação concluída",
+      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
+    );
+  } catch (caughtError) {
+    console.error("[AdminMailOutboxPage] Export failed:", caughtError);
+    await AlertService.error("Erro ao exportar", caughtError);
+  }
+};
 </script>
 
 <template>
@@ -47,6 +163,15 @@ const {
           <option value="password_invite">password_invite</option>
           <option value="generic">generic</option>
         </select>
+
+        <button
+          class="btn btn-ghost"
+          type="button"
+          title="Exportar mensagens da visão atual"
+          @click="handleOpenExportModal"
+        >
+          Exportar...
+        </button>
 
         <button
           class="btn btn-primary"
@@ -163,7 +288,7 @@ const {
             <div class="grid gap-1">
               <div class="opacity-70 text-sm">Metadados</div>
               <pre class="card p-2 overflow-auto">{{
-                selected?.meta ? JSON.stringify(selected.meta, null, 2) : "-"
+                selected?.meta ? formatMeta(selected.meta) : "-"
               }}</pre>
             </div>
           </div>
@@ -223,7 +348,4 @@ const {
   }
 }
 
-@supports (position-try: flip-block) {
-  @position-try flip-block;
-}
 </style>

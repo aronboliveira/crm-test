@@ -1,10 +1,12 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { AssistantWsService } from './modules/assistant/assistant-ws.service';
 
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule, { cors: false });
+    const assistantWs = app.get(AssistantWsService, { strict: false });
 
     const origin = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
@@ -25,6 +27,7 @@ async function bootstrap() {
     }
 
     await app.listen(port);
+    assistantWs.bind(app.getHttpServer());
     console.log(`[api] Application listening on port ${port}`);
   } catch (e) {
     console.error('[api] bootstrap failed:', e);

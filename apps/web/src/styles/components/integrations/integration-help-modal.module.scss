@@ -1,0 +1,310 @@
+@use "../../tokens" as *;
+
+@scope (.helpRoot) {
+  :scope {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: clamp(0.95rem, 2.8vw, 2rem);
+    background: color-mix(in oklab, #040712 72%, transparent);
+    z-index: 1300;
+  }
+}
+
+@position-try --help-modal-bottom {
+  inset-block-start: auto;
+  inset-block-end: 1rem;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+}
+
+@position-try --help-modal-top {
+  inset-block-start: 1rem;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+}
+
+.helpPanel {
+  position: fixed;
+  inset-inline-start: 50%;
+  inset-block-start: 50%;
+  transform: translate(-50%, -50%);
+  position-try-fallbacks: --help-modal-bottom, --help-modal-top;
+  width: min(100%, 72rem);
+  max-height: min(90vh, 60rem);
+  overflow: auto;
+  border: 1px solid color-mix(in oklab, var(--border-1) 92%, var(--primary) 8%);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--surface-1) 94%, var(--primary-soft) 6%),
+    var(--surface-1)
+  );
+  box-shadow:
+    0 22px 44px color-mix(in oklab, #030712 54%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--primary) 18%, transparent);
+  display: grid;
+  gap: 1.1rem;
+  padding: clamp(1.1rem, 2.1vw, 1.8rem);
+
+  @starting-style {
+    opacity: 0;
+    transform: translate(-50%, -44%) scale(0.985);
+  }
+
+  animation: help-modal-enter 220ms var(--easing-standard, ease) forwards;
+}
+
+.helpHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.helpTitle {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  line-height: 1.2;
+  color: var(--text-1);
+}
+
+.helpIcon {
+  width: 1.15rem;
+  height: 1.15rem;
+  color: color-mix(in oklab, var(--primary) 85%, white 15%);
+}
+
+.helpCloseButton {
+  flex: 0 0 auto;
+}
+
+.helpDescription {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.62;
+  font-size: 0.96rem;
+  display: grid;
+  gap: 0.32rem;
+}
+
+.helpAccordion {
+  display: grid;
+  gap: 0.88rem;
+}
+
+.helpFold {
+  border: 1px solid color-mix(in oklab, var(--border-1) 88%, var(--primary) 12%);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--surface-2) 96%, var(--surface-1) 4%);
+  overflow: clip;
+  transition:
+    border-color var(--transition-fast) var(--easing-standard),
+    box-shadow var(--transition-fast) var(--easing-standard);
+
+  &::details-content {
+    opacity: 0;
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size var(--transition-mid) var(--easing-smooth),
+      opacity var(--transition-mid) var(--easing-smooth);
+  }
+
+  &[open]::details-content {
+    opacity: 1;
+    block-size: auto;
+  }
+
+  &[open] {
+    border-color: color-mix(in oklab, var(--primary) 22%, var(--border-1));
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--primary) 16%, transparent);
+  }
+}
+
+.helpSummary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  margin: 0;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  background: color-mix(in oklab, var(--surface-1) 91%, var(--primary-soft) 9%);
+  border-bottom: 1px solid color-mix(in oklab, var(--border-1) 88%, transparent);
+  transition: background-color var(--transition-fast) var(--easing-standard);
+
+  &::marker {
+    content: "";
+  }
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &::after {
+    content: "";
+    width: 0.62rem;
+    height: 0.62rem;
+    margin-left: auto;
+    border-right: 2px solid color-mix(in oklab, var(--text-2) 70%, transparent);
+    border-bottom: 2px solid color-mix(in oklab, var(--text-2) 70%, transparent);
+    transform: rotate(45deg);
+    transition: transform var(--transition-fast) var(--easing-standard);
+  }
+
+  &:hover {
+    background: color-mix(in oklab, var(--surface-1) 85%, var(--primary-soft) 15%);
+  }
+}
+
+.helpFold[open] .helpSummary::after {
+  transform: rotate(-135deg) translateY(-1px);
+}
+
+.summaryTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--text-1);
+}
+
+.summaryHint {
+  font-size: 0.72rem;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.helpFoldContent {
+  display: grid;
+  gap: 1.05rem;
+  padding: 1rem 1.05rem 1.08rem;
+  align-content: start;
+}
+
+.definitionList {
+  margin: 0;
+  display: grid;
+  gap: 0.78rem;
+}
+
+.definitionItem {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.definitionTerm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  margin: 0;
+  color: var(--text-1);
+  font-weight: 650;
+  font-size: 0.84rem;
+}
+
+.capabilityAbbr {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border: 1px solid color-mix(in oklab, var(--border-1) 88%, transparent);
+  border-radius: 999px;
+  padding: 0.08rem 0.34rem;
+}
+
+.definitionDescription {
+  margin: 0;
+  display: grid;
+  gap: 0.2rem;
+  color: var(--text-2);
+  font-size: 0.85rem;
+  line-height: 1.52;
+}
+
+.listTitle {
+  margin: 0.15rem 0 0;
+  color: var(--text-1);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.advantageList,
+.stepsList {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.advantageItem,
+.stepItem {
+  color: var(--text-2);
+  font-size: 0.85rem;
+  line-height: 1.52;
+}
+
+.stepTitle,
+.stepDescription {
+  margin: 0;
+}
+
+.stepDescription {
+  margin-top: 0.2rem;
+}
+
+@keyframes help-modal-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -44%) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@media (max-width: 640px) {
+  .helpPanel {
+    width: min(100%, 36rem);
+    padding: 0.9rem;
+  }
+
+  .helpHeader {
+    flex-wrap: wrap;
+  }
+
+  .helpCloseButton {
+    width: 100%;
+  }
+
+  .helpSummary {
+    flex-wrap: wrap;
+    padding: 0.82rem 0.9rem;
+  }
+
+  .summaryHint {
+    width: 100%;
+    order: 3;
+  }
+
+  .helpFoldContent {
+    padding: 0.88rem 0.9rem 0.95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .helpPanel {
+    animation: none;
+  }
+}

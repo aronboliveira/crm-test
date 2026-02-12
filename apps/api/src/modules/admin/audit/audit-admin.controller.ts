@@ -6,8 +6,11 @@ import AuditAdminService from './audit-admin.service';
 
 interface QueryParams {
   limit?: string;
-  skip?: string;
-  sort?: string;
+  cursor?: string;
+  q?: string;
+  kind?: string;
+  actorUserId?: string;
+  targetUserId?: string;
   startDate?: string;
   endDate?: string;
 }

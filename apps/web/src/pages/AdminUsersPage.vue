@@ -1,9 +1,23 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, defineAsyncComponent } from "vue";
 import { useAdminUsersPage } from "../assets/scripts/pages/useAdminUsersPage";
 import { usePolicyStore } from "../pinia/stores/policy.store";
 import AdminUserDetailsDrawer from "../components/admin/AdminUserDetailsDrawer.vue";
 import CreateUserModal from "../components/admin/CreateUserModal.vue";
+import ModalService from "../services/ModalService";
+import AlertService from "../services/AlertService";
+import {
+  ADMIN_USERS_EXPORT_CENTERED_COLUMNS,
+  ADMIN_USERS_EXPORT_COLUMNS,
+  ADMIN_USERS_EXPORT_COLUMN_KEYS,
+  ADMIN_USERS_EXPORT_COLUMN_WIDTHS,
+  AdminUsersCsvBlueprint,
+  SpreadsheetExporter,
+  type AdminUsersExportColumnKey,
+  type AdminUsersExportRow,
+  type SpreadsheetExportFormat,
+} from "../utils/export";
+import type { AdminUserRow } from "../types/admin.types";
 
 const {
   createOpen,
@@ -25,6 +39,9 @@ const {
 
 const policy = usePolicyStore();
 const isAdmin = computed(() => policy.can("admin.full"));
+const DashboardTableExportModal = defineAsyncComponent(
+  () => import("../components/dashboard/DashboardTableExportModal.vue"),
+);
 
 const roleLabels: Record<string, string> = {
   viewer: "Visualizador",
@@ -54,6 +71,114 @@ const displayName = (u: any): string => {
     return [u.firstName, u.lastName].filter(Boolean).join(" ");
   const local = (u.email || "").split("@")[0] || "";
   return local.charAt(0).toUpperCase() + local.slice(1);
+};
+
+type DashboardTableExportDialogResult = {
+  formats: SpreadsheetExportFormat[];
+  columnKeys: string[];
+};
+
+const DEFAULT_EXPORT_COLUMN_KEYS = [
+  ...ADMIN_USERS_EXPORT_COLUMN_KEYS,
+] as AdminUsersExportColumnKey[];
+
+const usersExporter = new SpreadsheetExporter<
+  AdminUsersExportRow,
+  AdminUsersExportColumnKey,
+  AdminUsersCsvBlueprint
+>({
+  fileNamePrefix: "usuarios-admin",
+  sheetName: "Usuários",
+  defaultColumnKeys: DEFAULT_EXPORT_COLUMN_KEYS,
+  buildBlueprint: (columnKeys) => new AdminUsersCsvBlueprint({ columns: columnKeys }),
+  columnWidthByKey: ADMIN_USERS_EXPORT_COLUMN_WIDTHS,
+  centeredColumnKeys: ADMIN_USERS_EXPORT_CENTERED_COLUMNS,
+  resolveCellStyle: ({ columnKey, record }) => {
+    if (columnKey === "perfil" && record.perfil === "Administrador") {
+      return {
+        fillColor: "FFFEE2E2",
+        fontColor: "FFB91C1C",
+        bold: true,
+        align: "center",
+      };
+    }
+    if (columnKey === "bloqueado" && record.bloqueado === "Sim") {
+      return {
+        fillColor: "FFFFF7ED",
+        fontColor: "FF9A3412",
+        bold: true,
+        align: "center",
+      };
+    }
+    return null;
+  },
+});
+
+const visibleExportColumns = computed(() =>
+  ADMIN_USERS_EXPORT_COLUMNS.filter((column) => {
+    if (isAdmin.value) return true;
+    return column.key !== "tokenVersion" && column.key !== "senhaAtualizada";
+  }),
+);
+
+const defaultVisibleExportKeys = computed(
+  () => visibleExportColumns.value.map((column) => column.key),
+);
+
+const buildUsersExportRows = (): AdminUsersExportRow[] =>
+  rows.value
+    .filter((user): user is AdminUserRow => !!user)
+    .map((user) => ({
+      nome: displayName(user),
+      email: user.email || "—",
+      perfil: roleLabels[user.roleKey] || user.roleKey || "—",
+      tokenVersion: isAdmin.value ? user.tokenVersion : "—",
+      senhaAtualizada: isAdmin.value ? fmtDate(user.passwordUpdatedAt) : "—",
+      criadoEm: fmtDate(user.createdAt),
+      bloqueado: user.lockedAt ? "Sim" : "Não",
+    }));
+
+const openExportDialog =
+  async (): Promise<DashboardTableExportDialogResult | null> =>
+    ModalService.open<DashboardTableExportDialogResult>(
+      DashboardTableExportModal,
+      {
+        title: "Exportar Usuários",
+        size: "md",
+        data: {
+          totalRows: rows.value.length,
+          entityLabel: "usuário(s)",
+          columnOptions: visibleExportColumns.value,
+          defaultColumnKeys: [...defaultVisibleExportKeys.value],
+          defaultFormats: ["csv", "xlsx"] as SpreadsheetExportFormat[],
+        },
+      },
+    );
+
+const handleOpenExportModal = async (): Promise<void> => {
+  try {
+    const selection = await openExportDialog();
+    if (!selection) return;
+
+    const records = buildUsersExportRows();
+    if (!records.length) {
+      await AlertService.error("Exportação", "Não há usuários para exportar.");
+      return;
+    }
+
+    const exportedFormats = await usersExporter.export(records, {
+      formats: selection.formats,
+      columnKeys: selection.columnKeys as AdminUsersExportColumnKey[],
+    });
+
+    await AlertService.success(
+      "Exportação concluída",
+      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
+    );
+  } catch (caughtError) {
+    console.error("[AdminUsersPage] Export failed:", caughtError);
+    await AlertService.error("Erro ao exportar", caughtError);
+  }
 };
 </script>
 
@@ -100,6 +225,14 @@ const displayName = (u: any): string => {
         </div>
 
         <div class="flex gap-2 justify-end">
+          <button
+            class="btn btn-ghost"
+            type="button"
+            title="Exportar visão atual de usuários"
+            @click="handleOpenExportModal"
+          >
+            Exportar...
+          </button>
           <button
             class="btn btn-ghost"
             type="button"

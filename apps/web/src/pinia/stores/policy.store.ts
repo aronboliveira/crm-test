@@ -30,19 +30,10 @@ export const usePolicyStore = defineStore("policy", {
 
     async bootstrap(): Promise<void> {
       try {
-        console.log("[PolicyStore] bootstrap() called");
-
         // Always fetch fresh from the API — no sessionStorage double-cache.
         // The PersistPlugin already handles state rehydration across tabs.
         const response = await ApiClientService.raw.get("/auth/me");
         const me = response?.data as Record<string, unknown> | null;
-
-        console.log("[PolicyStore] /auth/me response:", {
-          status: response?.status,
-          hasPerms: Array.isArray(me?.perms),
-          permCount: Array.isArray(me?.perms) ? (me!.perms as any).length : 0,
-          hasPermCodes: Array.isArray(me?.permissionCodes),
-        });
 
         const raw: unknown[] = Array.isArray(me?.perms)
           ? (me!.perms as unknown[])
@@ -56,12 +47,10 @@ export const usePolicyStore = defineStore("policy", {
           .map((p) => String(p ?? "").trim())
           .filter(Boolean);
 
-        console.log(`[PolicyStore] Loaded ${perms.length} permissions:`, perms);
-
         this.perms = perms;
         this.ready = true;
       } catch (error) {
-        console.error("[PolicyStore] bootstrap() FAILED:", error);
+        console.error("[PolicyStore] bootstrap failed:", error);
         // Mark ready so the router guard doesn't loop, but perms stay empty.
         this.ready = true;
       }

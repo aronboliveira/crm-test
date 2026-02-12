@@ -1,40 +1,135 @@
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useTasksStore } from "../../../pinia/stores/tasks.store";
 import { useProjectsStore } from "../../../pinia/stores/projects.store";
 import { useClientsStore } from "../../../pinia/stores/clients.store";
 import { useAuthStore } from "../../../pinia/stores/auth.store";
-import type { TaskRow } from "../../../pinia/types/tasks.types";
-import type { ProjectRow } from "../../../pinia/types/projects.types";
+import {
+  MY_WORK_CLIENT_ROLE_POOL,
+  MY_WORK_DEFAULT_PROFESSIONAL_ROLE,
+  MY_WORK_DEFAULT_TECH_CONTACT_ROLE,
+  MY_WORK_PAGINATION_GUARD_LIMIT,
+  MY_WORK_PROFESSIONAL_ROLE_POOL,
+  MY_WORK_UNKNOWN_CLIENT_LABEL,
+  MY_WORK_UNKNOWN_PROJECT_LABEL,
+  MY_WORK_UPCOMING_DEADLINE_WINDOW_DAYS,
+} from "../../../utils/constants/dashboard-my-work.constants";
+
+const toNonNullableRows = <T>(rows: readonly (T | null | undefined)[]): T[] =>
+  rows.filter((row): row is T => !!row);
+const MY_WORK_BACKGROUND_PAUSE_MS = 40;
+
+const sumCodePoints = (value: string): number =>
+  value.split("").reduce((sum, char) => sum + (char?.charCodeAt(0) ?? 0), 0);
 
 export function useDashboardMyWorkPage() {
   const tasksStore = useTasksStore();
   const projectsStore = useProjectsStore();
   const clientsStore = useClientsStore();
   const authStore = useAuthStore();
+  const hasInitialSnapshot = ref(
+    tasksStore.rows.length > 0 || projectsStore.rows.length > 0,
+  );
+  const backgroundHydrationRunning = ref(false);
 
   const loading = computed(
-    () => tasksStore.loading || projectsStore.loading || clientsStore.loading,
+    () =>
+      !hasInitialSnapshot.value &&
+      (tasksStore.loading || projectsStore.loading || clientsStore.loading),
+  );
+  const syncing = computed(
+    () =>
+      hasInitialSnapshot.value &&
+      (tasksStore.loading ||
+        projectsStore.loading ||
+        clientsStore.loading ||
+        backgroundHydrationRunning.value),
   );
   const error = computed(
     () => tasksStore.error || projectsStore.error || clientsStore.error,
   );
 
   const meEmail = computed(() => authStore.me?.email?.toLowerCase() || "");
+  const taskRows = computed(() => toNonNullableRows(tasksStore.rows));
+  const projectRows = computed(() => toNonNullableRows(projectsStore.rows));
+  const clientRows = computed(() => toNonNullableRows(clientsStore.rows));
+
+  const projectById = computed(() => {
+    const map = new Map<string, (typeof projectRows.value)[number]>();
+    for (const project of projectRows.value) {
+      const id = String(project.id || "").trim();
+      if (!id) {
+        continue;
+      }
+      map.set(id, project);
+    }
+    return map;
+  });
+
+  const projectLabelById = computed(() => {
+    const map = new Map<string, string>();
+    for (const project of projectRows.value) {
+      const id = String(project.id || "").trim();
+      if (!id) {
+        continue;
+      }
+      map.set(id, project.name || project.code || id);
+    }
+    return map;
+  });
+
+  const clientNameById = computed(() => {
+    const map = new Map<string, string>();
+    for (const client of clientRows.value) {
+      const id = String(client.id || "").trim();
+      if (!id) {
+        continue;
+      }
+      map.set(id, client.name || MY_WORK_UNKNOWN_CLIENT_LABEL);
+    }
+    return map;
+  });
+
+  const projectProgressById = computed(() => {
+    const counters = new Map<string, { total: number; done: number }>();
+
+    for (const task of taskRows.value) {
+      const projectId = String(task.projectId || "").trim();
+      if (!projectId) {
+        continue;
+      }
+      const counter = counters.get(projectId) ?? { total: 0, done: 0 };
+      counter.total += 1;
+      if (task.status === "done") {
+        counter.done += 1;
+      }
+      counters.set(projectId, counter);
+    }
+
+    const progress = new Map<string, number>();
+    for (const [projectId, counter] of counters) {
+      if (!counter.total) {
+        progress.set(projectId, 0);
+        continue;
+      }
+      progress.set(projectId, Math.round((counter.done / counter.total) * 100));
+    }
+    return progress;
+  });
 
   const myTasks = computed(() => {
     const email = meEmail.value;
     if (!email) return [];
-    return tasksStore.rows
-      .filter((t): t is NonNullable<typeof t> => !!t)
-      .filter((t) => (t.assigneeEmail || "").toLowerCase() === email);
+    return taskRows.value.filter(
+      (task) => (task.assigneeEmail || "").toLowerCase() === email,
+    );
   });
 
   const myProjects = computed(() => {
     const email = meEmail.value;
     if (!email) return [];
-    return projectsStore.rows
-      .filter((p): p is NonNullable<typeof p> => !!p)
-      .filter((p) => (p.ownerEmail || "").toLowerCase() === email);
+    return projectRows.value.filter(
+      (project) => (project.ownerEmail || "").toLowerCase() === email,
+    );
   });
 
   /* ── Stats ────────────────────────────────────────── */
@@ -49,46 +144,36 @@ export function useDashboardMyWorkPage() {
 
   const upcomingDeadlines = computed(() => {
     const now = new Date();
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(now.getDate() + 7);
+    const windowEnd = new Date(now);
+    windowEnd.setDate(now.getDate() + MY_WORK_UPCOMING_DEADLINE_WINDOW_DAYS);
 
-    return pendingTasks.value.filter((t) => {
-      if (!t.dueAt) return false;
-      const d = new Date(t.dueAt);
-      return d >= now && d <= sevenDaysFromNow;
+    return pendingTasks.value.filter((task) => {
+      if (!task.dueAt) return false;
+      const dueDate = new Date(task.dueAt);
+      return dueDate >= now && dueDate <= windowEnd;
     });
   });
 
   const clientStats = computed(() => {
-    const rolePool = [
-      "CTO",
-      "Tech Lead",
-      "Engenheiro Principal",
-      "Head de Produto",
-      "Arquiteto de Soluções",
-      "DevOps Lead",
-      "Coordenador Técnico",
-    ];
     const stats = new Map<
       string,
       { total: number; done: number; name: string; role: string }
     >();
-    const clientsMap = new Map(clientsStore.rows.map((c) => [c.id, c.name]));
 
     // Tasks assigned to me, grouped by Client
-    for (const t of myTasks.value) {
-      if (!t.projectId) continue;
-      const p = projectsStore.byId[t.projectId];
-      if (!p || !p.clientId) continue;
+    for (const task of myTasks.value) {
+      const projectId = String(task.projectId || "").trim();
+      if (!projectId) continue;
 
-      const clientName = clientsMap.get(p.clientId) || "Unknown";
-      const role =
-        rolePool[
-          Math.abs(
-            p.clientId.split("").reduce((a, c) => a + c.charCodeAt(0), 0),
-          ) % rolePool.length
-        ];
-      const entry = stats.get(p.clientId) || {
+      const project = projectById.value.get(projectId);
+      const clientId = String(project?.clientId || "").trim();
+      if (!project || !clientId) continue;
+
+      const clientName =
+        clientNameById.value.get(clientId) ?? MY_WORK_UNKNOWN_CLIENT_LABEL;
+      const roleIndex = Math.abs(sumCodePoints(clientId)) % MY_WORK_CLIENT_ROLE_POOL.length;
+      const role = MY_WORK_CLIENT_ROLE_POOL[roleIndex] ?? MY_WORK_DEFAULT_TECH_CONTACT_ROLE;
+      const entry = stats.get(clientId) || {
         total: 0,
         done: 0,
         name: clientName,
@@ -96,8 +181,8 @@ export function useDashboardMyWorkPage() {
       };
 
       entry.total++;
-      if (t.status === "done") entry.done++;
-      stats.set(p.clientId, entry);
+      if (task.status === "done") entry.done++;
+      stats.set(clientId, entry);
     }
 
     return Array.from(stats.values())
@@ -115,41 +200,80 @@ export function useDashboardMyWorkPage() {
 
   const professionalRole = computed(() => {
     const email = meEmail.value || "user@corp.local";
-    const roles = [
-      "Engenheiro de Software",
-      "Arquiteto de Soluções",
-      "Tech Lead",
-      "Engenheiro DevOps",
-      "Analista de Sistemas",
-      "Engenheiro de Dados",
-    ];
-    const idx =
-      Math.abs(email.split("").reduce((a, c) => a + c.charCodeAt(0), 0)) %
-      roles.length;
-    return roles[idx];
+    const idx = Math.abs(sumCodePoints(email)) % MY_WORK_PROFESSIONAL_ROLE_POOL.length;
+    return MY_WORK_PROFESSIONAL_ROLE_POOL[idx] ?? MY_WORK_DEFAULT_PROFESSIONAL_ROLE;
   });
 
   /* ── Initialization ───────────────────────────────── */
 
+  const yieldToMainThread = async (): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      if (typeof window === "undefined") {
+        resolve();
+        return;
+      }
+      window.setTimeout(resolve, MY_WORK_BACKGROUND_PAUSE_MS);
+    });
+  };
+
+  const hydrateRemainingPagesInBackground = async (): Promise<void> => {
+    if (backgroundHydrationRunning.value) {
+      return;
+    }
+    backgroundHydrationRunning.value = true;
+    try {
+      let taskGuard = 0;
+      while (
+        tasksStore.nextCursor &&
+        taskGuard < MY_WORK_PAGINATION_GUARD_LIMIT
+      ) {
+        await tasksStore.list();
+        taskGuard += 1;
+        await yieldToMainThread();
+      }
+
+      let projectGuard = 0;
+      while (
+        projectsStore.nextCursor &&
+        projectGuard < MY_WORK_PAGINATION_GUARD_LIMIT
+      ) {
+        await projectsStore.list();
+        projectGuard += 1;
+        await yieldToMainThread();
+      }
+
+      let clientsGuard = 0;
+      while (
+        clientsStore.nextCursor &&
+        clientsGuard < MY_WORK_PAGINATION_GUARD_LIMIT
+      ) {
+        await clientsStore.list({ maxPages: 1 });
+        clientsGuard += 1;
+        await yieldToMainThread();
+      }
+    } finally {
+      backgroundHydrationRunning.value = false;
+    }
+  };
+
   const load = async () => {
-    // We try to load all tasks/projects to filter locally.
-    const p1 = tasksStore.rows.length
+    const tasksPromise = tasksStore.rows.length
       ? Promise.resolve()
       : tasksStore.list({ reset: true });
-
-    const p2 = projectsStore.rows.length
+    const projectsPromise = projectsStore.rows.length
       ? Promise.resolve()
       : projectsStore.list({ reset: true });
-
-    const p3 = clientsStore.rows.length
+    const clientsPromise = clientsStore.rows.length
       ? Promise.resolve()
-      : clientsStore.list({ reset: true });
+      : clientsStore.list({ reset: true, maxPages: 1 });
 
-    await Promise.all([p1, p2, p3]);
+    await Promise.all([tasksPromise, projectsPromise, clientsPromise]);
+    hasInitialSnapshot.value = true;
+    void hydrateRemainingPagesInBackground();
   };
 
   onMounted(() => {
-    load();
+    void load();
   });
 
   return {
@@ -164,18 +288,29 @@ export function useDashboardMyWorkPage() {
     clientStats,
     bestConnectedClients,
     professionalRole,
+    syncing,
     refresh: async () => {
       await Promise.all([
         tasksStore.list({ reset: true }),
         projectsStore.list({ reset: true }),
-        clientsStore.list({ reset: true }),
+        clientsStore.list({ reset: true, maxPages: 1 }),
       ]);
+      hasInitialSnapshot.value = true;
+      void hydrateRemainingPagesInBackground();
     },
     getProjectProgress: (projectId: string) => {
-      const tasks = tasksStore.byProject(projectId);
-      if (!tasks.length) return 0;
-      const done = tasks.filter((t) => t.status === "done").length;
-      return Math.round((done / tasks.length) * 100);
+      const normalizedId = String(projectId || "").trim();
+      if (!normalizedId) {
+        return 0;
+      }
+      return projectProgressById.value.get(normalizedId) ?? 0;
+    },
+    getProjectLabel: (projectId: string) => {
+      const normalizedId = String(projectId || "").trim();
+      if (!normalizedId) {
+        return MY_WORK_UNKNOWN_PROJECT_LABEL;
+      }
+      return projectLabelById.value.get(normalizedId) ?? normalizedId;
     },
   };
 }

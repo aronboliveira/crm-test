@@ -1,9 +1,18 @@
-import { computed, ref, onMounted, defineAsyncComponent } from "vue";
+import {
+  computed,
+  ref,
+  onMounted,
+  onUnmounted,
+  defineAsyncComponent,
+} from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../../pinia/stores/auth.store";
 import AuthService from "../../../services/AuthService";
 import ThemeService from "../../../services/ThemeService";
 import ModalService from "../../../services/ModalService";
+import UserProfilePreferencesService, {
+  PROFILE_PREFERENCES_UPDATED_EVENT,
+} from "../../../services/UserProfilePreferencesService";
 
 const UserProfileModal = defineAsyncComponent(
   () => import("../../../components/shell/UserProfileModal.vue"),
@@ -16,11 +25,24 @@ export interface TopBarEmits {
 export function useTopBar(emit: TopBarEmits) {
   const router = useRouter();
   const authStore = useAuthStore();
+  const profilePreferences = ref(UserProfilePreferencesService.load());
   const me = computed(() => authStore.me || AuthService.me());
   const email = computed(() => String(me.value?.email ?? ""));
+  const showEmailInTopBar = computed(
+    () => profilePreferences.value.dashboard.showEmailInTopBar,
+  );
 
-  // Extract display name from email or user data
+  const refreshProfilePreferences = () => {
+    profilePreferences.value = UserProfilePreferencesService.load();
+  };
+
+  // Extract display name from profile settings, then fallback to user data/email.
   const displayName = computed(() => {
+    const preferredName = profilePreferences.value.preferredName.trim();
+    if (preferredName) {
+      return preferredName;
+    }
+
     const user = me.value;
     if (user && "name" in user && user.name) {
       return String(user.name);
@@ -39,6 +61,7 @@ export function useTopBar(emit: TopBarEmits) {
 
   // Track dark mode state
   const isDark = ref(false);
+  const themeObserver = ref<MutationObserver | null>(null);
 
   const updateDarkState = () => {
     isDark.value =
@@ -46,14 +69,38 @@ export function useTopBar(emit: TopBarEmits) {
       document.documentElement.dataset.theme === "dark";
   };
 
+  const handleProfilePreferencesUpdated = () => {
+    refreshProfilePreferences();
+  };
+
   onMounted(() => {
     updateDarkState();
+    refreshProfilePreferences();
+
     // Watch for theme changes
     const observer = new MutationObserver(updateDarkState);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class", "data-theme"],
     });
+    themeObserver.value = observer;
+
+    window.addEventListener(
+      PROFILE_PREFERENCES_UPDATED_EVENT,
+      handleProfilePreferencesUpdated,
+    );
+  });
+
+  onUnmounted(() => {
+    if (themeObserver.value) {
+      themeObserver.value.disconnect();
+      themeObserver.value = null;
+    }
+
+    window.removeEventListener(
+      PROFILE_PREFERENCES_UPDATED_EVENT,
+      handleProfilePreferencesUpdated,
+    );
   });
 
   const logout = async () => {
@@ -80,8 +127,8 @@ export function useTopBar(emit: TopBarEmits) {
 
   const openProfile = () => {
     ModalService.open(UserProfileModal, {
-      title: "My Profile",
-      size: "sm",
+      title: "Meu perfil",
+      size: "md",
       closable: true,
     });
   };
@@ -89,6 +136,7 @@ export function useTopBar(emit: TopBarEmits) {
   return {
     me,
     email,
+    showEmailInTopBar,
     displayName,
     isDark,
     logout,

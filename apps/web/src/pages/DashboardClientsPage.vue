@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  nextTick,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
+import type * as XLSXTypes from "xlsx-js-style";
 import { useDashboardClientsPage } from "../assets/scripts/pages/useDashboardClientsPage";
 import { useClientQuery } from "../composables/useClientQuery";
 import ModalService from "../services/ModalService";
@@ -10,27 +18,64 @@ import { useLeadsStore } from "../pinia/stores/leads.store";
 import type { ClientRow } from "../pinia/types/clients.types";
 import type { ProjectRow } from "../pinia/types/projects.types";
 import type { LeadRow } from "../pinia/types/leads.types";
-import ClientStatisticsDashboard from "../components/dashboard/ClientStatisticsDashboard.vue";
-import ClientDetailView from "../components/client/ClientDetailView.vue";
+import {
+  CsvDocumentBuilder,
+  DASHBOARD_CLIENTS_EXPORT_COLUMN_KEYS,
+  DashboardClientsCsvBlueprint,
+  type DashboardClientsExportColumnKey,
+  type DashboardClientsExportRow,
+} from "../utils/export";
+import { ACTION_TITLES, TABLE_TITLES } from "../utils/constants/dom-titles";
 import {
   TABLE_DATA_ATTRS,
   CLIENT_DATA_ATTRS,
   TEST_DATA_ATTRS,
 } from "../utils/constants/dom-data-attrs";
+import {
+  CLIENTS_LIFECYCLE_UNKNOWN_LABEL,
+  CLIENT_LIFECYCLE_EXPANSION_MIN_ENGAGEMENT,
+  CLIENT_LIFECYCLE_EXPANSION_MIN_PROJECTS,
+  CLIENT_LIFECYCLE_INACTIVE_MAX_ENGAGEMENT,
+  CLIENT_LIFECYCLE_INACTIVE_MIN_AGE_DAYS,
+  CLIENT_LIFECYCLE_RISK_MAX_ENGAGEMENT,
+  DASHBOARD_CLIENTS_EXPORT_COLORS,
+  DASHBOARD_CLIENTS_EXPORT_COLUMN_WIDTH_BY_KEY,
+  DASHBOARD_CLIENTS_EXPORT_LIFECYCLE_STAGES,
+  EMAIL_ENGAGEMENT_WEIGHTS,
+  LIFECYCLE_CLASS_BY_STAGE,
+  LIFECYCLE_SORT_ORDER,
+  WHATSAPP_ENGAGEMENT_WEIGHTS,
+  type ClientLifecycleStage,
+} from "../utils/constants/dashboard-clients.constants";
 
-const { rows, loading, error, load } = useDashboardClientsPage();
+const { rows, loading, syncing, error, load } = useDashboardClientsPage();
 const projectsStore = useProjectsStore();
 const leadsStore = useLeadsStore();
 const { selectedClientId, setClientQuery, clearClientQuery } = useClientQuery();
 
 const expandedClientId = ref<string | null>(null);
+const TABLE_PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
+const tablePageSize = ref<(typeof TABLE_PAGE_SIZE_OPTIONS)[number]>(50);
+const tablePage = ref(1);
+const tableContainerRef = ref<HTMLElement | null>(null);
 
-onMounted(async () => {
-  if (!projectsStore.rows.length) await projectsStore.list();
-  if (!leadsStore.rows.length) await leadsStore.list();
+onMounted(() => {
+  const pendingLoads: Promise<unknown>[] = [];
+  if (!projectsStore.rows.length) {
+    pendingLoads.push(projectsStore.list());
+  }
+  if (!leadsStore.rows.length) {
+    pendingLoads.push(leadsStore.list());
+  }
 
   if (selectedClientId.value) {
     expandedClientId.value = selectedClientId.value;
+  }
+
+  if (pendingLoads.length) {
+    void Promise.all(pendingLoads).catch((error) => {
+      console.error("[DashboardClientsPage] background preload failed:", error);
+    });
   }
 });
 
@@ -44,8 +89,26 @@ const toggleClientExpand = async (clientId: string) => {
   }
 };
 
+const resolveClientPage = (clientId: string): number | null => {
+  const clientIndex = sortedRows.value.findIndex((row) => row.id === clientId);
+  if (clientIndex < 0) {
+    return null;
+  }
+  return Math.floor(clientIndex / tablePageSize.value) + 1;
+};
+
+const ensureClientPageVisible = async (clientId: string): Promise<void> => {
+  const targetPage = resolveClientPage(clientId);
+  if (!targetPage || tablePage.value === targetPage) {
+    return;
+  }
+  tablePage.value = targetPage;
+  await nextTick();
+};
+
 const handleSelectClientFromHighlights = async (clientId: string) => {
   expandedClientId.value = clientId;
+  await ensureClientPageVisible(clientId);
   await setClientQuery(clientId);
 
   const element = document.getElementById(`client-row-${clientId}`);
@@ -54,9 +117,17 @@ const handleSelectClientFromHighlights = async (clientId: string) => {
   }
 };
 
-const sortKey = ref<"name" | "company" | "email" | "phone" | "whatsapp">(
-  "name",
-);
+const sortKey = ref<
+  | "name"
+  | "type"
+  | "company"
+  | "cnpj"
+  | "cep"
+  | "lifecycle"
+  | "email"
+  | "phone"
+  | "whatsapp"
+>("name");
 const sortDir = ref<"asc" | "desc">("asc");
 
 const safeRows = computed(
@@ -69,36 +140,808 @@ const safeLeads = computed(
   () => (leadsStore.rows || []).filter(Boolean) as LeadRow[],
 );
 
+type EngagementAnalyticsMap = Readonly<Record<string, number | undefined>>;
+
+const projectCountByClient = computed(() => {
+  const result = new Map<string, number>();
+  for (const project of safeProjects.value) {
+    const clientId = project.clientId;
+    if (!clientId) continue;
+    result.set(clientId, (result.get(clientId) ?? 0) + 1);
+  }
+  return result;
+});
+
+const toSafePositive = (value: number | undefined): number => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+  return value;
+};
+
+const calculateWeightedEngagementScore = (
+  analytics: EngagementAnalyticsMap | undefined,
+  weights: Readonly<Record<string, number>>,
+): number => {
+  if (!analytics) return 0;
+  const sent = toSafePositive(analytics.sent);
+  if (sent <= 0) return 0;
+
+  let weightedScore = 0;
+  for (const [metric, weight] of Object.entries(weights)) {
+    const metricValue = toSafePositive(analytics[metric]);
+    weightedScore += (metricValue / sent) * weight;
+  }
+
+  return Math.min(100, Math.round(weightedScore));
+};
+
+type ClientMetrics = {
+  projectCount: number;
+  whatsappScore: number;
+  emailScore: number;
+  combinedEngagement: number;
+  lifecycleStage: ClientLifecycleStage;
+  lifecycleClass: string;
+};
+
+const resolveClientLifecycleStage = (
+  projectCount: number,
+  combinedEngagement: number,
+  ageInDays: number,
+): ClientLifecycleStage => {
+  if (
+    projectCount === 0 &&
+    combinedEngagement < CLIENT_LIFECYCLE_INACTIVE_MAX_ENGAGEMENT &&
+    ageInDays > CLIENT_LIFECYCLE_INACTIVE_MIN_AGE_DAYS
+  ) {
+    return "Inativo";
+  }
+
+  if (projectCount === 0) {
+    return "Prospect";
+  }
+
+  if (
+    projectCount >= CLIENT_LIFECYCLE_EXPANSION_MIN_PROJECTS &&
+    combinedEngagement >= CLIENT_LIFECYCLE_EXPANSION_MIN_ENGAGEMENT
+  ) {
+    return "Expansão";
+  }
+
+  if (combinedEngagement < CLIENT_LIFECYCLE_RISK_MAX_ENGAGEMENT) {
+    return "Em Risco";
+  }
+
+  return "Ativo";
+};
+
+const clientMetricsById = computed(() => {
+  const metricsById = new Map<string, ClientMetrics>();
+  const now = Date.now();
+
+  for (const client of safeRows.value) {
+    const projectCount = projectCountByClient.value.get(client.id) ?? 0;
+    const whatsappScore = calculateWeightedEngagementScore(
+      client.whatsappAnalytics as EngagementAnalyticsMap | undefined,
+      WHATSAPP_ENGAGEMENT_WEIGHTS,
+    );
+    const emailScore = calculateWeightedEngagementScore(
+      client.emailAnalytics as EngagementAnalyticsMap | undefined,
+      EMAIL_ENGAGEMENT_WEIGHTS,
+    );
+    const combinedEngagement = Math.round((whatsappScore + emailScore) / 2);
+    const createdAtMs = Date.parse(client.createdAt);
+    const ageInDays = Number.isFinite(createdAtMs)
+      ? Math.floor((now - createdAtMs) / (1000 * 60 * 60 * 24))
+      : 0;
+    const lifecycleStage = resolveClientLifecycleStage(
+      projectCount,
+      combinedEngagement,
+      ageInDays,
+    );
+
+    metricsById.set(client.id, {
+      projectCount,
+      whatsappScore,
+      emailScore,
+      combinedEngagement,
+      lifecycleStage,
+      lifecycleClass:
+        LIFECYCLE_CLASS_BY_STAGE[lifecycleStage] ??
+        LIFECYCLE_CLASS_BY_STAGE.Inativo,
+    });
+  }
+
+  return metricsById;
+});
+
+const resolveClientMetrics = (client: ClientRow): ClientMetrics =>
+  clientMetricsById.value.get(client.id) ?? {
+    projectCount: 0,
+    whatsappScore: 0,
+    emailScore: 0,
+    combinedEngagement: 0,
+    lifecycleStage: CLIENTS_LIFECYCLE_UNKNOWN_LABEL as ClientLifecycleStage,
+    lifecycleClass: LIFECYCLE_CLASS_BY_STAGE.Inativo,
+  };
+
+const getClientProjectCount = (clientId: string): number =>
+  clientMetricsById.value.get(clientId)?.projectCount ?? 0;
+
+const getClientTypeLabel = (client: ClientRow): string =>
+  client.type === "empresa" ? "Empresa" : "Pessoa";
+
+const getLifecycleStage = (client: ClientRow): ClientLifecycleStage =>
+  resolveClientMetrics(client).lifecycleStage;
+
+const getLifecycleStageClass = (client: ClientRow): string =>
+  resolveClientMetrics(client).lifecycleClass;
+
+const getClientSortValue = (
+  client: ClientRow,
+  key: Exclude<typeof sortKey.value, "lifecycle" | "whatsapp">,
+): string => {
+  if (key === "name") return client.name || "";
+  if (key === "type") return getClientTypeLabel(client);
+  if (key === "company") return client.company || "";
+  if (key === "cnpj") return client.cnpj || "";
+  if (key === "cep") return client.cep || "";
+  if (key === "email") return client.email || "";
+  return client.phone || "";
+};
+
 const sortedRows = computed(() => {
   const list = safeRows.value;
   const key = sortKey.value;
   const dir = sortDir.value === "asc" ? 1 : -1;
   return [...list].sort((a, b) => {
+    if (key === "lifecycle") {
+      const stageA = resolveClientMetrics(a).lifecycleStage;
+      const stageB = resolveClientMetrics(b).lifecycleStage;
+      return (LIFECYCLE_SORT_ORDER[stageA] - LIFECYCLE_SORT_ORDER[stageB]) * dir;
+    }
+
     // Special handling for whatsapp sorting
     if (key === "whatsapp") {
       const av = String(a.whatsappNumber || a.cellPhone || "").toLowerCase();
       const bv = String(b.whatsappNumber || b.cellPhone || "").toLowerCase();
       return av.localeCompare(bv) * dir;
     }
-    const av = String((a as any)?.[key] ?? "").toLowerCase();
-    const bv = String((b as any)?.[key] ?? "").toLowerCase();
+
+    const safeKey = key as Exclude<typeof sortKey.value, "lifecycle" | "whatsapp">;
+    const av = getClientSortValue(a, safeKey).toLowerCase();
+    const bv = getClientSortValue(b, safeKey).toLowerCase();
     return av.localeCompare(bv) * dir;
   });
 });
 
+const totalTableRows = computed(() => sortedRows.value.length);
+
+const totalTablePages = computed(() => {
+  return Math.max(1, Math.ceil(totalTableRows.value / tablePageSize.value));
+});
+
+const pagedRows = computed(() => {
+  const startIndex = (tablePage.value - 1) * tablePageSize.value;
+  return sortedRows.value.slice(startIndex, startIndex + tablePageSize.value);
+});
+
+const firstVisibleRowIndex = computed(() => {
+  if (!totalTableRows.value) {
+    return 0;
+  }
+  return (tablePage.value - 1) * tablePageSize.value + 1;
+});
+
+const lastVisibleRowIndex = computed(() => {
+  if (!totalTableRows.value) {
+    return 0;
+  }
+  return Math.min(
+    totalTableRows.value,
+    firstVisibleRowIndex.value + pagedRows.value.length - 1,
+  );
+});
+
+const setTablePage = (nextPage: number): void => {
+  const clamped = Math.min(Math.max(nextPage, 1), totalTablePages.value);
+  tablePage.value = clamped;
+};
+
+const setTablePageSize = (nextSize: number): void => {
+  if (!TABLE_PAGE_SIZE_OPTIONS.includes(nextSize as (typeof TABLE_PAGE_SIZE_OPTIONS)[number])) {
+    return;
+  }
+  tablePageSize.value =
+    nextSize as (typeof TABLE_PAGE_SIZE_OPTIONS)[number];
+  tablePage.value = 1;
+};
+
+watch([totalTableRows, tablePageSize], () => {
+  if (tablePage.value > totalTablePages.value) {
+    tablePage.value = totalTablePages.value;
+  }
+});
+
+const resetTableScrollPosition = (): void => {
+  const container = tableContainerRef.value;
+  if (!container) {
+    return;
+  }
+  container.scrollTop = 0;
+};
+
+watch([tablePage, tablePageSize], () => {
+  resetTableScrollPosition();
+});
+
+watch([sortKey, sortDir], () => {
+  resetTableScrollPosition();
+});
+
+watch(
+  [() => expandedClientId.value, totalTableRows, tablePageSize],
+  async ([expandedClient]) => {
+    if (!expandedClient) {
+      return;
+    }
+    await ensureClientPageVisible(expandedClient);
+  },
+);
+
 const setSort = (key: typeof sortKey.value) => {
   if (sortKey.value === key) {
     sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+    tablePage.value = 1;
     return;
   }
   sortKey.value = key;
   sortDir.value = "asc";
+  tablePage.value = 1;
 };
 
 const sortIndicator = (key: typeof sortKey.value) => {
   if (sortKey.value !== key) return "";
   return sortDir.value === "asc" ? "▲" : "▼";
 };
+
+const getSortTitle = (
+  key: typeof sortKey.value,
+  columnLabel: string,
+): string => {
+  const isCurrentKey = sortKey.value === key;
+  if (!isCurrentKey) {
+    return `${TABLE_TITLES.SORT_ASC}: ${columnLabel}`;
+  }
+  return sortDir.value === "asc"
+    ? `${TABLE_TITLES.SORT_DESC}: ${columnLabel}`
+    : `${TABLE_TITLES.SORT_ASC}: ${columnLabel}`;
+};
+
+const getExportDateSuffix = (): string => {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}${mm}${dd}`;
+};
+
+const downloadBlob = (blob: Blob, fileName: string): void => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+};
+
+type ExportAlignment = "left" | "center" | "right";
+
+type ExportCellStyleOptions = {
+  fillColor: string;
+  fontColor?: string;
+  bold?: boolean;
+  align?: ExportAlignment;
+  fontSize?: number;
+};
+
+type StyledWorksheet = XLSXTypes.WorkSheet & {
+  "!cols"?: Array<{ wch: number }>;
+  "!rows"?: Array<{ hpt?: number }>;
+  "!autofilter"?: { ref: string };
+};
+
+type DashboardClientsExportFormat = "csv" | "xlsx";
+
+type DashboardClientsExportDialogResult = {
+  formats: DashboardClientsExportFormat[];
+  columnKeys: DashboardClientsExportColumnKey[];
+  lifecycleStages: ClientLifecycleStage[];
+  onlyWithWhatsapp: boolean;
+};
+
+type XlsxModule = typeof import("xlsx-js-style");
+
+let xlsxModulePromise: Promise<XlsxModule> | null = null;
+let xlsxPrefetchScheduled = false;
+
+const resolveXlsxModule = (): Promise<XlsxModule> => {
+  if (!xlsxModulePromise) {
+    xlsxModulePromise = import("xlsx-js-style")
+      .then((mod) => {
+        if ("utils" in mod) {
+          return mod as XlsxModule;
+        }
+        return (mod as { default: XlsxModule }).default;
+      })
+      .catch((error) => {
+        xlsxModulePromise = null;
+        throw error;
+      });
+  }
+  return xlsxModulePromise;
+};
+
+const shouldSkipXlsxPrefetch = (): boolean => {
+  if (typeof navigator === "undefined") return false;
+
+  const connection = (
+    navigator as Navigator & {
+      connection?: {
+        saveData?: boolean;
+        effectiveType?: string;
+      };
+    }
+  ).connection;
+
+  if (!connection) return false;
+  if (connection.saveData) return true;
+  return connection.effectiveType === "2g" || connection.effectiveType === "slow-2g";
+};
+
+const prefetchXlsxOnIdle = (): void => {
+  if (typeof window === "undefined" || xlsxPrefetchScheduled) {
+    return;
+  }
+  if (shouldSkipXlsxPrefetch()) {
+    return;
+  }
+
+  xlsxPrefetchScheduled = true;
+
+  const prefetch = (): void => {
+    void resolveXlsxModule().catch((error) => {
+      console.warn("[DashboardClientsPage] XLSX idle prefetch failed:", error);
+    });
+  };
+
+  const requestIdleCallback = (
+    window as Window & {
+      requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => number;
+    }
+  ).requestIdleCallback;
+
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(prefetch, { timeout: 3000 });
+    return;
+  }
+
+  window.setTimeout(prefetch, 1200);
+};
+
+const DEFAULT_EXPORT_COLUMN_KEYS = [
+  ...DASHBOARD_CLIENTS_EXPORT_COLUMN_KEYS,
+] as DashboardClientsExportColumnKey[];
+
+const DEFAULT_EXPORT_LIFECYCLE_STAGES = [
+  ...DASHBOARD_CLIENTS_EXPORT_LIFECYCLE_STAGES,
+] as ClientLifecycleStage[];
+
+const EXPORT_COLUMN_WIDTH_BY_KEY = DASHBOARD_CLIENTS_EXPORT_COLUMN_WIDTH_BY_KEY;
+const EXPORT_COLORS = DASHBOARD_CLIENTS_EXPORT_COLORS;
+
+const EXPORT_CELL_BORDER: NonNullable<XLSXTypes.CellStyle["border"]> = {
+  top: { style: "thin", color: { rgb: EXPORT_COLORS.border } },
+  right: { style: "thin", color: { rgb: EXPORT_COLORS.border } },
+  bottom: { style: "thin", color: { rgb: EXPORT_COLORS.border } },
+  left: { style: "thin", color: { rgb: EXPORT_COLORS.border } },
+};
+
+const createExportCellStyle = ({
+  fillColor,
+  fontColor = EXPORT_COLORS.cellText,
+  bold = false,
+  align = "left",
+  fontSize = 11,
+}: ExportCellStyleOptions): XLSXTypes.CellStyle => ({
+  font: {
+    name: "Calibri",
+    sz: fontSize,
+    color: { rgb: fontColor },
+    bold,
+  },
+  fill: {
+    patternType: "solid",
+    fgColor: { rgb: fillColor },
+  },
+  alignment: {
+    horizontal: align,
+    vertical: "center",
+    wrapText: false,
+  },
+  border: EXPORT_CELL_BORDER,
+});
+
+const getExportZebraFill = (rowIndex: number): string =>
+  rowIndex % 2 === 0 ? EXPORT_COLORS.zebraOdd : EXPORT_COLORS.zebraEven;
+
+const getLifecycleExportStyle = (
+  stage: string,
+): Pick<ExportCellStyleOptions, "fillColor" | "fontColor" | "bold"> => {
+  if (stage === "Prospect") {
+    return { fillColor: "FFFAFBFC", fontColor: "FF475569", bold: true };
+  }
+  if (stage === "Ativo") {
+    return { fillColor: "FFFAFBFC", fontColor: "FF1E293B", bold: true };
+  }
+  if (stage === "Expansão") {
+    return { fillColor: "FFFAFBFC", fontColor: "FF0F172A", bold: true };
+  }
+  if (stage === "Em Risco") {
+    return { fillColor: "FFF7F9FC", fontColor: "FF334155", bold: true };
+  }
+  return { fillColor: "FFF7F9FC", fontColor: "FF64748B", bold: true };
+};
+
+type ExportOutlierThresholds = {
+  engagementLow: number;
+  engagementHigh: number;
+  projectsHigh: number;
+};
+
+const getPercentile = (values: number[], percentile: number): number => {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = (sorted.length - 1) * percentile;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  if (lower === upper) return sorted[lower] ?? 0;
+  const lowerValue = sorted[lower] ?? sorted[0] ?? 0;
+  const upperValue = sorted[upper] ?? sorted[sorted.length - 1] ?? lowerValue;
+  return lowerValue + (upperValue - lowerValue) * (index - lower);
+};
+
+const getExportOutlierThresholds = (
+  records: DashboardClientsExportRow[],
+): ExportOutlierThresholds => {
+  const engagementValues = records.flatMap((record) => [
+    record.whatsappEngagement,
+    record.emailEngagement,
+  ]);
+  const projectValues = records.map((record) => record.projetos);
+
+  let engagementLow = Math.round(
+    Math.min(30, Math.max(15, getPercentile(engagementValues, 0.15))),
+  );
+  let engagementHigh = Math.round(
+    Math.max(75, Math.min(95, getPercentile(engagementValues, 0.9))),
+  );
+  if (!Number.isFinite(engagementLow)) engagementLow = 18;
+  if (!Number.isFinite(engagementHigh)) engagementHigh = 85;
+  if (engagementLow >= engagementHigh) {
+    engagementLow = 18;
+    engagementHigh = 85;
+  }
+
+  let projectsHigh = Math.round(Math.max(4, getPercentile(projectValues, 0.9)));
+  if (!Number.isFinite(projectsHigh)) projectsHigh = 4;
+
+  return { engagementLow, engagementHigh, projectsHigh };
+};
+
+const getEngagementOutlierStyle = (
+  score: number,
+  thresholds: ExportOutlierThresholds,
+): Pick<ExportCellStyleOptions, "fillColor" | "fontColor" | "bold"> | null => {
+  if (score >= thresholds.engagementHigh) {
+    return {
+      fillColor: EXPORT_COLORS.accentSoft,
+      fontColor: EXPORT_COLORS.accent,
+      bold: true,
+    };
+  }
+  if (score <= thresholds.engagementLow) {
+    return {
+      fillColor: EXPORT_COLORS.accentSubtle,
+      fontColor: EXPORT_COLORS.accent,
+      bold: false,
+    };
+  }
+  return null;
+};
+
+const getProjectOutlierStyle = (
+  projectCount: number,
+  thresholds: ExportOutlierThresholds,
+): Pick<ExportCellStyleOptions, "fillColor" | "fontColor" | "bold"> | null => {
+  if (projectCount >= thresholds.projectsHigh) {
+    return {
+      fillColor: EXPORT_COLORS.accentSoft,
+      fontColor: EXPORT_COLORS.accent,
+      bold: true,
+    };
+  }
+  if (projectCount === 0) {
+    return {
+      fillColor: EXPORT_COLORS.accentSubtle,
+      fontColor: EXPORT_COLORS.accent,
+      bold: false,
+    };
+  }
+  return null;
+};
+
+const normalizeColumnKeys = (
+  keys: readonly DashboardClientsExportColumnKey[],
+): DashboardClientsExportColumnKey[] => {
+  const selected = new Set(keys);
+  const ordered = DEFAULT_EXPORT_COLUMN_KEYS.filter((key) => selected.has(key));
+  return ordered.length ? ordered : [...DEFAULT_EXPORT_COLUMN_KEYS];
+};
+
+const normalizeLifecycleStages = (
+  stages: readonly ClientLifecycleStage[],
+): ClientLifecycleStage[] => {
+  const selected = new Set(stages);
+  const ordered = DEFAULT_EXPORT_LIFECYCLE_STAGES.filter((stage) =>
+    selected.has(stage),
+  );
+  return ordered.length ? ordered : [...DEFAULT_EXPORT_LIFECYCLE_STAGES];
+};
+
+const normalizeFormats = (
+  formats: readonly DashboardClientsExportFormat[],
+): DashboardClientsExportFormat[] => {
+  const selected = new Set<DashboardClientsExportFormat>(formats);
+  const ordered = (["csv", "xlsx"] as const).filter((format) =>
+    selected.has(format),
+  );
+  return ordered.length ? [...ordered] : ["csv", "xlsx"];
+};
+
+const isCenteredExportColumn = (key: DashboardClientsExportColumnKey): boolean =>
+  key === "tipo" ||
+  key === "lifecycle" ||
+  key === "whatsappEngagement" ||
+  key === "emailEngagement" ||
+  key === "projetos";
+
+const buildCsvBlueprint = (
+  columnKeys: readonly DashboardClientsExportColumnKey[],
+): DashboardClientsCsvBlueprint =>
+  new DashboardClientsCsvBlueprint({ columns: normalizeColumnKeys(columnKeys) });
+
+const buildExportRows = (): DashboardClientsExportRow[] =>
+  sortedRows.value.map((client) => ({
+    nome: client.name,
+    tipo: getClientTypeLabel(client),
+    empresa: client.company || "",
+    cnpj: client.cnpj || "",
+    cep: client.cep || "",
+    lifecycle: getLifecycleStage(client),
+    email: client.email || "",
+    telefone: client.phone || "",
+    whatsapp: client.whatsappNumber || client.cellPhone || "",
+    whatsappEngagement: calcWhatsappScore(client),
+    emailEngagement: calcEmailScore(client),
+    projetos: getClientProjectCount(client.id),
+  }));
+
+const getFilteredExportRows = (
+  config: DashboardClientsExportDialogResult,
+): DashboardClientsExportRow[] => {
+  const selectedLifecycles = new Set(config.lifecycleStages);
+
+  return buildExportRows().filter((record) => {
+    if (!selectedLifecycles.has(record.lifecycle as ClientLifecycleStage)) {
+      return false;
+    }
+    if (config.onlyWithWhatsapp && !record.whatsapp) {
+      return false;
+    }
+    return true;
+  });
+};
+
+const buildExportAoa = (
+  csvBlueprint: DashboardClientsCsvBlueprint,
+  records: DashboardClientsExportRow[],
+): Array<Array<string | number | boolean>> =>
+  csvBlueprint.toAoa(records);
+
+const applyXlsxExportStyling = (
+  xlsx: XlsxModule,
+  worksheet: StyledWorksheet,
+  records: DashboardClientsExportRow[],
+  columnKeys: readonly DashboardClientsExportColumnKey[],
+): void => {
+  const thresholds = getExportOutlierThresholds(records);
+  worksheet["!cols"] = columnKeys.map((key) => ({
+    wch: EXPORT_COLUMN_WIDTH_BY_KEY[key],
+  }));
+  worksheet["!rows"] = [{ hpt: 30 }, ...records.map(() => ({ hpt: 24 }))];
+  const lastColumn = xlsx.utils.encode_col(Math.max(columnKeys.length - 1, 0));
+  worksheet["!autofilter"] = { ref: `A1:${lastColumn}1` };
+
+  for (let column = 0; column < columnKeys.length; column += 1) {
+    const address = xlsx.utils.encode_cell({ r: 0, c: column });
+    const cell = worksheet[address];
+    if (!cell) continue;
+    cell.s = createExportCellStyle({
+      fillColor: EXPORT_COLORS.headerFill,
+      fontColor: EXPORT_COLORS.headerFont,
+      bold: true,
+      align: "center",
+      fontSize: 12,
+    });
+  }
+
+  records.forEach((record, rowIndex) => {
+    const excelRow = rowIndex + 1;
+    const rowFillColor = getExportZebraFill(rowIndex);
+
+    for (let column = 0; column < columnKeys.length; column += 1) {
+      const key = columnKeys[column];
+      if (!key) continue;
+      const address = xlsx.utils.encode_cell({ r: excelRow, c: column });
+      const cell = worksheet[address];
+      if (!cell) continue;
+
+      const styleOptions: ExportCellStyleOptions = {
+        fillColor: rowFillColor,
+        fontColor: EXPORT_COLORS.cellText,
+        align: isCenteredExportColumn(key) ? "center" : "left",
+      };
+
+      if (key === "lifecycle") {
+        const lifecycleStyle = getLifecycleExportStyle(record.lifecycle);
+        styleOptions.fillColor = lifecycleStyle.fillColor;
+        styleOptions.fontColor = lifecycleStyle.fontColor;
+        styleOptions.bold = lifecycleStyle.bold;
+        styleOptions.align = "center";
+      } else if (key === "whatsapp" && !record.whatsapp) {
+        styleOptions.fillColor = "FFFAFBFD";
+        styleOptions.fontColor = EXPORT_COLORS.mutedText;
+        styleOptions.align = "center";
+      } else if (key === "whatsappEngagement" || key === "emailEngagement") {
+        const score =
+          key === "whatsappEngagement"
+            ? record.whatsappEngagement
+            : record.emailEngagement;
+        const scoreStyle = getEngagementOutlierStyle(score, thresholds);
+        styleOptions.align = "center";
+        if (scoreStyle) {
+          styleOptions.fillColor = scoreStyle.fillColor;
+          styleOptions.fontColor = scoreStyle.fontColor;
+          styleOptions.bold = scoreStyle.bold;
+        }
+        cell.z = "0\"%\"";
+      } else if (key === "projetos") {
+        const projectStyle = getProjectOutlierStyle(record.projetos, thresholds);
+        styleOptions.align = "center";
+        if (projectStyle) {
+          styleOptions.fillColor = projectStyle.fillColor;
+          styleOptions.fontColor = projectStyle.fontColor;
+          styleOptions.bold = projectStyle.bold;
+        }
+      }
+
+      cell.s = createExportCellStyle(styleOptions);
+    }
+  });
+};
+
+const openExportDialog =
+  async (): Promise<DashboardClientsExportDialogResult | null> =>
+    ModalService.open<DashboardClientsExportDialogResult>(
+      DashboardClientsExportModal,
+      {
+        title: "Exportar Clientes",
+        size: "md",
+        data: {
+          totalRows: sortedRows.value.length,
+          defaultFormats: ["csv", "xlsx"] as DashboardClientsExportFormat[],
+          defaultColumnKeys: [...DEFAULT_EXPORT_COLUMN_KEYS],
+          defaultLifecycleStages: [...DEFAULT_EXPORT_LIFECYCLE_STAGES],
+          defaultOnlyWithWhatsapp: false,
+        },
+      },
+    );
+
+const handleOpenExportModal = async () => {
+  try {
+    const selection = await openExportDialog();
+    if (!selection) return;
+
+    const formats = normalizeFormats(selection.formats);
+    const columnKeys = normalizeColumnKeys(selection.columnKeys);
+    const lifecycleStages = normalizeLifecycleStages(selection.lifecycleStages);
+    const records = getFilteredExportRows({
+      ...selection,
+      formats,
+      columnKeys,
+      lifecycleStages,
+    });
+
+    if (!records.length) {
+      await AlertService.error(
+        "Exportação",
+        "Não há clientes para exportar com os filtros selecionados.",
+      );
+      return;
+    }
+
+    const csvBlueprint = buildCsvBlueprint(columnKeys);
+    const exportedFormats: DashboardClientsExportFormat[] = [];
+
+    if (formats.includes("csv")) {
+      const csvBuilder = new CsvDocumentBuilder(csvBlueprint);
+      const csv = csvBuilder.build(records);
+      downloadBlob(
+        new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+        `clientes-dashboard-${getExportDateSuffix()}.csv`,
+      );
+      exportedFormats.push("csv");
+    }
+
+    if (formats.includes("xlsx")) {
+      const xlsx = await resolveXlsxModule();
+      const worksheet = xlsx.utils.aoa_to_sheet(
+        buildExportAoa(csvBlueprint, records),
+      ) as StyledWorksheet;
+      applyXlsxExportStyling(xlsx, worksheet, records, csvBlueprint.getColumnKeys());
+
+      const workbook = xlsx.utils.book_new();
+      xlsx.utils.book_append_sheet(workbook, worksheet, "Clientes");
+
+      const content = xlsx.write(workbook, {
+        type: "array",
+        bookType: "xlsx",
+        cellStyles: true,
+      });
+      downloadBlob(
+        new Blob([content], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `clientes-dashboard-${getExportDateSuffix()}.xlsx`,
+      );
+      exportedFormats.push("xlsx");
+    }
+
+    await AlertService.success(
+      "Exportação concluída",
+      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
+    );
+  } catch (error) {
+    console.error("[DashboardClientsPage] Export failed:", error);
+    await AlertService.error("Erro ao exportar", error);
+  }
+};
+
+const DashboardClientsExportModal = defineAsyncComponent(
+  () => import("../components/dashboard/DashboardClientsExportModal.vue"),
+);
+
+const ClientStatisticsDashboard = defineAsyncComponent(
+  () => import("../components/dashboard/ClientStatisticsDashboard.vue"),
+);
+
+const ClientDetailView = defineAsyncComponent(
+  () => import("../components/client/ClientDetailView.vue"),
+);
 
 const ProjectsTableModal = defineAsyncComponent(
   () => import("../components/dashboard/ProjectsTableModal.vue"),
@@ -159,41 +1002,38 @@ const handleDelete = async (client: ClientRow) => {
   }
 };
 
-// Calculate engagement score for WhatsApp (0-100)
-const calcWhatsappScore = (client: ClientRow): number => {
-  const analytics = client.whatsappAnalytics;
-  if (!analytics) return 0;
-  const sent = analytics.sent || 0;
-  if (sent === 0) return 0;
-  const delivered = analytics.delivered || 0;
-  const read = analytics.read || 0;
-  const replied = analytics.replied || 0;
-  // Weighted score: delivered 20%, read 40%, replied 40%
-  const deliveryRate = sent > 0 ? (delivered / sent) * 20 : 0;
-  const readRate = sent > 0 ? (read / sent) * 40 : 0;
-  const replyRate = sent > 0 ? (replied / sent) * 40 : 0;
-  return Math.min(100, Math.round(deliveryRate + readRate + replyRate));
+const calcWhatsappScore = (client: ClientRow): number =>
+  resolveClientMetrics(client).whatsappScore;
+
+const calcEmailScore = (client: ClientRow): number =>
+  resolveClientMetrics(client).emailScore;
+
+// WhatsApp stub alert
+const showWhatsAppStub = (number: string) => {
+  window.alert(
+    `Chamada WhatsApp para ${number} — funcionalidade desabilitada nesta versão.`,
+  );
 };
 
-// Calculate engagement score for Email (0-100)
-const calcEmailScore = (client: ClientRow): number => {
-  const analytics = client.emailAnalytics;
-  if (!analytics) return 0;
-  const sent = analytics.sent || 0;
-  if (sent === 0) return 0;
-  const opened = analytics.opened || 0;
-  const clicked = analytics.clicked || 0;
-  const replied = analytics.replied || 0;
-  // Weighted score: opened 30%, clicked 30%, replied 40%
-  const openRate = sent > 0 ? (opened / sent) * 30 : 0;
-  const clickRate = sent > 0 ? (clicked / sent) * 30 : 0;
-  const replyRate = sent > 0 ? (replied / sent) * 40 : 0;
-  return Math.min(100, Math.round(openRate + clickRate + replyRate));
-};
+// Dashboard-to-Action automation hook stub
+const handleAutomationHook = (client: ClientRow): void => {
+  const stage = getLifecycleStage(client);
+  const projectCount = getClientProjectCount(client.id);
+  const suggestedAction =
+    stage === "Em Risco"
+      ? "Criar follow-up imediato"
+      : stage === "Prospect"
+        ? "Enviar primeira abordagem"
+        : stage === "Expansão"
+          ? "Oferecer upsell/cross-sell"
+          : "Agendar próximo passo";
 
-// Get project count for a client
-const getClientProjectCount = (clientId: string): number => {
-  return safeProjects.value.filter((p) => p.clientId === clientId).length;
+  window.alert(
+    `Hook de automação (${client.name})\n` +
+      `Lifecycle: ${stage}\n` +
+      `Projetos: ${projectCount}\n` +
+      `Ação sugerida: ${suggestedAction}`,
+  );
 };
 
 // Engagement Details Modal
@@ -235,17 +1075,47 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
         <h1 class="page-title">Meus Clientes</h1>
         <p class="page-subtitle">Gerenciamento de clientes e conexões.</p>
       </div>
+      <div class="page-header__actions">
+        <button
+          class="btn btn-sm btn-ghost"
+          title="Configurar exportação da visão atual"
+          @mouseenter="prefetchXlsxOnIdle"
+          @focus="prefetchXlsxOnIdle"
+          @click="handleOpenExportModal"
+        >
+          Exportar...
+        </button>
+      </div>
     </header>
 
+    <div
+      v-if="syncing"
+      class="page-syncing"
+      role="status"
+      aria-live="polite"
+    >
+      <span class="page-syncing__spinner" aria-hidden="true"></span>
+      <span>Atualizando lista de clientes em segundo plano…</span>
+    </div>
+
     <!-- Statistics Dashboard -->
-    <ClientStatisticsDashboard
-      v-if="!loading && rows && rows.length > 0"
-      :clients="safeRows"
-      :projects="safeProjects"
-      :leads="safeLeads"
-      :loading="loading"
-      @select-client="handleSelectClientFromHighlights"
-    />
+    <Suspense v-if="!loading && rows && rows.length > 0">
+      <template #default>
+        <ClientStatisticsDashboard
+          :clients="safeRows"
+          :projects="safeProjects"
+          :leads="safeLeads"
+          :loading="loading"
+          @select-client="handleSelectClientFromHighlights"
+        />
+      </template>
+      <template #fallback>
+        <div class="dashboard-async-fallback" role="status" aria-live="polite">
+          <span class="dashboard-async-fallback__spinner" aria-hidden="true"></span>
+          <span>Carregando estatísticas dos clientes…</span>
+        </div>
+      </template>
+    </Suspense>
 
     <div v-if="loading" class="p-8 text-center opacity-70">
       Carregando clientes...
@@ -257,7 +1127,11 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
       {{ error }}
     </div>
 
-    <div v-else class="table-container card">
+    <div
+      v-else
+      ref="tableContainerRef"
+      class="table-container card"
+    >
       <div
         v-if="error && rows && rows.length"
         class="mb-4 p-3 text-amber-700 bg-amber-50 rounded"
@@ -281,11 +1155,34 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                     : 'none'
                 "
                 aria-label="Ordenar por nome"
+                :title="getSortTitle('name', 'Nome')"
                 @click="setSort('name')"
               >
                 Nome
                 <span class="th-sort" aria-hidden="true">{{
                   sortIndicator("name")
+                }}</span>
+              </button>
+            </th>
+            <th role="columnheader">
+              <button
+                class="th-button"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
+                :data-sort-dir="sortKey === 'type' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'type'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por tipo"
+                :title="getSortTitle('type', 'Tipo')"
+                @click="setSort('type')"
+              >
+                Tipo
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("type")
                 }}</span>
               </button>
             </th>
@@ -302,11 +1199,78 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                     : 'none'
                 "
                 aria-label="Ordenar por empresa"
+                :title="getSortTitle('company', 'Empresa')"
                 @click="setSort('company')"
               >
                 Empresa
                 <span class="th-sort" aria-hidden="true">{{
                   sortIndicator("company")
+                }}</span>
+              </button>
+            </th>
+            <th role="columnheader">
+              <button
+                class="th-button"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
+                :data-sort-dir="sortKey === 'cnpj' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'cnpj'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por CNPJ"
+                :title="getSortTitle('cnpj', 'CNPJ')"
+                @click="setSort('cnpj')"
+              >
+                CNPJ
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("cnpj")
+                }}</span>
+              </button>
+            </th>
+            <th role="columnheader">
+              <button
+                class="th-button"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
+                :data-sort-dir="sortKey === 'cep' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'cep'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por CEP"
+                :title="getSortTitle('cep', 'CEP')"
+                @click="setSort('cep')"
+              >
+                CEP
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("cep")
+                }}</span>
+              </button>
+            </th>
+            <th role="columnheader">
+              <button
+                class="th-button"
+                :data-sort-key="TABLE_DATA_ATTRS.SORT_KEY"
+                :data-sort-dir="sortKey === 'lifecycle' ? sortDir : 'none'"
+                :aria-sort="
+                  sortKey === 'lifecycle'
+                    ? sortDir === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                "
+                aria-label="Ordenar por lifecycle"
+                :title="getSortTitle('lifecycle', 'Lifecycle')"
+                @click="setSort('lifecycle')"
+              >
+                Lifecycle
+                <span class="th-sort" aria-hidden="true">{{
+                  sortIndicator("lifecycle")
                 }}</span>
               </button>
             </th>
@@ -323,6 +1287,7 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                     : 'none'
                 "
                 aria-label="Ordenar por email"
+                :title="getSortTitle('email', 'E-mail')"
                 @click="setSort('email')"
               >
                 Email
@@ -344,6 +1309,7 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                     : 'none'
                 "
                 aria-label="Ordenar por telefone"
+                :title="getSortTitle('phone', 'Telefone')"
                 @click="setSort('phone')"
               >
                 Telefone
@@ -365,6 +1331,7 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                     : 'none'
                 "
                 aria-label="Ordenar por WhatsApp"
+                :title="getSortTitle('whatsapp', 'WhatsApp')"
                 @click="setSort('whatsapp')"
               >
                 WhatsApp
@@ -404,7 +1371,7 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
           </tr>
         </thead>
         <tbody>
-          <template v-for="c in sortedRows" :key="c?.id || 'unknown'">
+          <template v-for="c in pagedRows" :key="c?.id || 'unknown'">
             <tr
               v-if="c"
               :id="`client-row-${c.id}`"
@@ -430,7 +1397,11 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                         ? 'Recolher detalhes do cliente'
                         : 'Ver detalhes do cliente'
                     "
-                    title="Ver detalhes"
+                    :title="
+                      expandedClientId === c.id
+                        ? TABLE_TITLES.COLLAPSE_ROW
+                        : TABLE_TITLES.EXPAND_ROW
+                    "
                     @click="toggleClientExpand(c.id)"
                   >
                     {{ expandedClientId === c.id ? "▼" : "▶" }}
@@ -438,6 +1409,7 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                   <router-link
                     :to="{ name: 'ClientProfile', params: { id: c.id } }"
                     class="client-link"
+                    :title="`Abrir perfil de ${c.name}`"
                   >
                     {{ c.name }}
                   </router-link>
@@ -446,9 +1418,46 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
               <td
                 role="cell"
                 :data-column="TABLE_DATA_ATTRS.COLUMN"
+                class="text-center"
+                :title="`Tipo: ${getClientTypeLabel(c)}`"
+              >
+                <span class="client-type-badge">
+                  {{ getClientTypeLabel(c) }}
+                </span>
+              </td>
+              <td
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
                 :title="c.company || 'Empresa não informada'"
               >
                 {{ c.company || "—" }}
+              </td>
+              <td
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+                :title="c.cnpj || 'CNPJ não informado'"
+              >
+                {{ c.cnpj || "—" }}
+              </td>
+              <td
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+                :title="c.cep || 'CEP não informado'"
+              >
+                {{ c.cep || "—" }}
+              </td>
+              <td
+                role="cell"
+                :data-column="TABLE_DATA_ATTRS.COLUMN"
+                class="text-center"
+              >
+                <span
+                  class="lifecycle-badge"
+                  :class="`lifecycle-badge--${getLifecycleStageClass(c)}`"
+                  :title="`Lifecycle: ${getLifecycleStage(c)}`"
+                >
+                  {{ getLifecycleStage(c) }}
+                </span>
               </td>
               <td
                 role="cell"
@@ -470,15 +1479,16 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                 :class="{ 'has-whatsapp': c.hasWhatsapp }"
               >
                 <div class="whatsapp-cell">
-                  <a
+                  <button
                     v-if="c.whatsappNumber || (c.hasWhatsapp && c.cellPhone)"
-                    :href="`https://wa.me/55${(c.whatsappNumber || c.cellPhone || '').replace(/\D/g, '')}`"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    type="button"
                     class="whatsapp-link"
-                    :title="`Abrir WhatsApp: ${c.whatsappNumber || c.cellPhone}`"
+                    :title="`WhatsApp: ${c.whatsappNumber || c.cellPhone}`"
                     :data-whatsapp-number="CLIENT_DATA_ATTRS.WHATSAPP_NUMBER"
                     :data-is-primary="CLIENT_DATA_ATTRS.IS_PRIMARY"
+                    @click="
+                      showWhatsAppStub(c.whatsappNumber || c.cellPhone || '')
+                    "
                   >
                     <span class="whatsapp-icon" aria-hidden="true">💬</span>
                     <span class="whatsapp-number">{{
@@ -491,7 +1501,7 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                       aria-label="Contato preferido"
                       >⭐</span
                     >
-                  </a>
+                  </button>
                   <span v-else class="no-whatsapp">—</span>
                 </div>
               </td>
@@ -569,6 +1579,16 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
                     class="btn btn-sm btn-ghost"
                     :data-action="TEST_DATA_ATTRS.ACTION"
                     :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
+                    title="Disparar automação"
+                    aria-label="Disparar automação"
+                    @click="handleAutomationHook(c)"
+                  >
+                    ⚡
+                  </button>
+                  <button
+                    class="btn btn-sm btn-ghost"
+                    :data-action="TEST_DATA_ATTRS.ACTION"
+                    :data-client-id="CLIENT_DATA_ATTRS.CLIENT_ID"
                     title="Editar cliente"
                     aria-label="Editar cliente"
                     @click="handleEdit(c)"
@@ -593,18 +1613,35 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
               class="detail-row"
               :data-detail-for="c.id"
             >
-              <td colspan="9" :id="`client-details-${c.id}`" role="cell">
-                <ClientDetailView
-                  :client="c"
-                  :projects="safeProjects"
-                  :leads="safeLeads"
-                  @close="toggleClientExpand(c.id)"
-                />
+              <td colspan="13" :id="`client-details-${c.id}`" role="cell">
+                <Suspense>
+                  <template #default>
+                    <ClientDetailView
+                      :client="c"
+                      :projects="safeProjects"
+                      :leads="safeLeads"
+                      @close="toggleClientExpand(c.id)"
+                    />
+                  </template>
+                  <template #fallback>
+                    <div
+                      class="dashboard-async-fallback dashboard-async-fallback--detail"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <span
+                        class="dashboard-async-fallback__spinner"
+                        aria-hidden="true"
+                      ></span>
+                      <span>Carregando detalhes do cliente…</span>
+                    </div>
+                  </template>
+                </Suspense>
               </td>
             </tr>
           </template>
-          <tr v-if="rows && rows.length === 0" role="row">
-            <td colspan="9" class="text-center py-8 opacity-60" role="cell">
+          <tr v-if="totalTableRows === 0" role="row">
+            <td colspan="13" class="text-center py-8 opacity-60" role="cell">
               Nenhum cliente encontrado.
             </td>
           </tr>
@@ -612,8 +1649,58 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
       </table>
     </div>
 
+    <nav
+      v-if="totalTableRows > 0"
+      class="table-pagination"
+      aria-label="Paginação da tabela de clientes"
+    >
+      <p class="table-pagination__summary" aria-live="polite">
+        Exibindo {{ firstVisibleRowIndex }}-{{ lastVisibleRowIndex }} de
+        {{ totalTableRows }} clientes
+      </p>
+      <label class="table-pagination__size">
+        <span>Linhas por página</span>
+        <select
+          class="table-pagination__select"
+          :value="tablePageSize"
+          @change="
+            setTablePageSize(
+              Number(($event.target as HTMLSelectElement).value),
+            )
+          "
+        >
+          <option v-for="size in TABLE_PAGE_SIZE_OPTIONS" :key="size" :value="size">
+            {{ size }}
+          </option>
+        </select>
+      </label>
+      <div class="table-pagination__actions">
+        <button
+          class="btn btn-sm btn-ghost"
+          :disabled="tablePage <= 1"
+          @click="setTablePage(tablePage - 1)"
+        >
+          Anterior
+        </button>
+        <span class="table-pagination__page">
+          Página {{ tablePage }} de {{ totalTablePages }}
+        </span>
+        <button
+          class="btn btn-sm btn-ghost"
+          :disabled="tablePage >= totalTablePages"
+          @click="setTablePage(tablePage + 1)"
+        >
+          Próxima
+        </button>
+      </div>
+    </nav>
+
     <div class="page-footer">
-      <button class="btn btn-sm btn-primary" @click="openCreateClient">
+      <button
+        class="btn btn-sm btn-primary btn-new-client"
+        :title="`${ACTION_TITLES.CREATE}: cliente`"
+        @click="openCreateClient"
+      >
         <span class="btn-icon">+</span>
         Novo Cliente
       </button>
@@ -621,533 +1708,6 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
   </div>
 </template>
 
-<style scoped>
-.page-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  width: 100%;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-1);
-}
-
-.page-subtitle {
-  color: var(--text-2);
-  font-size: 0.875rem;
-}
-
-.table-container {
-  overflow: auto;
-  max-width: 100%;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb, #94a3b8)
-    var(--scrollbar-track, #e2e8f0);
-}
-
-:deep(.table-container::-webkit-scrollbar) {
-  height: 8px;
-}
-
-:deep(.table-container::-webkit-scrollbar-track) {
-  background: var(--scrollbar-track, #e2e8f0);
-  border-radius: 999px;
-}
-
-:deep(.table-container::-webkit-scrollbar-thumb) {
-  background: var(--scrollbar-thumb, #94a3b8);
-  border-radius: 999px;
-}
-
-:deep(.table-container::-webkit-scrollbar-thumb:hover) {
-  background: var(--scrollbar-thumb-hover, #64748b);
-}
-
-@media (prefers-color-scheme: dark) {
-  .table-container {
-    scrollbar-color: var(--scrollbar-thumb, #475569)
-      var(--scrollbar-track, #0f172a);
-  }
-
-  :deep(.table-container::-webkit-scrollbar-track) {
-    background: var(--scrollbar-track, #0f172a);
-  }
-
-  :deep(.table-container::-webkit-scrollbar-thumb) {
-    background: var(--scrollbar-thumb, #475569);
-  }
-
-  :deep(.table-container::-webkit-scrollbar-thumb:hover) {
-    background: var(--scrollbar-thumb-hover, #64748b);
-  }
-}
-
-.data-table {
-  width: 100%;
-  min-width: 1250px;
-  border-collapse: collapse;
-  table-layout: auto;
-  background: white;
-}
-
-@media (prefers-color-scheme: dark) {
-  .data-table {
-    background: #0f172a;
-  }
-}
-
-.data-table th,
-.data-table td {
-  padding: 0.75rem 0.875rem;
-  text-align: left;
-  border-bottom: 1px solid #e2e8f0;
-  vertical-align: middle;
-  color: #0f172a;
-}
-
-@media (prefers-color-scheme: dark) {
-  .data-table th,
-  .data-table td {
-    border-bottom-color: #1e293b;
-    color: #e2e8f0;
-  }
-}
-
-.data-table th {
-  background: #f8fafc;
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  color: #64748b;
-  white-space: nowrap;
-}
-
-@media (prefers-color-scheme: dark) {
-  .data-table th {
-    background: #0f172a;
-    color: #94a3b8;
-  }
-}
-
-.data-table th:nth-child(1),
-.data-table td:nth-child(1) {
-  width: 18%;
-  min-width: 180px;
-}
-
-.data-table th:nth-child(2),
-.data-table td:nth-child(2) {
-  width: 12%;
-  min-width: 120px;
-}
-
-.data-table th:nth-child(3),
-.data-table td:nth-child(3) {
-  width: 16%;
-  min-width: 160px;
-}
-
-.data-table th:nth-child(4),
-.data-table td:nth-child(4) {
-  width: 11%;
-  min-width: 120px;
-}
-
-.data-table th:nth-child(5),
-.data-table td:nth-child(5) {
-  width: 13%;
-  min-width: 130px;
-}
-
-.data-table th:nth-child(6),
-.data-table td:nth-child(6) {
-  width: 10%;
-  min-width: 100px;
-  text-align: center;
-}
-
-.data-table th:nth-child(7),
-.data-table td:nth-child(7) {
-  width: 10%;
-  min-width: 100px;
-  text-align: center;
-}
-
-.data-table th:nth-child(8),
-.data-table td:nth-child(8) {
-  width: 8%;
-  min-width: 80px;
-  text-align: center;
-}
-
-.data-table th:nth-child(9),
-.data-table td:nth-child(9) {
-  width: 10%;
-  min-width: 100px;
-  text-align: center;
-}
-
-/* WhatsApp Column Styles */
-.whatsapp-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.whatsapp-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.5rem;
-  background: #dcfce7;
-  border: 1px solid #86efac;
-  border-radius: 6px;
-  color: #166534;
-  text-decoration: none;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-}
-
-.whatsapp-link:hover {
-  background: #bbf7d0;
-  border-color: #4ade80;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.2);
-}
-
-@media (prefers-color-scheme: dark) {
-  .whatsapp-link {
-    background: #14532d;
-    border-color: #166534;
-    color: #86efac;
-  }
-
-  .whatsapp-link:hover {
-    background: #15803d;
-    border-color: #22c55e;
-    box-shadow: 0 2px 6px rgba(34, 197, 94, 0.3);
-  }
-}
-
-.whatsapp-icon {
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.whatsapp-number {
-  font-weight: 500;
-}
-
-.primary-badge {
-  font-size: 0.75rem;
-  line-height: 1;
-  background: #fef3c7;
-  color: #92400e;
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
-  border: 1px solid #fde047;
-  font-weight: 600;
-}
-
-@media (prefers-color-scheme: dark) {
-  .primary-badge {
-    background: #713f12;
-    color: #fde047;
-    border-color: #a16207;
-  }
-}
-
-.client-link {
-  color: #0f172a;
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.2s;
-}
-
-.client-link:hover {
-  text-decoration: underline;
-  color: #3b82f6;
-}
-
-@media (prefers-color-scheme: dark) {
-  .client-link {
-    color: #e2e8f0;
-  }
-
-  .client-link:hover {
-    color: #60a5fa;
-  }
-}
-
-.no-whatsapp {
-  color: #94a3b8;
-  font-style: italic;
-}
-
-@media (prefers-color-scheme: dark) {
-  .no-whatsapp {
-    color: #475569;
-  }
-}
-
-.has-whatsapp {
-  background: #f0fdf4;
-}
-
-@media (prefers-color-scheme: dark) {
-  .has-whatsapp {
-    background: #052e16;
-  }
-}
-
-/* Name cell with expand button */
-.name-cell__content {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Score Chip Button Styles */
-.score-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: 20px;
-  border: 1px solid transparent;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.score-chip:hover {
-  transform: scale(1.05);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.score-chip__icon {
-  font-size: 0.9rem;
-}
-
-.score-chip__value {
-  font-weight: 700;
-}
-
-/* WhatsApp Score Chip */
-.score-chip--whatsapp {
-  background: #dcfce7;
-  border-color: #86efac;
-  color: #166534;
-}
-
-.score-chip--whatsapp:hover {
-  background: #bbf7d0;
-  border-color: #4ade80;
-}
-
-@media (prefers-color-scheme: dark) {
-  .score-chip--whatsapp {
-    background: #14532d;
-    border-color: #166534;
-    color: #86efac;
-  }
-
-  .score-chip--whatsapp:hover {
-    background: #15803d;
-    border-color: #22c55e;
-  }
-}
-
-/* Email Score Chip */
-.score-chip--email {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1e40af;
-}
-
-.score-chip--email:hover {
-  background: #bfdbfe;
-  border-color: #60a5fa;
-}
-
-@media (prefers-color-scheme: dark) {
-  .score-chip--email {
-    background: #1e3a5f;
-    border-color: #1e40af;
-    color: #93c5fd;
-  }
-
-  .score-chip--email:hover {
-    background: #1e4080;
-    border-color: #3b82f6;
-  }
-}
-
-/* Projects Score Chip */
-.score-chip--projects {
-  background: #fef3c7;
-  border-color: #fcd34d;
-  color: #92400e;
-}
-
-.score-chip--projects:hover {
-  background: #fde68a;
-  border-color: #f59e0b;
-}
-
-@media (prefers-color-scheme: dark) {
-  .score-chip--projects {
-    background: #713f12;
-    border-color: #a16207;
-    color: #fcd34d;
-  }
-
-  .score-chip--projects:hover {
-    background: #854d0e;
-    border-color: #d97706;
-  }
-}
-
-/* Score level modifiers */
-.score-chip--low {
-  opacity: 0.7;
-}
-
-.score-chip--medium {
-  opacity: 0.85;
-}
-
-.score-chip--high {
-  opacity: 1;
-}
-
-.score-chip--none {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #64748b;
-}
-
-@media (prefers-color-scheme: dark) {
-  .score-chip--none {
-    background: #1e293b;
-    border-color: #334155;
-    color: #94a3b8;
-  }
-}
-
-.score-chip--some {
-  /* Already styled by --projects */
-}
-
-.btn-expand {
-  background: transparent;
-  border: 1px solid #cbd5e1;
-  color: #64748b;
-  font-size: 0.65rem;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-expand:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-}
-
-.btn-expand--active {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: white;
-}
-
-@media (prefers-color-scheme: dark) {
-  .btn-expand {
-    border-color: #475569;
-  }
-
-  .btn-expand:hover {
-    background: #334155;
-    border-color: #64748b;
-  }
-
-  .btn-expand--active {
-    background: #60a5fa;
-    border-color: #60a5fa;
-  }
-}
-
-.client-row {
-  transition: background 0.2s;
-}
-
-.client-row:hover {
-  background: #f8fafc;
-}
-
-@media (prefers-color-scheme: dark) {
-  .client-row:hover {
-    background: #1e293b;
-  }
-}
-
-.detail-row td {
-  padding: 0;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-@media (prefers-color-scheme: dark) {
-  .detail-row td {
-    border-bottom-color: #334155;
-  }
-}
-
-.th-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font: inherit;
-  color: inherit;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-transform: uppercase;
-}
-
-.th-sort {
-  opacity: 0.6;
-  font-size: 0.7rem;
-}
-
-.client-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.page-footer {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.btn-icon {
-  margin-right: 0.5rem;
-  font-weight: bold;
-}
+<style scoped lang="scss">
+@use "../styles/pages/dashboard-clients.module";
 </style>

@@ -1,4 +1,4 @@
-import { onMounted, ref, watch } from "vue";
+import { onMounted, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import AlertService from "../../../services/AlertService";
 import FormPersistenceService from "../../../services/FormPersistenceService";
@@ -62,6 +62,13 @@ export function useAuthLoginPage() {
         await AlertService.error("Falha no login", "Token não recebido");
         return;
       }
+
+      // Warm up the first dashboard route chunk to reduce first-mount stutter
+      // right after authentication on slower/cold browser caches.
+      await Promise.allSettled([
+        import("../../../pages/DashboardPage.vue"),
+        import("../../../components/dashboard/DashboardHome.vue"),
+      ]);
 
       // Redirect to next URL or dashboard
       const next = (route.query.next as string) || "/dashboard";

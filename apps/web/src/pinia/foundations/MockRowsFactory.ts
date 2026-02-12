@@ -130,24 +130,40 @@ export default class MockRowsFactory {
       for (let i = 0; i < n; i++) {
         const seed = MockRowsFactory.#hash(`${MockRowsFactory.#SALT}:c:${i}`);
         const s = parseInt(seed.slice(0, 6), 16) || i + 1;
-        const first = firstNames[s % firstNames.length];
-        const last = lastNames[(s + 3) % lastNames.length];
+        const first = MockRowsFactory.#pick(firstNames, s);
+        const last = MockRowsFactory.#pick(lastNames, s + 3);
         const name = `${first} ${last}`;
-        const company = `${companyPrefixes[(s + 5) % companyPrefixes.length]} ${
-          companySuffixes[(s + 2) % companySuffixes.length]
+        const company = `${MockRowsFactory.#pick(companyPrefixes, s + 5)} ${
+          MockRowsFactory.#pick(companySuffixes, s + 2)
         }`;
-        const domain = domains[(s + 7) % domains.length];
+        const domain = MockRowsFactory.#pick(domains, s + 7);
         const email = `${first.toLowerCase()}.${last.toLowerCase()}@${domain}`;
         const phone = `+55 11 9${String(1000 + (s % 9000)).padStart(4, "0")}-${String(1000 + ((s * 7) % 9000)).padStart(4, "0")}`;
+        const type: ClientRow["type"] = i % 3 === 0 ? "pessoa" : "empresa";
+        const cnpjDigits = `${Math.abs(s).toString().padStart(6, "0")}${Math.abs(s * 7).toString().padStart(8, "0")}`.slice(
+          0,
+          14,
+        );
+        const cepDigits = `${Math.abs(s * 13).toString().padStart(8, "0")}`.slice(
+          0,
+          8,
+        );
         const createdAt = MockRowsFactory.#isoDaysAgo(30 + (i % 40));
         const updatedAt = MockRowsFactory.#isoDaysAgo(i % 12);
         out.push({
           id: `c_${seed.slice(0, 10)}`,
           name,
+          type,
           company: i % 9 === 0 ? undefined : company,
           email: i % 12 === 0 ? undefined : email,
           phone: i % 10 === 0 ? undefined : phone,
-          notes: i % 2 === 0 ? notesPool[s % notesPool.length] : undefined,
+          cnpj:
+            type === "empresa"
+              ? MockRowsFactory.#toCnpjMask(cnpjDigits)
+              : undefined,
+          cep:
+            type === "empresa" ? MockRowsFactory.#toCepMask(cepDigits) : undefined,
+          notes: i % 2 === 0 ? MockRowsFactory.#pick(notesPool, s) : undefined,
           createdAt,
           updatedAt,
         });
@@ -272,12 +288,12 @@ export default class MockRowsFactory {
       for (let i = 0; i < n; i++) {
         const seed = MockRowsFactory.#hash(`${MockRowsFactory.#SALT}:l:${i}`);
         const s = parseInt(seed.slice(0, 6), 16) || i + 1;
-        const first = firstNames[s % firstNames.length];
-        const last = lastNames[(s + 3) % lastNames.length];
+        const first = MockRowsFactory.#pick(firstNames, s);
+        const last = MockRowsFactory.#pick(lastNames, s + 3);
         const name = `${first} ${last}`;
-        const company = companies[(s + 2) % companies.length];
-        const status = statuses[s % statuses.length];
-        const source = sources[(s + 4) % sources.length];
+        const company = MockRowsFactory.#pick(companies, s + 2);
+        const status = MockRowsFactory.#pick(statuses, s);
+        const source = MockRowsFactory.#pick(sources, s + 4);
         const domain =
           company.toLowerCase().replace(/\s+/g, "").slice(0, 10) + ".com";
         const email =
@@ -291,9 +307,12 @@ export default class MockRowsFactory {
 
         const tags =
           i % 3 === 0
-            ? [tagPool[s % tagPool.length], tagPool[(s + 5) % tagPool.length]]
+            ? [
+                MockRowsFactory.#pick(tagPool, s),
+                MockRowsFactory.#pick(tagPool, s + 5),
+              ]
             : i % 2 === 0
-              ? [tagPool[(s + 1) % tagPool.length]]
+              ? [MockRowsFactory.#pick(tagPool, s + 1)]
               : undefined;
 
         const campaigns =
@@ -301,8 +320,8 @@ export default class MockRowsFactory {
             ? [
                 {
                   id: `camp_${seed.slice(0, 6)}`,
-                  name: campaignNames[s % campaignNames.length],
-                  channel: ctaChannels[s % ctaChannels.length],
+                  name: MockRowsFactory.#pick(campaignNames, s),
+                  channel: MockRowsFactory.#pick(ctaChannels, s),
                   attachedAt: MockRowsFactory.#isoDaysAgo(10 + (i % 20)),
                 },
               ]
@@ -313,7 +332,7 @@ export default class MockRowsFactory {
             ? [
                 {
                   id: `ctr_${seed.slice(0, 6)}`,
-                  title: contractTitles[s % contractTitles.length],
+                  title: MockRowsFactory.#pick(contractTitles, s),
                   value: Math.round(((s % 50) + 5) * 1000),
                   attachedAt: MockRowsFactory.#isoDaysAgo(5 + (i % 15)),
                 },
@@ -325,8 +344,8 @@ export default class MockRowsFactory {
             ? [
                 {
                   id: `cta_${seed.slice(0, 6)}`,
-                  channel: ctaChannels[(s + 1) % ctaChannels.length],
-                  message: ctaMessages[s % ctaMessages.length]
+                  channel: MockRowsFactory.#pick(ctaChannels, s + 1),
+                  message: MockRowsFactory.#pick(ctaMessages, s)
                     .replace(/\{name\}/g, first)
                     .replace(/\{company\}/g, company),
                   createdAt: MockRowsFactory.#isoDaysAgo(3),
@@ -344,9 +363,10 @@ export default class MockRowsFactory {
           i % 5 === 0 ? undefined : `user${(s % 8) + 1}@corp.local`;
         const lostReason =
           status === "lost"
-            ? ["Orçamento", "Timing", "Concorrente escolhido", "Sem resposta"][
-                s % 4
-              ]
+            ? MockRowsFactory.#pick(
+                ["Orçamento", "Timing", "Concorrente escolhido", "Sem resposta"],
+                s,
+              )
             : undefined;
 
         out.push({
@@ -427,14 +447,29 @@ export default class MockRowsFactory {
     const updatedAt = MockRowsFactory.#isoDaysAgo(i % 9);
     const dueAt =
       i % 5 === 0 ? null : MockRowsFactory.#isoDaysFromNow((i % 40) + 2);
+    const deadlineAt =
+      i % 7 === 0 ? null : MockRowsFactory.#isoDaysFromNow((i % 50) + 3);
+    const tags = i % 4 === 0 ? ["important"] : [];
 
-    return { id, code, name, ownerEmail, status, dueAt, createdAt, updatedAt };
+    return {
+      id,
+      code,
+      name,
+      ownerEmail,
+      status,
+      dueAt,
+      deadlineAt,
+      tags,
+      templateKey: null,
+      createdAt,
+      updatedAt,
+    };
   }
 
   static #task(i: number, projectIds: readonly string[]): TaskRow {
     const id = `t_${MockRowsFactory.#hash(`${MockRowsFactory.#SALT}:t:${i}`).slice(0, 10)}`;
     const pid = projectIds.length
-      ? projectIds[i % projectIds.length]
+      ? MockRowsFactory.#pick(projectIds, i)
       : "p_unknown";
 
     const title = `Task ${i + 1}`;
@@ -452,21 +487,31 @@ export default class MockRowsFactory {
     const updatedAt = MockRowsFactory.#isoDaysAgo(i % 6);
     const dueAt =
       i % 6 === 0 ? null : MockRowsFactory.#isoDaysFromNow((i % 20) + 1);
+    const deadlineAt =
+      i % 8 === 0 ? null : MockRowsFactory.#isoDaysFromNow((i % 25) + 2);
 
     return {
       id,
-      projectId: pid || "",
+      projectId: pid,
       title,
       assigneeEmail,
+      assigneeId: null,
+      milestoneId: null,
+      tags: [],
+      subtasks: [],
       status,
       priority,
       dueAt,
+      deadlineAt,
       createdAt,
       updatedAt,
     };
   }
 
   static #pick<T>(arr: readonly T[], seed: number): T {
+    if (arr.length === 0) {
+      throw new Error("[MockRowsFactory] Cannot pick from an empty array");
+    }
     const i = Math.abs(seed) % arr.length;
     return arr[i] as T;
   }
@@ -486,6 +531,19 @@ export default class MockRowsFactory {
       h = Math.imul(h, 16777619);
     }
     return (h >>> 0).toString(16).padStart(8, "0");
+  }
+
+  static #toCnpjMask(input: string): string {
+    const digits = input.replace(/\D/g, "").padEnd(14, "0").slice(0, 14);
+    return digits.replace(
+      /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+      "$1.$2.$3/$4-$5",
+    );
+  }
+
+  static #toCepMask(input: string): string {
+    const digits = input.replace(/\D/g, "").padEnd(8, "0").slice(0, 8);
+    return digits.replace(/^(\d{5})(\d{3})$/, "$1-$2");
   }
 
   static #clamp(v: number, fallback: number, min: number, max: number): number {

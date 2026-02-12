@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAdminUserDetailsDrawer } from "../../assets/scripts/admin/useAdminUserDetailsDrawer";
+import SafeJsonService from "../../services/SafeJsonService";
 
 const props = defineProps<{
   open: boolean;
@@ -77,6 +78,9 @@ const fmtDate = (d: string | null) => {
     return "—";
   }
 };
+
+const formatAuditMeta = (meta: unknown): string =>
+  SafeJsonService.stringify(meta, "-");
 </script>
 
 <template>
@@ -369,7 +373,7 @@ const fmtDate = (d: string | null) => {
                     <td class="py-2 pr-3">{{ e.targetEmailMasked || "-" }}</td>
                     <td class="py-2 pr-3">
                       <code class="opacity-80" style="word-break: break-word">{{
-                        e.meta ? JSON.stringify(e.meta) : "-"
+                        e.meta ? formatAuditMeta(e.meta) : "-"
                       }}</code>
                     </td>
                   </tr>
@@ -467,9 +471,6 @@ const fmtDate = (d: string | null) => {
   }
 }
 
-@supports (position-try: flip-block) {
-  @position-try flip-block;
-}
 
 /* Drawer expanded sections */
 .drawer-info-grid {

@@ -33,7 +33,12 @@ export const useTasksStore = defineStore("tasks", {
     },
 
     async list(
-      args?: Readonly<{ reset?: boolean; q?: string; projectId?: string }>,
+      args?: Readonly<{
+        reset?: boolean;
+        q?: string;
+        projectId?: string;
+        limit?: number;
+      }>,
     ) {
       const reset = !!args?.reset;
 
@@ -41,7 +46,12 @@ export const useTasksStore = defineStore("tasks", {
       this.error = null;
 
       try {
-        const limit = this.prefs?.pageSize || DEFAULT_PREFS.pageSize;
+        const argsLimit =
+          typeof args?.limit === "number" && Number.isFinite(args.limit)
+            ? Math.max(1, Math.trunc(args.limit))
+            : null;
+        const limit =
+          argsLimit ?? (this.prefs?.pageSize || DEFAULT_PREFS.pageSize);
         const cursor = reset ? undefined : this.nextCursor || undefined;
 
         const r = await AdminApiService.tasksList({
@@ -51,7 +61,8 @@ export const useTasksStore = defineStore("tasks", {
           projectId: args?.projectId ? String(args.projectId) : undefined,
         });
 
-        const items = Array.isArray(r?.items) ? r.items : [];
+        const sourceItems = Array.isArray(r?.items) ? r.items : [];
+        const items = sourceItems.slice(0, limit);
         const nextCursor = r?.nextCursor ? String(r.nextCursor) : null;
 
         const rows = items

@@ -11,14 +11,6 @@ import ObjectDeep, { type DeepReadonly } from "../ObjectDeep";
 // TYPE DEFINITIONS
 // =============================================================================
 
-/** CSS class token dictionary type */
-type ClassTokenDict = Readonly<Record<string, string>>;
-
-/** Nested class token dictionary with categories */
-type NestedClassTokenDict<T extends string = string> = Readonly<
-  Record<T, ClassTokenDict>
->;
-
 // =============================================================================
 // COMPONENT STATE CLASSES
 // =============================================================================

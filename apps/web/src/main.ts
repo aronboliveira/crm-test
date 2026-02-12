@@ -9,6 +9,7 @@ import pinia from "./pinia";
 import { useAuthStore } from "./pinia/stores/auth.store";
 import { usePolicyStore } from "./pinia/stores/policy.store";
 import { useBootstrapStore } from "./pinia/stores/bootstrap.store";
+import SafeJsonService from "./services/SafeJsonService";
 
 const mount = async (): Promise<void> => {
   try {
@@ -16,13 +17,18 @@ const mount = async (): Promise<void> => {
     try {
       for (let i = 1; i < 10; i++)
         sessionStorage.removeItem(`_policy_perms_v${i}`);
+      // Legacy key used to persist full table rows; keep only new lightweight key.
+      localStorage.removeItem("_pinia_local_v1");
       // Also clear the persist-plugin entry that may hold stale policy state
       const raw = sessionStorage.getItem("_pinia_session_v1");
       if (raw) {
-        const obj = JSON.parse(raw);
+        const obj = SafeJsonService.parseObject(raw, {});
         if (obj && typeof obj === "object" && "policy" in obj) {
           delete obj.policy;
-          sessionStorage.setItem("_pinia_session_v1", JSON.stringify(obj));
+          const serialized = SafeJsonService.tryStringify(obj);
+          if (serialized) {
+            sessionStorage.setItem("_pinia_session_v1", serialized);
+          }
         }
       }
     } catch {

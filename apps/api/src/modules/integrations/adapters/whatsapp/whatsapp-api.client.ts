@@ -16,6 +16,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import axios from 'axios';
+import SafeJsonUtil from '../../../../common/json/safe-json.util';
 type AxiosResponse<T = any> = Awaited<ReturnType<typeof axios.get<T>>>;
 import type {
   WhatsAppConfig,
@@ -217,12 +218,8 @@ export class WhatsAppApiClient {
       granularity: params.granularity,
     };
 
-    if (params.phone_numbers?.length) {
-      queryParams.phone_numbers = JSON.stringify(params.phone_numbers);
-    }
-    if (params.country_codes?.length) {
-      queryParams.country_codes = JSON.stringify(params.country_codes);
-    }
+    this.setJsonArrayParam(queryParams, 'phone_numbers', params.phone_numbers);
+    this.setJsonArrayParam(queryParams, 'country_codes', params.country_codes);
 
     const response: AxiosResponse<{
       data: { data_points: WhatsAppConversationAnalytics[] }[];
@@ -288,9 +285,7 @@ export class WhatsAppApiClient {
       granularity: params.granularity,
     };
 
-    if (params.template_ids?.length) {
-      queryParams.template_ids = JSON.stringify(params.template_ids);
-    }
+    this.setJsonArrayParam(queryParams, 'template_ids', params.template_ids);
 
     const response: AxiosResponse<{
       data: WhatsAppTemplateAnalytics[];
@@ -378,5 +373,21 @@ export class WhatsAppApiClient {
     if (!this.isConfigured()) {
       throw new Error('WhatsApp API client not configured');
     }
+  }
+
+  private setJsonArrayParam(
+    target: Record<string, string | number>,
+    key: string,
+    values: readonly unknown[] | undefined,
+  ): void {
+    if (!values?.length) {
+      return;
+    }
+    const serialized = SafeJsonUtil.tryStringify(values);
+    if (!serialized) {
+      this.logger.warn(`Failed to serialize "${key}" query param; skipping`);
+      return;
+    }
+    target[key] = serialized;
   }
 }

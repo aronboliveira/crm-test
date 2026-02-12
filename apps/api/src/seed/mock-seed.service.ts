@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MongoRepository } from 'typeorm';
+import { createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { faker } from '@faker-js/faker';
 
@@ -20,6 +21,9 @@ import MilestoneEntity from '../entities/MilestoneEntity';
 import CommentEntity from '../entities/CommentEntity';
 import ProjectTemplateEntity from '../entities/ProjectTemplateEntity';
 import ClientEntity from '../entities/ClientEntity';
+import AuthAuditEventEntity, {
+  type AuditKind,
+} from '../entities/AuthAuditEventEntity';
 
 type MockUser = Readonly<{
   email: string;
@@ -53,6 +57,8 @@ export default class MockSeedService {
     private readonly templatesRepo: MongoRepository<ProjectTemplateEntity>,
     @InjectRepository(ClientEntity)
     private readonly clientsRepo: MongoRepository<ClientEntity>,
+    @InjectRepository(AuthAuditEventEntity)
+    private readonly auditRepo: MongoRepository<AuthAuditEventEntity>,
   ) {}
 
   async run(): Promise<void> {
@@ -61,11 +67,16 @@ export default class MockSeedService {
     const allEmails = await this.#seedUsers();
     const clients = await this.#seedClients();
     const projects = await this.#seedProjectsAndTasks(allEmails, clients);
+    const myWorkProjects = await this.#seedAdminMyWorkPortfolio(
+      projects,
+      clients,
+    );
     await this.#seedTags();
-    await this.#seedMilestones(projects);
-    await this.#seedComments(projects, allEmails);
+    await this.#seedMilestones(myWorkProjects);
+    await this.#seedComments(myWorkProjects, allEmails);
     await this.#seedTemplates();
     await this.#seedMailOutbox(allEmails);
+    await this.#seedAuditEvents(allEmails);
   }
 
   async #seedClients(): Promise<ClientEntity[]> {
@@ -143,11 +154,33 @@ export default class MockSeedService {
     const preferredContacts: Array<
       'email' | 'phone' | 'whatsapp' | 'cellphone'
     > = ['email', 'phone', 'whatsapp', 'cellphone'];
+    const toMaskedCnpj = (digits: string): string =>
+      digits
+        .slice(0, 14)
+        .padEnd(14, '0')
+        .replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+    const toMaskedCep = (digits: string): string =>
+      digits.slice(0, 8).padEnd(8, '0').replace(/^(\d{5})(\d{3})$/, '$1-$2');
 
     for (let i = 0; i < 15; i++) {
       const profile = selectProfile();
       const name = faker.company.name();
       const email = faker.internet.email();
+      const type: 'pessoa' | 'empresa' = faker.datatype.boolean(0.6)
+        ? 'empresa'
+        : 'pessoa';
+      const cnpj =
+        type === 'empresa'
+          ? toMaskedCnpj(
+              `${faker.number.int({ min: 10, max: 99 })}${faker.number.int({ min: 100, max: 999 })}${faker.number.int({ min: 100, max: 999 })}${faker.number.int({ min: 1000, max: 9999 })}${faker.number.int({ min: 10, max: 99 })}`,
+            )
+          : undefined;
+      const cep =
+        type === 'empresa'
+          ? toMaskedCep(
+              `${faker.number.int({ min: 10000, max: 99999 })}${faker.number.int({ min: 100, max: 999 })}`,
+            )
+          : undefined;
       const cellPhone = faker.phone.number();
       const hasWhatsapp =
         profile.name !== 'inactive'
@@ -212,6 +245,7 @@ export default class MockSeedService {
       const client = this.clientsRepo.create({
         id: crypto.randomUUID(),
         name,
+        type,
         email,
         phone: faker.phone.number(),
         cellPhone,
@@ -239,6 +273,8 @@ export default class MockSeedService {
               : undefined,
         },
         company: name,
+        cnpj,
+        cep,
         notes: faker.lorem.sentence(),
         createdAt: now,
         updatedAt: now,
@@ -394,6 +430,150 @@ export default class MockSeedService {
     }
 
     return allEmails;
+  }
+
+  async #seedAuditEvents(allEmails: readonly string[]): Promise<void> {
+    const targetAuditEvents = 120;
+    const existingCount = await this.auditRepo.count();
+    if (existingCount >= targetAuditEvents) {
+      return;
+    }
+
+    const kinds: readonly AuditKind[] = [
+      'auth.login.success',
+      'auth.login.failure',
+      'auth.password_reset.requested',
+      'auth.password_reset.completed',
+      'auth.password.changed',
+      'auth.email.change_requested',
+      'admin.user.created',
+      'admin.user.role_changed',
+      'admin.user.role_updated',
+      'admin.user.force_reset',
+      'admin.user.locked',
+      'admin.user.unlocked',
+      'admin.user.invite_issued',
+      'admin.user.invite_reissued',
+    ];
+
+    const actorPool = [
+      'admin@corp.local',
+      'manager@corp.local',
+      ...allEmails.slice(0, 12),
+    ].filter((value, index, source) => source.indexOf(value) === index);
+
+    const targetPool = allEmails
+      .filter((email) => email !== 'admin@corp.local')
+      .slice(0, 16);
+
+    const toCreate = targetAuditEvents - existingCount;
+    const now = Date.now();
+    const docs: AuthAuditEventEntity[] = [];
+
+    for (let index = 0; index < toCreate; index++) {
+      const kind = kinds[index % kinds.length];
+      const actorEmail =
+        actorPool[index % actorPool.length] ?? 'admin@corp.local';
+      const targetEmail =
+        kind.startsWith('admin.user') && targetPool.length
+          ? targetPool[(index * 3) % targetPool.length]
+          : undefined;
+
+      const createdAt = new Date(
+        now - (index + 1) * 45 * 60 * 1000,
+      ).toISOString();
+
+      const auditEvent = this.auditRepo.create({
+        kind,
+        createdAt,
+        actorEmail,
+        actorEmailMasked: this.#maskEmail(actorEmail),
+        actorEmailHash: this.#sha256(actorEmail),
+        targetEmail,
+        targetEmailMasked: targetEmail
+          ? this.#maskEmail(targetEmail)
+          : undefined,
+        targetEmailHash: targetEmail ? this.#sha256(targetEmail) : undefined,
+        ipHash: this.#sha256(`seed-ip-${index % 7}`),
+        userAgent: index % 2 === 0 ? 'seed/web-client' : 'seed/mobile-client',
+        meta: this.#buildAuditMeta(kind, index, actorEmail, targetEmail),
+      } as any) as AuthAuditEventEntity;
+
+      docs.push(auditEvent);
+    }
+
+    if (docs.length > 0) {
+      await this.auditRepo.save(docs as any);
+    }
+  }
+
+  #buildAuditMeta(
+    kind: AuditKind,
+    index: number,
+    actorEmail: string,
+    targetEmail?: string,
+  ): Record<string, unknown> {
+    if (kind === 'auth.login.success') {
+      return {
+        via: index % 3 === 0 ? 'sso' : 'password',
+        source: index % 2 === 0 ? 'web' : 'mobile',
+      };
+    }
+
+    if (kind === 'auth.login.failure') {
+      return {
+        reason: index % 2 === 0 ? 'invalid_password' : 'account_locked',
+        source: index % 2 === 0 ? 'web' : 'mobile',
+      };
+    }
+
+    if (
+      kind === 'auth.password_reset.requested' ||
+      kind === 'auth.password_reset.completed'
+    ) {
+      return {
+        channel: 'email',
+        requestId: `seed-reset-${index}`,
+      };
+    }
+
+    if (kind === 'auth.password.changed') {
+      return {
+        source: 'user-profile',
+        actorEmail,
+      };
+    }
+
+    if (kind === 'auth.email.change_requested') {
+      return {
+        from: actorEmail,
+        to: `updated+${index}@corp.local`,
+      };
+    }
+
+    if (kind.startsWith('admin.user')) {
+      return {
+        actor: actorEmail,
+        target: targetEmail ?? null,
+        ticketRef: `ADM-${String(index + 1).padStart(4, '0')}`,
+      };
+    }
+
+    return {
+      seed: true,
+      index,
+    };
+  }
+
+  #maskEmail(email: string): string {
+    const [user, domain = 'corp.local'] = email.split('@');
+    const head = user.slice(0, 1) || '*';
+    const tail = user.length > 1 ? user.slice(-1) : '*';
+    return `${head}***${tail}@${domain}`;
+  }
+
+  #sha256(value: string): string {
+    return createHash('sha256').update(value).digest('hex');
   }
 
   async #seedProjectsAndTasks(
@@ -841,6 +1021,533 @@ export default class MockSeedService {
     }
 
     return projects;
+  }
+
+  async #seedAdminMyWorkPortfolio(
+    projects: ProjectEntity[],
+    clients: ClientEntity[],
+  ): Promise<ProjectEntity[]> {
+    const now = new Date().toISOString();
+    const adminEmail = 'admin@corp.local';
+    const dayMs = 86_400_000;
+    const toIso = (daysFromNow: number): string =>
+      new Date(Date.now() + daysFromNow * dayMs).toISOString();
+
+    const clientIds = clients
+      .map((client) => String(client.id || '').trim())
+      .filter(Boolean);
+
+    const clientIdForIndex = (index: number): string | undefined => {
+      if (!clientIds.length) return undefined;
+      return clientIds[index % clientIds.length];
+    };
+
+    const projectSeeds = [
+      {
+        name: 'Revenue Intelligence Rollout',
+        code: 'RIR-410',
+        status: 'active',
+        description:
+          'Unify billing, usage, and forecast signals for weekly executive planning.',
+        tags: ['api', 'backend', 'database', 'performance'],
+        templateKey: 'saas-onboarding',
+        dueInDays: 24,
+        deadlineInDays: 31,
+      },
+      {
+        name: 'Customer Health Radar',
+        code: 'CHR-227',
+        status: 'active',
+        description:
+          'Build account-level health scoring fed by product, support, and finance events.',
+        tags: ['api', 'frontend', 'testing', 'documentation'],
+        templateKey: 'enterprise-crm',
+        dueInDays: 18,
+        deadlineInDays: 26,
+      },
+      {
+        name: 'Compliance Evidence Pipeline',
+        code: 'CEP-632',
+        status: 'planned',
+        description:
+          'Automate control evidence capture and retention for security audits.',
+        tags: ['security', 'backend', 'infrastructure', 'documentation'],
+        templateKey: 'devops-pipeline',
+        dueInDays: 33,
+        deadlineInDays: 42,
+      },
+      {
+        name: 'Field Support Automation',
+        code: 'FSA-905',
+        status: 'blocked',
+        description:
+          'Reduce dispatch delays with event-driven workflow and offline field forms.',
+        tags: ['mobile', 'api', 'devops', 'testing'],
+        templateKey: 'mobile-app',
+        dueInDays: 21,
+        deadlineInDays: 29,
+      },
+      {
+        name: 'Executive KPI Broadcast',
+        code: 'EKB-778',
+        status: 'active',
+        description:
+          'Deliver board-ready KPI digests with trigger-based briefings across channels.',
+        tags: ['frontend', 'database', 'performance', 'documentation'],
+        templateKey: 'data-analytics',
+        dueInDays: 15,
+        deadlineInDays: 22,
+      },
+    ] as const;
+
+    const seededProjects: ProjectEntity[] = [];
+    for (const [index, seed] of projectSeeds.entries()) {
+      const clientId = clientIdForIndex(index);
+      const payload: Record<string, unknown> = {
+        name: seed.name,
+        code: seed.code,
+        status: seed.status,
+        description: seed.description,
+        ownerEmail: adminEmail,
+        tags: seed.tags,
+        templateKey: seed.templateKey,
+        dueAt: toIso(seed.dueInDays),
+        deadlineAt: toIso(seed.deadlineInDays),
+        updatedAt: now,
+      };
+
+      if (clientId) {
+        payload.clientId = clientId;
+      }
+
+      const exists = await this.projectsRepo.findOne({
+        where: { name: seed.name } as any,
+      });
+
+      let row: ProjectEntity;
+      if (exists) {
+        await this.projectsRepo.update(exists._id as any, payload as any);
+        row = (await this.projectsRepo.findOne({
+          where: { _id: exists._id } as any,
+        }))!;
+      } else {
+        row = await this.projectsRepo.save({
+          ...payload,
+          createdAt: now,
+        } as any);
+      }
+
+      seededProjects.push(row);
+    }
+
+    const taskSeedsByProject: Record<
+      string,
+      readonly {
+        title: string;
+        description: string;
+        status: 'todo' | 'doing' | 'done' | 'blocked';
+        priority: 1 | 2 | 3 | 4 | 5;
+        dueInDays?: number;
+        deadlineInDays?: number;
+        tags: readonly string[];
+        subtasks: readonly string[];
+      }[]
+    > = {
+      'Revenue Intelligence Rollout': [
+        {
+          title: 'Map revenue data contracts',
+          description: 'Align billing and usage schemas before ETL rollout.',
+          status: 'done',
+          priority: 2,
+          dueInDays: -18,
+          deadlineInDays: -14,
+          tags: ['database', 'api'],
+          subtasks: ['Confirm field ownership', 'Publish schema v2'],
+        },
+        {
+          title: 'Deploy ingestion workers',
+          description: 'Ship resilient collectors for billing providers.',
+          status: 'doing',
+          priority: 1,
+          dueInDays: 3,
+          deadlineInDays: 5,
+          tags: ['backend', 'devops'],
+          subtasks: ['Scale worker pool', 'Run soak tests'],
+        },
+        {
+          title: 'Validate pipeline SLAs',
+          description: 'Measure latency, freshness, and recovery budgets.',
+          status: 'doing',
+          priority: 2,
+          dueInDays: 6,
+          deadlineInDays: 9,
+          tags: ['performance', 'testing'],
+          subtasks: ['Collect baseline metrics', 'Tune retry policy'],
+        },
+        {
+          title: 'Create anomaly playbook',
+          description: 'Define incident response for revenue deltas.',
+          status: 'todo',
+          priority: 3,
+          dueInDays: 10,
+          tags: ['documentation', 'backend'],
+          subtasks: ['Draft runbook', 'Review with operations'],
+        },
+        {
+          title: 'Backfill historical invoices',
+          description: 'Load 24 months of invoice data for trend analysis.',
+          status: 'todo',
+          priority: 2,
+          dueInDays: 14,
+          tags: ['database', 'backend'],
+          subtasks: ['Prepare migration scripts', 'Validate reconciliations'],
+        },
+        {
+          title: 'Tune fraud detection alerts',
+          description: 'Reduce false positives on anomalous spend patterns.',
+          status: 'blocked',
+          priority: 1,
+          dueInDays: 4,
+          deadlineInDays: 6,
+          tags: ['security', 'performance'],
+          subtasks: ['Refine thresholds', 'Await risk team approval'],
+        },
+        {
+          title: 'Publish monthly executive digest',
+          description: 'Summarize revenue trends for leadership.',
+          status: 'done',
+          priority: 3,
+          dueInDays: -2,
+          tags: ['documentation', 'frontend'],
+          subtasks: ['Generate summary deck', 'Distribute digest'],
+        },
+      ],
+      'Customer Health Radar': [
+        {
+          title: 'Define churn risk signals',
+          description: 'Finalize account health features with CS leadership.',
+          status: 'done',
+          priority: 2,
+          dueInDays: -11,
+          tags: ['documentation', 'api'],
+          subtasks: ['Approve feature list', 'Version scoring spec'],
+        },
+        {
+          title: 'Integrate support ticket feed',
+          description: 'Ingest ticket metadata into health scoring pipeline.',
+          status: 'doing',
+          priority: 2,
+          dueInDays: 2,
+          tags: ['api', 'backend'],
+          subtasks: ['Map ticket priorities', 'Backfill 90-day history'],
+        },
+        {
+          title: 'Train customer health model',
+          description: 'Tune model weights and recalibration cadence.',
+          status: 'doing',
+          priority: 1,
+          dueInDays: 5,
+          deadlineInDays: 8,
+          tags: ['performance', 'testing'],
+          subtasks: ['Run training batch', 'Evaluate precision drift'],
+        },
+        {
+          title: 'Build health score dashboard',
+          description: 'Expose account risk trends for customer success.',
+          status: 'todo',
+          priority: 3,
+          dueInDays: 9,
+          tags: ['frontend', 'api'],
+          subtasks: ['Wire KPI cards', 'Add account drill-down'],
+        },
+        {
+          title: 'Configure account alerts',
+          description: 'Trigger automatic nudges for high-risk accounts.',
+          status: 'todo',
+          priority: 2,
+          dueInDays: 4,
+          tags: ['backend', 'api'],
+          subtasks: ['Create alert rules', 'Add notification routing'],
+        },
+        {
+          title: 'Document escalation matrix',
+          description: 'Clarify ownership for severity-driven escalations.',
+          status: 'done',
+          priority: 4,
+          dueInDays: -1,
+          tags: ['documentation'],
+          subtasks: ['Define severity ladder', 'Publish team contacts'],
+        },
+        {
+          title: 'Pilot with top 20 accounts',
+          description: 'Run a controlled rollout with strategic customers.',
+          status: 'blocked',
+          priority: 2,
+          dueInDays: 7,
+          deadlineInDays: 10,
+          tags: ['testing', 'documentation'],
+          subtasks: ['Finalize pilot cohort', 'Get legal sign-off'],
+        },
+      ],
+      'Compliance Evidence Pipeline': [
+        {
+          title: 'Catalog SOC controls',
+          description: 'Map control ownership to systems and services.',
+          status: 'done',
+          priority: 3,
+          dueInDays: -9,
+          tags: ['security', 'documentation'],
+          subtasks: ['Confirm owner roster', 'Freeze control taxonomy'],
+        },
+        {
+          title: 'Automate evidence collection jobs',
+          description: 'Schedule recurring evidence harvest tasks.',
+          status: 'doing',
+          priority: 1,
+          dueInDays: 3,
+          tags: ['backend', 'devops'],
+          subtasks: ['Create cron orchestration', 'Monitor extraction errors'],
+        },
+        {
+          title: 'Wire audit trail retention',
+          description: 'Guarantee retention and immutable log checkpoints.',
+          status: 'doing',
+          priority: 2,
+          dueInDays: 6,
+          tags: ['security', 'infrastructure'],
+          subtasks: ['Configure retention policy', 'Verify restore drills'],
+        },
+        {
+          title: 'Create compliance evidence index',
+          description: 'Allow fast lookup by control and quarter.',
+          status: 'todo',
+          priority: 2,
+          dueInDays: 11,
+          tags: ['database', 'api'],
+          subtasks: ['Design index keys', 'Add query endpoint'],
+        },
+        {
+          title: 'Implement access attestations',
+          description: 'Collect quarterly privilege attestations automatically.',
+          status: 'todo',
+          priority: 2,
+          dueInDays: 15,
+          tags: ['security', 'backend'],
+          subtasks: ['Sync IAM groups', 'Send manager attestations'],
+        },
+        {
+          title: 'Draft external auditor handoff',
+          description: 'Prepare export package for annual audit review.',
+          status: 'todo',
+          priority: 3,
+          dueInDays: 18,
+          tags: ['documentation'],
+          subtasks: ['Assemble evidence links', 'Validate package checksum'],
+        },
+        {
+          title: 'Encrypt long-term archives',
+          description: 'Apply envelope encryption for stored evidence sets.',
+          status: 'blocked',
+          priority: 1,
+          dueInDays: 8,
+          tags: ['security', 'infrastructure'],
+          subtasks: ['Provision key hierarchy', 'Complete security review'],
+        },
+      ],
+      'Field Support Automation': [
+        {
+          title: 'Map field support workflows',
+          description: 'Document regional dispatch and closure patterns.',
+          status: 'done',
+          priority: 3,
+          dueInDays: -14,
+          tags: ['documentation'],
+          subtasks: ['Collect regional playbooks', 'Normalize workflow states'],
+        },
+        {
+          title: 'Integrate work-order events',
+          description: 'Publish events from support tooling into CRM streams.',
+          status: 'doing',
+          priority: 2,
+          dueInDays: 5,
+          tags: ['api', 'backend'],
+          subtasks: ['Map external payloads', 'Validate event ordering'],
+        },
+        {
+          title: 'Configure dispatch optimization',
+          description: 'Route field engineers with SLA and region constraints.',
+          status: 'blocked',
+          priority: 1,
+          dueInDays: 6,
+          deadlineInDays: 9,
+          tags: ['performance', 'api'],
+          subtasks: ['Tune route scoring', 'Await mapping quota approval'],
+        },
+        {
+          title: 'Implement technician mobile forms',
+          description: 'Build constrained offline forms for site diagnostics.',
+          status: 'todo',
+          priority: 2,
+          dueInDays: 12,
+          tags: ['mobile', 'frontend'],
+          subtasks: ['Design form schema', 'Implement save queue'],
+        },
+        {
+          title: 'Build offline sync retries',
+          description: 'Guarantee resilient sync after connectivity drops.',
+          status: 'doing',
+          priority: 1,
+          dueInDays: 3,
+          tags: ['mobile', 'backend'],
+          subtasks: ['Add conflict resolution', 'Stress-test queue replay'],
+        },
+        {
+          title: 'Define regional SLA matrix',
+          description: 'Capture contractual windows by region and customer tier.',
+          status: 'todo',
+          priority: 3,
+          dueInDays: 9,
+          tags: ['documentation'],
+          subtasks: ['Review contracts', 'Publish SLA matrix'],
+        },
+        {
+          title: 'Run production readiness review',
+          description: 'Assess reliability and support handoff criteria.',
+          status: 'blocked',
+          priority: 2,
+          dueInDays: 4,
+          tags: ['testing', 'devops'],
+          subtasks: ['Execute chaos drills', 'Approve rollback plan'],
+        },
+      ],
+      'Executive KPI Broadcast': [
+        {
+          title: 'Align KPI definitions with finance',
+          description: 'Lock shared KPI semantics with finance stakeholders.',
+          status: 'done',
+          priority: 2,
+          dueInDays: -7,
+          tags: ['documentation'],
+          subtasks: ['Approve KPI glossary', 'Version metric contracts'],
+        },
+        {
+          title: 'Build board-level KPI tiles',
+          description: 'Create concise high-impact KPI visual components.',
+          status: 'doing',
+          priority: 2,
+          dueInDays: 2,
+          tags: ['frontend', 'performance'],
+          subtasks: ['Finalize tile layout', 'Add threshold states'],
+        },
+        {
+          title: 'Set cross-channel digest schedule',
+          description: 'Coordinate email, chat, and dashboard release cadence.',
+          status: 'doing',
+          priority: 3,
+          dueInDays: 6,
+          tags: ['api', 'documentation'],
+          subtasks: ['Define audience segments', 'Sync delivery windows'],
+        },
+        {
+          title: 'Launch weekly performance brief',
+          description: 'Pilot weekly summary with action-focused narrative.',
+          status: 'todo',
+          priority: 4,
+          dueInDays: 1,
+          tags: ['documentation', 'frontend'],
+          subtasks: ['Draft narrative template', 'Prepare launch list'],
+        },
+        {
+          title: 'Add scenario planning widgets',
+          description: 'Enable what-if views for growth and retention levers.',
+          status: 'todo',
+          priority: 3,
+          dueInDays: 13,
+          tags: ['frontend', 'api'],
+          subtasks: ['Define scenario inputs', 'Build forecast renderer'],
+        },
+        {
+          title: 'Measure digest open-to-action rate',
+          description: 'Track engagement-to-execution conversion.',
+          status: 'todo',
+          priority: 2,
+          dueInDays: 7,
+          tags: ['performance', 'api'],
+          subtasks: ['Create tracking events', 'Publish conversion report'],
+        },
+        {
+          title: 'Archive outdated KPI cards',
+          description: 'Retire deprecated scorecards from old reporting packs.',
+          status: 'done',
+          priority: 4,
+          dueInDays: -3,
+          tags: ['documentation'],
+          subtasks: ['Identify stale cards', 'Update archival index'],
+        },
+      ],
+    };
+
+    for (const project of seededProjects) {
+      const projectId = String(project._id);
+      const taskSeeds = taskSeedsByProject[project.name] || [];
+
+      for (const task of taskSeeds) {
+        const taskSlug = task.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+
+        const subtasks = task.subtasks.map((text, order) => ({
+          id: `${taskSlug}-${order + 1}`,
+          text,
+          done: task.status === 'done' ? true : order === 0 && task.status === 'doing',
+          order,
+        }));
+
+        const payload: Record<string, unknown> = {
+          projectId,
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          assigneeEmail: adminEmail,
+          tags: [...task.tags],
+          subtasks,
+          updatedAt: now,
+        };
+
+        if (typeof task.dueInDays === 'number') {
+          payload.dueAt = toIso(task.dueInDays);
+        }
+        if (typeof task.deadlineInDays === 'number') {
+          payload.deadlineAt = toIso(task.deadlineInDays);
+        }
+
+        const exists = await this.tasksRepo.findOne({
+          where: { projectId, title: task.title } as any,
+        });
+
+        if (exists) {
+          await this.tasksRepo.update(exists._id as any, payload as any);
+        } else {
+          await this.tasksRepo.save({
+            ...payload,
+            createdAt: now,
+          } as any);
+        }
+      }
+    }
+
+    const merged = [...projects];
+    for (const project of seededProjects) {
+      const projectId = String(project._id);
+      if (merged.some((candidate) => String(candidate._id) === projectId)) {
+        continue;
+      }
+      merged.push(project);
+    }
+
+    return merged;
   }
 
   /* ── Tags seed ──────────────────────────────────────────── */

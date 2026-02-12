@@ -644,12 +644,6 @@ $badge-colors: (
   font-size: 1.25rem;
 }
 
-.modal-close {
-  @extend .btn-icon;
-  @extend .btn-ghost;
-  margin: calc(var(--space-2) * -1);
-}
-
 .modal-body {
   display: flex;
   flex-direction: column;

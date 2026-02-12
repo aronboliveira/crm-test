@@ -9,13 +9,18 @@ import {
   Logger,
 } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service';
-import type { IntegrationConfig, IntegrationStatus } from './types';
+import type {
+  IntegrationConfig,
+  IntegrationConfigOverview,
+  IntegrationSyncJobView,
+  IntegrationStatus,
+} from './types';
 
 /**
  * Controller for managing external system integrations.
  *
  * @remarks
- * Portfolio demonstration - endpoints return mock/shell responses.
+ * Exposes configuration, connectivity, health, and sync orchestration endpoints.
  */
 @Controller('integrations')
 export class IntegrationsController {
@@ -33,12 +38,32 @@ export class IntegrationsController {
   }
 
   /**
+   * Gets persisted status/details for a sync job.
+   */
+  @Get('sync-jobs/:jobId')
+  async getSyncJob(@Param('jobId') jobId: string): Promise<IntegrationSyncJobView> {
+    this.logger.log(`Getting sync job: ${jobId}`);
+    return this.integrationsService.getSyncJob(jobId);
+  }
+
+  /**
    * Gets details for a specific integration.
    */
   @Get(':id')
   async getIntegration(@Param('id') id: string): Promise<IntegrationStatus> {
     this.logger.log(`Getting integration: ${id}`);
     return this.integrationsService.getById(id);
+  }
+
+  /**
+   * Gets masked configuration overview for UI forms.
+   */
+  @Get(':id/config')
+  async getIntegrationConfig(
+    @Param('id') id: string,
+  ): Promise<IntegrationConfigOverview> {
+    this.logger.log(`Getting integration config overview: ${id}`);
+    return this.integrationsService.getConfigOverview(id);
   }
 
   /**

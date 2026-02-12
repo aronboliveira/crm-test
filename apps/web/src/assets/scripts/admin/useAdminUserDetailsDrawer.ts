@@ -43,19 +43,19 @@ export interface AdminUserDetailsDrawerEmits {
 }
 
 /* ---- Mock data generators ---- */
-function mockProjects(email: string): UserProjectSummary[] {
+function mockProjects(): UserProjectSummary[] {
   const statuses = ["active", "planned", "done", "blocked"];
   const roles = ["Responsável", "Colaborador", "Revisor"];
   return Array.from({ length: Math.floor(Math.random() * 4) + 1 }, (_, i) => ({
     id: `proj-${i}`,
     code: `PRJ-${String(100 + i).padStart(3, "0")}`,
     name: `Projeto ${["Alpha", "Beta", "Gamma", "Delta", "Epsilon"][i % 5]}`,
-    status: statuses[i % statuses.length],
-    role: roles[i % roles.length],
+    status: statuses[i % statuses.length] ?? "active",
+    role: roles[i % roles.length] ?? "Colaborador",
   }));
 }
 
-function mockTasks(email: string): UserTaskSummary[] {
+function mockTasks(): UserTaskSummary[] {
   const statuses = ["todo", "doing", "done", "blocked"];
   const titles = [
     "Implementar autenticação OAuth",
@@ -66,8 +66,8 @@ function mockTasks(email: string): UserTaskSummary[] {
   ];
   return Array.from({ length: Math.floor(Math.random() * 4) + 2 }, (_, i) => ({
     id: `task-${i}`,
-    title: titles[i % titles.length],
-    status: statuses[i % statuses.length],
+    title: titles[i % titles.length] ?? "Tarefa",
+    status: statuses[i % statuses.length] ?? "todo",
     priority: (i % 5) + 1,
     dueAt:
       i % 3 === 0
@@ -76,7 +76,7 @@ function mockTasks(email: string): UserTaskSummary[] {
   }));
 }
 
-function mockActivity(email: string): UserActivityEntry[] {
+function mockActivity(): UserActivityEntry[] {
   const actions = [
     "Criou tarefa",
     "Atualizou projeto",
@@ -94,8 +94,8 @@ function mockActivity(email: string): UserActivityEntry[] {
   ];
   return Array.from({ length: 5 }, (_, i) => ({
     id: `act-${i}`,
-    action: actions[i % actions.length],
-    target: targets[i % targets.length],
+    action: actions[i % actions.length] ?? "Atualizou item",
+    target: targets[i % targets.length] ?? "Item",
     when: new Date(Date.now() - i * 3600000 * (i + 2)).toLocaleString("pt-BR"),
   }));
 }
@@ -150,11 +150,10 @@ export function useAdminUserDetailsDrawer(
       details.value = await AdminApiService.userDetails(id);
 
       // Load enriched data (mock for portfolio demo)
-      const email = details.value?.user?.email || "";
       const roleKey = details.value?.user?.roleKey || "member";
-      userProjects.value = mockProjects(email);
-      userTasks.value = mockTasks(email);
-      userActivity.value = mockActivity(email);
+      userProjects.value = mockProjects();
+      userTasks.value = mockTasks();
+      userActivity.value = mockActivity();
       userCompetencies.value = MOCK_COMPETENCIES.slice(
         0,
         Math.floor(Math.random() * 4) + 3,

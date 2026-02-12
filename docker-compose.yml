@@ -29,7 +29,7 @@ services:
     container_name: crm-api
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${API_HOST_PORT:-3000}:3000"
     volumes:
       - ./apps/api:/app/apps/api
       - ./packages:/app/packages
@@ -43,7 +43,7 @@ services:
       - JWT_EXPIRES=8h
       - TYPEORM_SYNC=1
       - SEED_MOCKS=1
-      - CORS_ORIGIN=http://localhost:5173
+      - CORS_ORIGIN=http://localhost:${WEB_HOST_PORT:-5173}
       - PORT=3000
       - UPLOADS_DIR=/app/uploads
       - REDIS_HOST=redis
@@ -78,7 +78,7 @@ services:
     container_name: crm-web
     restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "${WEB_HOST_PORT:-5173}:5173"
     volumes:
       - ./apps/web:/app/apps/web
       - ./packages:/app/packages
@@ -86,7 +86,7 @@ services:
       - /app/apps/web/node_modules
     environment:
       - NODE_ENV=development
-      - VITE_API_BASE_URL=http://localhost:3000
+      - VITE_API_BASE_URL=http://localhost:${API_HOST_PORT:-3000}
     depends_on:
       api:
         condition: service_healthy

@@ -3,13 +3,30 @@
     --assistant-inline-offset: clamp(0.9rem, 2vw, 1.35rem);
     --assistant-block-offset: clamp(0.9rem, 2.6vh, 1.4rem);
     --assistant-trigger-size: clamp(3.2rem, 4.2vw, 3.75rem);
+    --assistant-chat-min-width: 19rem;
+    --assistant-chat-min-height: 18.5rem;
+    --assistant-chat-max-width: min(38rem, calc(100vw - 1rem));
+    --assistant-chat-max-height: min(80vh, 45rem);
     position: fixed;
     right: var(--assistant-inline-offset);
     bottom: calc(
       var(--assistant-block-offset) + var(--assistant-trigger-size) + 0.9rem
     );
-    width: min(24rem, calc(100vw - 1.8rem));
-    max-height: min(72vh, 39rem);
+    width: clamp(
+      var(--assistant-chat-min-width),
+      24rem,
+      var(--assistant-chat-max-width)
+    );
+    height: clamp(
+      var(--assistant-chat-min-height),
+      31rem,
+      var(--assistant-chat-max-height)
+    );
+    min-width: var(--assistant-chat-min-width);
+    min-height: var(--assistant-chat-min-height);
+    max-width: var(--assistant-chat-max-width);
+    max-height: var(--assistant-chat-max-height);
+    resize: both;
     border-radius: 1rem;
     border: 1px solid var(--border-1);
     background: linear-gradient(
@@ -21,7 +38,7 @@
       0 22px 45px color-mix(in oklab, var(--text-1) 18%, transparent),
       0 2px 0 color-mix(in oklab, white 40%, transparent) inset;
     display: grid;
-    grid-template-rows: auto minmax(9rem, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     overflow: hidden;
     z-index: 71;
     pointer-events: auto;
@@ -114,15 +131,16 @@
 .closeButton {
   inline-size: 2rem;
   block-size: 2rem;
+  padding: 0;
   border-radius: 999px;
   border: 1px solid var(--border-1);
   background: color-mix(in oklab, var(--surface-2) 70%, transparent);
   color: var(--text-2);
-  font-size: 1.1rem;
-  line-height: 1;
+  line-height: 0;
   cursor: pointer;
   display: grid;
   place-items: center;
+  align-self: center;
   transition:
     transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
     background var(--transition-fast, 140ms) var(--easing-standard, ease),
@@ -141,26 +159,93 @@
   outline-offset: 2px;
 }
 
+.closeIcon {
+  inline-size: 0.95rem;
+  block-size: 0.95rem;
+}
+
 .messages {
   padding: 0.95rem;
   overflow-y: auto;
   display: grid;
   align-content: start;
   gap: 0.62rem;
+  min-height: 0;
 }
 
 .botMessage {
   margin: 0;
+  justify-self: start;
+  width: fit-content;
   padding: 0.8rem 0.86rem;
   max-width: 90%;
   border-radius: 0.9rem 0.9rem 0.9rem 0.3rem;
   background: color-mix(in oklab, var(--primary-soft) 64%, var(--surface-1));
   color: var(--text-1);
+  text-align: left;
   line-height: 1.45;
   font-size: 0.88rem;
   border: 1px solid color-mix(in oklab, var(--primary) 22%, transparent);
   transform-origin: left bottom;
   animation: messageReveal 340ms var(--easing-bounce, ease) both;
+}
+
+.thinkingMessage {
+  margin: 0;
+  justify-self: start;
+  width: fit-content;
+  padding: 0.8rem 0.86rem;
+  max-width: 90%;
+  min-height: 2.65rem;
+  border-radius: 0.9rem 0.9rem 0.9rem 0.3rem;
+  background: color-mix(in oklab, var(--surface-2) 85%, var(--surface-1));
+  color: var(--text-2);
+  text-align: left;
+  line-height: 1.45;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid color-mix(in oklab, var(--text-2) 18%, transparent);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  animation: messageReveal 340ms var(--easing-bounce, ease) both;
+}
+
+.thinkingMessage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--surface-1) 78%, var(--text-3) 22%) 45%,
+    transparent 100%
+  );
+  transform: translateX(-125%);
+  animation: thinkingSweep 2650ms ease-in-out infinite;
+  pointer-events: none;
+}
+
+.userMessage {
+  margin: 0;
+  justify-self: end;
+  width: fit-content;
+  padding: 0.74rem 0.82rem;
+  max-width: 90%;
+  border-radius: 0.9rem 0.9rem 0.3rem 0.9rem;
+  background: color-mix(in oklab, var(--primary) 19%, var(--surface-1));
+  color: var(--text-1);
+  text-align: right;
+  line-height: 1.4;
+  font-size: 0.87rem;
+  border: 1px solid color-mix(in oklab, var(--primary) 36%, transparent);
+  animation: messageReveal 340ms var(--easing-bounce, ease) both;
+}
+
+.userPending {
+  opacity: 0.76;
+  border-style: dashed;
 }
 
 .composer {
@@ -169,6 +254,109 @@
   background: color-mix(in oklab, var(--surface-1) 95%, var(--surface-2) 5%);
   display: grid;
   gap: 0.5rem;
+}
+
+.actionsRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.36rem;
+}
+
+.actionsToggle {
+  justify-self: start;
+  min-height: 1.6rem;
+  border-radius: 0.6rem;
+  border: 1px solid color-mix(in oklab, var(--primary) 24%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--surface-2) 76%, var(--primary-soft) 24%),
+    color-mix(in oklab, var(--surface-1) 86%, var(--primary-soft) 14%)
+  );
+  color: var(--text-2);
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-medium, 500);
+  letter-spacing: 0.01em;
+  padding: 0.08rem 0.52rem;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
+    filter var(--transition-fast, 140ms) var(--easing-standard, ease),
+    border-color var(--transition-fast, 140ms) var(--easing-standard, ease);
+}
+
+.actionsToggle:hover,
+.actionsToggle:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.actionsToggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.iconActionButton {
+  inline-size: 1.72rem;
+  block-size: 1.72rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--primary) 34%, transparent);
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  font-size: 0.86rem;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--text-1);
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
+    filter var(--transition-fast, 140ms) var(--easing-standard, ease),
+    border-color var(--transition-fast, 140ms) var(--easing-standard, ease),
+    opacity var(--transition-fast, 140ms) var(--easing-standard, ease);
+}
+
+.iconSecondaryAction {
+  border-color: color-mix(in oklab, var(--primary) 42%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--surface-2) 68%, var(--primary-soft) 32%),
+    color-mix(in oklab, var(--surface-1) 78%, var(--primary-soft) 22%)
+  );
+  color: color-mix(in oklab, var(--primary) 64%, var(--text-1) 36%);
+}
+
+.iconDangerAction {
+  border-color: color-mix(in oklab, var(--danger) 38%, transparent);
+  background: linear-gradient(
+    145deg,
+    color-mix(in oklab, var(--surface-2) 66%, var(--danger) 34%),
+    color-mix(in oklab, var(--surface-1) 77%, var(--danger) 23%)
+  );
+  color: color-mix(in oklab, var(--danger) 66%, var(--text-1) 34%);
+}
+
+.iconActionButton:hover:not(:disabled),
+.iconActionButton:focus-visible:not(:disabled) {
+  transform: translateY(-1px) scale(1.05);
+  filter: brightness(1.05);
+}
+
+.iconActionButton:active:not(:disabled) {
+  transform: translateY(0) scale(0.95);
+  filter: brightness(0.98);
+}
+
+.iconActionButton:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.iconActionButton:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
 }
 
 .composerLabel {
@@ -216,6 +404,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.36rem;
+  text-wrap: balance;
 }
 
 .hint::before {
@@ -257,6 +446,31 @@
 .sendButton:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.socketBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+}
+
+.socketBadge::before {
+  content: "";
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: var(--warning);
+}
+
+.socketConfigured.socketOpen::before {
+  background: var(--success);
+}
+
+.socketDisabled::before,
+.socketNotOpen::before {
+  background: var(--warning);
 }
 
 @supports (position-try: flip-block) {
@@ -311,9 +525,20 @@
   }
 }
 
+@keyframes thinkingSweep {
+  from {
+    transform: translateX(-125%);
+  }
+  to {
+    transform: translateX(125%);
+  }
+}
+
 @media (max-width: 700px) {
   .popupRoot {
     width: min(24rem, calc(100vw - 1rem));
+    height: min(74vh, 33rem);
+    min-width: 16.4rem;
     right: 0.5rem;
     bottom: calc(var(--assistant-block-offset) + var(--assistant-trigger-size) + 0.6rem);
   }
@@ -321,6 +546,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .botMessage,
+  .thinkingMessage,
+  .thinkingMessage::after,
   .hint::before,
   .popupRoot {
     animation: none;

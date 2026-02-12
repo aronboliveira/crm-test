@@ -87,36 +87,7 @@ export default class AuthAuditService {
     }
   }
 
-  private static normEmail(v: string | null): string {
-    const s = typeof v === 'string' ? v.trim().toLowerCase() : '';
-    return s && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s : '';
-  }
-
-  private static maskEmail(email: string): string {
-    const at = email.indexOf('@');
-    if (at <= 0) return '***';
-    const local = email.slice(0, at);
-    const domain = email.slice(at + 1);
-
-    const l2 = local.length <= 2 ? local : local.slice(0, 2);
-    const dParts = domain.split('.');
-    const head = dParts[0] || '';
-    const tail = dParts.length > 1 ? dParts[dParts.length - 1] : '';
-    const h1 = head ? head.slice(0, 1) : '';
-    const maskedDomain = tail ? `${h1}***.${tail}` : `${h1}***`;
-
-    return `${l2}***@${maskedDomain}`;
-  }
-
   private static sha256(v: string): string {
     return createHash('sha256').update(v).digest('hex');
-  }
-
-  private static jsonSafe<T extends object>(v: T): T {
-    try {
-      return JSON.parse(JSON.stringify(v)) as T;
-    } catch {
-      return {} as T;
-    }
   }
 }

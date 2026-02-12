@@ -116,7 +116,7 @@ const gridLines = computed(() => {
   position: absolute;
   right: 8px;
   font-size: 0.75rem;
-  opacity: 0.6;
+  color: var(--text-3);
   transform: translateY(50%);
   white-space: nowrap;
 }
@@ -145,13 +145,7 @@ const gridLines = computed(() => {
   left: 0;
   right: 0;
   height: 1px;
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-@media (prefers-color-scheme: dark) {
-  .grid-line {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
+  background-color: color-mix(in oklab, var(--text-1) 10%, transparent);
 }
 
 .bar-chart--horizontal .bar-item {
@@ -211,11 +205,11 @@ const gridLines = computed(() => {
 .bar-label {
   font-size: 0.875rem;
   font-weight: 500;
-  opacity: 0.9;
+  color: var(--text-2);
 }
 
 .bar-container {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: color-mix(in oklab, var(--text-1) 8%, transparent);
   border-radius: 4px;
   overflow: hidden;
   position: relative;

@@ -1,5 +1,6 @@
 import StorageService from "./StorageService";
 import { DOMValidator } from "@corp/foundations";
+import SafeJsonService from "./SafeJsonService";
 
 type FormMap = Record<string, Record<string, string>>;
 
@@ -13,7 +14,7 @@ export default class FormPersistenceService {
 
     try {
       const raw = sessionStorage.getItem(FormPersistenceService.#K);
-      const obj = raw ? (JSON.parse(raw) as Record<string, any>) : {};
+      const obj = SafeJsonService.parseObject(raw, {});
       const v = obj && typeof obj === "object" ? obj[k] : null;
 
       return v && typeof v === "object"
@@ -30,9 +31,13 @@ export default class FormPersistenceService {
 
     try {
       const raw = sessionStorage.getItem(FormPersistenceService.#K);
-      const obj = raw ? (JSON.parse(raw) as Record<string, any>) : {};
+      const obj = SafeJsonService.parseObject(raw, {});
       const next = { ...(obj || {}), [k]: { ...(data || {}) } };
-      sessionStorage.setItem(FormPersistenceService.#K, JSON.stringify(next));
+      const serialized = SafeJsonService.tryStringify(next);
+      if (!serialized) {
+        return;
+      }
+      sessionStorage.setItem(FormPersistenceService.#K, serialized);
     } catch {
       void 0;
     }
@@ -44,14 +49,14 @@ export default class FormPersistenceService {
 
     try {
       const raw = sessionStorage.getItem(FormPersistenceService.#K);
-      const obj = raw ? (JSON.parse(raw) as Record<string, any>) : {};
-      obj && typeof obj === "object" && obj[k]
-        ? (delete obj[k],
-          sessionStorage.setItem(
-            FormPersistenceService.#K,
-            JSON.stringify(obj),
-          ))
-        : void 0;
+      const obj = SafeJsonService.parseObject(raw, {});
+      if (obj && typeof obj === "object" && obj[k]) {
+        delete obj[k];
+        const serialized = SafeJsonService.tryStringify(obj);
+        if (serialized) {
+          sessionStorage.setItem(FormPersistenceService.#K, serialized);
+        }
+      }
     } catch {
       void 0;
     }

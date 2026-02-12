@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import type {
   IntegrationAdapter,
   IntegrationConfig,
+  IntegrationSyncDataset,
   IntegrationStatus,
 } from '../../types';
 import { SatApiClient } from './sat-api.client';
@@ -41,6 +42,7 @@ export class SatAdapter implements IntegrationAdapter {
   private readonly logger = new Logger(SatAdapter.name);
   private config: IntegrationConfig = {};
   private client: SatApiClient | null = null;
+  private isConnected = false;
   private lastSyncAt?: string;
   private lastError?: string;
 
@@ -52,12 +54,19 @@ export class SatAdapter implements IntegrationAdapter {
 
   async getStatus(): Promise<IntegrationStatus> {
     const isConfigured = this.isConfigured();
+    const status = !isConfigured
+      ? 'disconnected'
+      : this.lastError
+        ? 'error'
+        : this.isConnected
+          ? 'connected'
+          : 'disconnected';
 
     return {
       id: 'sat',
       name: 'SAT ERP',
       type: 'ERP/Financial',
-      status: isConfigured ? 'disconnected' : 'disconnected',
+      status,
       configured: isConfigured,
       lastSyncAt: this.lastSyncAt,
       lastError: this.lastError,
@@ -89,14 +98,17 @@ export class SatAdapter implements IntegrationAdapter {
 
       if (result) {
         this.lastError = undefined;
+        this.isConnected = true;
         this.logger.log('SAT connection test successful');
       } else {
         this.lastError = 'Connection test failed';
+        this.isConnected = false;
       }
 
       return result;
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      this.isConnected = false;
       this.logger.error('SAT connection test failed', error);
       return false;
     }
@@ -106,6 +118,7 @@ export class SatAdapter implements IntegrationAdapter {
     this.logger.log('Updating SAT configuration');
     this.config = { ...this.config, ...config };
     this.client = null; // Reset client to use new config
+    this.isConnected = false;
     this.lastError = undefined;
   }
 
@@ -117,10 +130,7 @@ export class SatAdapter implements IntegrationAdapter {
     }
 
     try {
-      await this.syncInvoices();
-      await this.syncCustomers();
-      await this.syncProducts();
-      await this.syncOrders();
+      await this.pullSyncSnapshot();
 
       this.lastSyncAt = new Date().toISOString();
       this.lastError = undefined;
@@ -128,6 +138,54 @@ export class SatAdapter implements IntegrationAdapter {
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : 'Sync failed';
       this.logger.error('SAT sync failed', error);
+      throw error;
+    }
+  }
+
+  async pullSyncSnapshot(): Promise<IntegrationSyncDataset[]> {
+    try {
+      const [invoices, customers, products, orders] = await Promise.all([
+        this.syncInvoices(),
+        this.syncCustomers(),
+        this.syncProducts(),
+        this.syncOrders(),
+      ]);
+
+      this.lastSyncAt = new Date().toISOString();
+      this.lastError = undefined;
+
+      return [
+        {
+          recordType: 'invoices',
+          records: invoices.map(
+            (invoice) => invoice as unknown as Record<string, unknown>,
+          ),
+          externalIdField: 'sourceId',
+        },
+        {
+          recordType: 'customers',
+          records: customers.map(
+            (customer) => customer as unknown as Record<string, unknown>,
+          ),
+          externalIdField: 'sourceId',
+        },
+        {
+          recordType: 'products',
+          records: products.map(
+            (product) => product as unknown as Record<string, unknown>,
+          ),
+          externalIdField: 'sourceId',
+        },
+        {
+          recordType: 'orders',
+          records: orders.map(
+            (order) => order as unknown as Record<string, unknown>,
+          ),
+          externalIdField: 'sourceId',
+        },
+      ];
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : 'Sync failed';
       throw error;
     }
   }
@@ -368,63 +426,67 @@ export class SatAdapter implements IntegrationAdapter {
   // ===========================================================================
 
   private isConfigured(): boolean {
-    return !!(
-      this.config.baseUrl &&
-      this.config.clientId &&
-      this.config.clientSecret
-    );
+    const resolved = this.resolveConfig();
+
+    return !!(resolved.baseUrl && resolved.clientId && resolved.clientSecret);
   }
 
   private getClient(): SatApiClient {
+    const resolved = this.resolveConfig();
+
     if (!this.client) {
-      if (!this.isConfigured()) {
+      if (!resolved.baseUrl || !resolved.clientId || !resolved.clientSecret) {
         throw new Error('SAT integration not configured');
       }
 
       this.client = new SatApiClient(
         this.httpService,
-        this.config.baseUrl!,
-        this.config.clientId!,
-        this.config.clientSecret!,
+        resolved.baseUrl,
+        resolved.clientId,
+        resolved.clientSecret,
       );
     }
 
     return this.client;
   }
 
-  private async syncInvoices(): Promise<void> {
+  private resolveConfig(): {
+    baseUrl?: string;
+    clientId?: string;
+    clientSecret?: string;
+  } {
+    return {
+      baseUrl: this.normalizeString(this.config.baseUrl ?? this.config.apiUrl),
+      clientId: this.normalizeString(this.config.clientId),
+      clientSecret: this.normalizeString(this.config.clientSecret),
+    };
+  }
+
+  private normalizeString(value?: string): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private async syncInvoices(): Promise<CrmInvoice[]> {
     this.logger.debug('Syncing SAT invoices');
-    // Implementation would:
-    // 1. Fetch recent invoices from SAT
-    // 2. Map to CRM invoice format
-    // 3. Update/create in CRM database
-    // 4. Handle conflicts/duplicates
+    return this.getInvoices({ page: 1, per_page: 100, sort_order: 'desc' });
   }
 
-  private async syncCustomers(): Promise<void> {
+  private async syncCustomers(): Promise<CrmClient[]> {
     this.logger.debug('Syncing SAT customers');
-    // Implementation would:
-    // 1. Fetch customers from SAT
-    // 2. Map to CRM client format
-    // 3. Update/create in CRM database
-    // 4. Handle duplicates by document number
+    return this.getCustomers({ page: 1, per_page: 100, sort_order: 'desc' });
   }
 
-  private async syncProducts(): Promise<void> {
+  private async syncProducts(): Promise<CrmProduct[]> {
     this.logger.debug('Syncing SAT products');
-    // Implementation would:
-    // 1. Fetch products from SAT
-    // 2. Map to CRM product format
-    // 3. Update inventory levels
-    // 4. Flag low stock items
+    return this.getProducts({ page: 1, per_page: 100, sort_order: 'desc' });
   }
 
-  private async syncOrders(): Promise<void> {
+  private async syncOrders(): Promise<CrmQuote[]> {
     this.logger.debug('Syncing SAT orders');
-    // Implementation would:
-    // 1. Fetch orders from SAT
-    // 2. Map to CRM quote format
-    // 3. Update/create in CRM database
-    // 4. Link to clients
+    return this.getOrders({ page: 1, per_page: 100, sort_order: 'desc' });
   }
 }

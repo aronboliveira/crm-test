@@ -22,6 +22,7 @@ import {
 import type { ZodSchema } from 'zod';
 import { ZodError } from 'zod';
 import { SanitizerService } from './sanitizer.service';
+import SafeJsonUtil from '../json/safe-json.util';
 
 export interface ZodValidationPipeOptions {
   /** Whether to sanitize string inputs */
@@ -92,7 +93,7 @@ export class ZodValidationPipe<T> implements PipeTransform<unknown, T> {
 
         if (this.options.logErrors) {
           this.logger.warn(
-            `Validation failed: ${JSON.stringify(formattedErrors)}`,
+            `Validation failed: ${SafeJsonUtil.stringify(formattedErrors, '{}')}`,
           );
         }
 

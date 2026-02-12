@@ -3,19 +3,22 @@ import axios from 'axios';
 import type {
   IntegrationAdapter,
   IntegrationConfig,
+  IntegrationSyncDataset,
   IntegrationStatus,
 } from '../types';
+import {
+  IntegrationValueSanitizer,
+  MAIL_DATASET_TYPES,
+  MAIL_DEFAULTS,
+  MailSmtpProfileFactory,
+  type MailSmtpProfile,
+  SafeJsonCodec,
+} from './shared/mail-integration.shared';
 
 /**
  * Zimbra Mail Integration Adapter
  *
  * Adapter for integrating with Zimbra Collaboration Suite.
- * Supports email sync, calendar, contacts, and tasks.
- *
- * @remarks
- * Uses Zimbra SOAP API over HTTP.
- *
- * @see https://wiki.zimbra.com/wiki/Zimbra_REST_API_Reference
  */
 @Injectable()
 export class ZimbraAdapter implements IntegrationAdapter {
@@ -23,6 +26,9 @@ export class ZimbraAdapter implements IntegrationAdapter {
   private config: IntegrationConfig = {};
   private httpClient: ReturnType<typeof axios.create>;
   private authToken?: string;
+  private isConnected = false;
+  private lastSyncAt?: string;
+  private lastError?: string;
 
   constructor() {
     this.httpClient = axios.create({
@@ -54,15 +60,24 @@ export class ZimbraAdapter implements IntegrationAdapter {
     },
   ];
 
-  getStatus(): Promise<IntegrationStatus> {
-    return Promise.resolve({
+  async getStatus(): Promise<IntegrationStatus> {
+    const configured = this.isConfigured();
+    const status = !configured
+      ? 'disconnected'
+      : this.lastError
+        ? 'error'
+        : this.isConnected
+          ? 'connected'
+          : 'disconnected';
+
+    return {
       id: 'zimbra',
       name: 'Zimbra Mail',
       type: 'Email/Collaboration',
-      status: this.config.baseUrl ? 'disconnected' : 'disconnected',
-      configured:
-        !!this.config.baseUrl &&
-        (!!this.config.apiKey || !!this.config.username),
+      status,
+      configured,
+      lastSyncAt: this.lastSyncAt,
+      lastError: this.lastError,
       features: [
         'Email sync (send/receive)',
         'Calendar integration',
@@ -70,79 +85,122 @@ export class ZimbraAdapter implements IntegrationAdapter {
         'Task sync',
         'Attachment handling',
       ],
-    });
+    };
   }
 
   async testConnection(): Promise<boolean> {
     this.logger.log('Testing Zimbra connection...');
 
-    if (!this.config.baseUrl) {
-      this.logger.warn('Zimbra not configured');
+    if (!this.isConfigured()) {
+      this.lastError = 'Integration not configured';
+      this.isConnected = false;
       return false;
     }
 
     try {
       await this.authenticate();
       const info = await this.getAccountInfo();
+      this.isConnected = true;
+      this.lastError = undefined;
       this.logger.log(
-        `Zimbra connection successful: ${info.name || 'Unknown'}`,
+        `Zimbra connection successful: ${info.name || 'Unknown account'}`,
       );
       return true;
     } catch (error) {
-      this.logger.error(
-        `Zimbra connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      this.isConnected = false;
+      this.logger.error(`Zimbra connection failed: ${this.lastError}`);
       return false;
     }
   }
 
-  configure(config: Partial<IntegrationConfig>): Promise<void> {
+  async configure(config: Partial<IntegrationConfig>): Promise<void> {
     this.logger.log('Updating Zimbra configuration');
-    this.config = { ...this.config, ...config };
+    const merged = { ...this.config, ...config };
+
+    this.config = {
+      ...merged,
+      baseUrl: IntegrationValueSanitizer.normalizeUrl(
+        merged.baseUrl ?? merged.apiUrl,
+      ),
+      apiUrl: undefined,
+      username: IntegrationValueSanitizer.normalizeString(merged.username),
+      password: IntegrationValueSanitizer.normalizeString(
+        merged.password ?? merged.apiKey,
+      ),
+      smtpHost: IntegrationValueSanitizer.normalizeString(merged.smtpHost),
+      smtpPort: IntegrationValueSanitizer.normalizePort(merged.smtpPort),
+      smtpSecure:
+        IntegrationValueSanitizer.normalizeBoolean(merged.smtpSecure)
+        ?? undefined,
+      smtpUser: IntegrationValueSanitizer.normalizeString(merged.smtpUser),
+      smtpPass: IntegrationValueSanitizer.normalizeString(merged.smtpPass),
+      smtpFrom: IntegrationValueSanitizer.normalizeString(merged.smtpFrom),
+      smtpProfile: merged.smtpProfile,
+      mockNotifications:
+        IntegrationValueSanitizer.normalizeBoolean(merged.mockNotifications)
+        ?? false,
+    };
+
     this.authToken = undefined;
-    return Promise.resolve();
+    this.isConnected = false;
+    this.lastError = undefined;
   }
 
-  getSmtpProfile(): {
-    host: string;
-    port: number;
-    secure: boolean;
-    user?: string;
-    pass?: string;
-    from?: string;
-    profile: 'zimbra' | 'default';
-  } | null {
-    if (!this.config.baseUrl && !this.config.smtpHost) {
-      return null;
-    }
-
-    const baseHost =
-      this.config.smtpHost || this.extractHost(this.config.baseUrl);
-    if (!baseHost) {
-      return null;
-    }
-
-    return {
-      host: baseHost,
-      port: this.config.smtpPort || 587,
-      secure: this.config.smtpSecure ?? false,
-      user: this.config.smtpUser,
-      pass: this.config.smtpPass,
-      from: this.config.smtpFrom,
-      profile: this.config.smtpProfile === 'default' ? 'default' : 'zimbra',
-    };
+  getSmtpProfile(): MailSmtpProfile | null {
+    return MailSmtpProfileFactory.fromConfig(this.config, {
+      fallbackHost: this.extractHost(this.config.baseUrl),
+      fallbackPort: MAIL_DEFAULTS.smtpPort,
+      fallbackSecure: MAIL_DEFAULTS.smtpSecure,
+      profile: 'zimbra',
+    });
   }
 
   isConfigured(): boolean {
-    return !!(
-      this.config.baseUrl &&
-      (this.config.apiKey || this.config.username)
+    return Boolean(
+      IntegrationValueSanitizer.hasString(this.config.baseUrl)
+      && IntegrationValueSanitizer.hasString(this.config.username)
+      && IntegrationValueSanitizer.hasString(this.config.password),
     );
   }
 
-  sync(): Promise<void> {
-    this.logger.log('Zimbra sync triggered (manual)');
-    return Promise.resolve();
+  async sync(): Promise<void> {
+    await this.pullSyncSnapshot();
+  }
+
+  async pullSyncSnapshot(): Promise<IntegrationSyncDataset[]> {
+    if (!this.isConfigured()) {
+      throw new Error('Zimbra integration not configured');
+    }
+
+    try {
+      const [emails, calls] = await Promise.all([
+        this.getUnreadEmails(),
+        this.getUpcomingCalls(MAIL_DEFAULTS.zimbraSyncWindowMinutes),
+      ]);
+
+      this.lastSyncAt = new Date().toISOString();
+      this.lastError = undefined;
+
+      // * FINISH INTEGRATION HERE [ZIMBRA]:
+      // * Extend dataset coverage for contacts/tasks and project records into CRM domain entities.
+      // * Current pipeline persists unread emails + upcoming calls only.
+      return [
+        {
+          recordType: MAIL_DATASET_TYPES.unreadEmails,
+          records: emails.map((item) => item as unknown as Record<string, unknown>),
+          externalIdField: 'id',
+        },
+        {
+          recordType: MAIL_DATASET_TYPES.upcomingCalls,
+          records: calls.map((item) => item as unknown as Record<string, unknown>),
+          externalIdField: 'id',
+        },
+      ];
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : 'Sync failed';
+      throw error;
+    }
   }
 
   async getUnreadEmails(since?: Date): Promise<
@@ -158,7 +216,7 @@ export class ZimbraAdapter implements IntegrationAdapter {
       return [];
     }
 
-    if ((this.config as { mockNotifications?: boolean }).mockNotifications) {
+    if (this.config.mockNotifications) {
       return this.mockEmails;
     }
 
@@ -169,7 +227,7 @@ export class ZimbraAdapter implements IntegrationAdapter {
         ? `is:unread after:${this.formatZimbraDate(since)}`
         : 'is:unread';
 
-      const response = await this.httpClient.post<Record<string, any>>(
+      const response = await this.httpClient.post<unknown>(
         `${this.config.baseUrl}/service/soap/SearchRequest`,
         {
           Body: {
@@ -187,23 +245,31 @@ export class ZimbraAdapter implements IntegrationAdapter {
         },
       );
 
-      const messages = response.data.Body?.SearchResponse?.m || [];
-      return messages.map((msg: any) => ({
-        id: msg.id,
-        subject: msg.su || '(no subject)',
-        from: this.extractEmail(msg.e?.[0]),
-        receivedAt: new Date(parseInt(msg.d)).toISOString(),
-        link: `${this.config.baseUrl}/modern/email/${msg.id}`,
-      }));
+      const data = SafeJsonCodec.parseObject(response.data);
+      const body = this.readObject(data, 'Body');
+      const searchResponse = this.readObject(body, 'SearchResponse');
+      const messages = this.readArray(searchResponse, 'm');
+
+      return messages.map((message) => {
+        const raw = this.asObject(message);
+        const emailEntry = this.firstObject(this.readArray(raw, 'e'));
+        return {
+          id: this.readString(raw, 'id') ?? 'unknown',
+          subject: this.readString(raw, 'su') ?? '(no subject)',
+          from: this.extractEmail(emailEntry),
+          receivedAt: this.readEpochMillisAsIso(this.readString(raw, 'd')),
+          link: `${this.config.baseUrl}/modern/email/${this.readString(raw, 'id') ?? ''}`,
+        };
+      });
     } catch (error) {
       this.logger.error(
-        `Failed to fetch unread emails: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to fetch unread emails: ${error instanceof Error ? error.message : SafeJsonCodec.stringify(error)}`,
       );
       return [];
     }
   }
 
-  async getUpcomingCalls(withinMinutes = 60): Promise<
+  async getUpcomingCalls(withinMinutes = MAIL_DEFAULTS.zimbraSyncWindowMinutes): Promise<
     Array<{
       id: string;
       title: string;
@@ -217,7 +283,7 @@ export class ZimbraAdapter implements IntegrationAdapter {
       return [];
     }
 
-    if ((this.config as { mockNotifications?: boolean }).mockNotifications) {
+    if (this.config.mockNotifications) {
       const cutoff = Date.now() + withinMinutes * 60 * 1000;
       return this.mockCalls.filter(
         (call) => new Date(call.startAt).getTime() <= cutoff,
@@ -230,7 +296,7 @@ export class ZimbraAdapter implements IntegrationAdapter {
       const startTime = Date.now();
       const endTime = startTime + withinMinutes * 60 * 1000;
 
-      const response = await this.httpClient.post<Record<string, any>>(
+      const response = await this.httpClient.post<unknown>(
         `${this.config.baseUrl}/service/soap/SearchRequest`,
         {
           Body: {
@@ -248,56 +314,59 @@ export class ZimbraAdapter implements IntegrationAdapter {
         },
       );
 
-      const appointments = response.data.Body?.SearchResponse?.appt || [];
-      return appointments.map((appt: any) => {
-        const inst = appt.inst?.[0];
+      const data = SafeJsonCodec.parseObject(response.data);
+      const body = this.readObject(data, 'Body');
+      const searchResponse = this.readObject(body, 'SearchResponse');
+      const appointments = this.readArray(searchResponse, 'appt');
+
+      return appointments.map((appointment) => {
+        const raw = this.asObject(appointment);
+        const instance = this.firstObject(this.readArray(raw, 'inst'));
+        const baseStart = this.readString(instance, 's') ?? this.readString(raw, 'd');
+        const startMs = this.readEpochMillis(baseStart);
+        const durationMs = this.readEpochMillis(this.readString(raw, 'dur'));
+
         return {
-          id: appt.id,
-          title: appt.name || '(no title)',
-          startAt: new Date(parseInt(inst?.s || appt.d)).toISOString(),
-          endAt: new Date(
-            parseInt(inst?.s || appt.d) + (appt.dur || 3600000),
-          ).toISOString(),
-          organizer: this.extractEmail(appt.or),
-          link: `${this.config.baseUrl}/modern/calendar/view/${appt.id}`,
+          id: this.readString(raw, 'id') ?? 'unknown',
+          title: this.readString(raw, 'name') ?? '(no title)',
+          startAt: new Date(startMs).toISOString(),
+          endAt: new Date(startMs + (durationMs || 3600000)).toISOString(),
+          organizer: this.extractEmail(this.readObject(raw, 'or')),
+          link: `${this.config.baseUrl}/modern/calendar/view/${this.readString(raw, 'id') ?? ''}`,
         };
       });
     } catch (error) {
       this.logger.error(
-        `Failed to fetch upcoming calls: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to fetch upcoming calls: ${error instanceof Error ? error.message : SafeJsonCodec.stringify(error)}`,
       );
       return [];
     }
   }
 
-  private extractHost(baseUrl?: string): string | null {
-    if (!baseUrl) {
-      return null;
+  private extractHost(baseUrl?: string): string | undefined {
+    const normalized = IntegrationValueSanitizer.normalizeUrl(baseUrl);
+    if (!normalized) {
+      return undefined;
     }
 
     try {
-      const url = new URL(baseUrl);
-      return url.hostname;
+      return new URL(normalized).hostname;
     } catch {
-      return null;
+      return undefined;
     }
   }
-
-  // ===========================================================================
-  // ZIMBRA API HELPERS
-  // ===========================================================================
 
   private async authenticate(): Promise<void> {
     if (this.authToken) {
       return;
     }
 
-    if (!this.config.username || !this.config.password) {
+    if (!this.config.baseUrl || !this.config.username || !this.config.password) {
       throw new Error('Zimbra credentials not configured');
     }
 
     try {
-      const response = await this.httpClient.post<Record<string, any>>(
+      const response = await this.httpClient.post<unknown>(
         `${this.config.baseUrl}/service/soap/AuthRequest`,
         {
           Body: {
@@ -315,8 +384,12 @@ export class ZimbraAdapter implements IntegrationAdapter {
         },
       );
 
-      this.authToken =
-        response.data.Body?.AuthResponse?.authToken?.[0]?._content;
+      const data = SafeJsonCodec.parseObject(response.data);
+      const body = this.readObject(data, 'Body');
+      const authResponse = this.readObject(body, 'AuthResponse');
+      const tokenEntry = this.firstObject(this.readArray(authResponse, 'authToken'));
+      this.authToken = this.readString(tokenEntry, '_content');
+
       if (!this.authToken) {
         throw new Error('No auth token received from Zimbra');
       }
@@ -324,7 +397,7 @@ export class ZimbraAdapter implements IntegrationAdapter {
       this.logger.log('Zimbra authentication successful');
     } catch (error) {
       this.logger.error(
-        `Zimbra authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Zimbra authentication failed: ${error instanceof Error ? error.message : SafeJsonCodec.stringify(error)}`,
       );
       throw error;
     }
@@ -341,7 +414,7 @@ export class ZimbraAdapter implements IntegrationAdapter {
   }
 
   private async getAccountInfo(): Promise<{ name: string; id: string }> {
-    const response = await this.httpClient.post<Record<string, any>>(
+    const response = await this.httpClient.post<unknown>(
       `${this.config.baseUrl}/service/soap/GetInfoRequest`,
       {
         Body: {
@@ -355,10 +428,14 @@ export class ZimbraAdapter implements IntegrationAdapter {
       },
     );
 
-    const info = response.data.Body?.GetInfoResponse;
+    const data = SafeJsonCodec.parseObject(response.data);
+    const body = this.readObject(data, 'Body');
+    const info = this.readObject(body, 'GetInfoResponse');
+    const nameEntry = this.firstObject(this.readArray(info, 'name'));
+
     return {
-      name: info?.name?.[0]?._content || 'Unknown',
-      id: info?.id || 'unknown',
+      name: this.readString(nameEntry, '_content') ?? 'Unknown',
+      id: this.readString(info, 'id') ?? 'unknown',
     };
   }
 
@@ -369,8 +446,69 @@ export class ZimbraAdapter implements IntegrationAdapter {
     return `${year}/${month}/${day}`;
   }
 
-  private extractEmail(emailObj: any): string {
-    if (!emailObj) return 'unknown@example.com';
-    return emailObj.a || emailObj.d || 'unknown@example.com';
+  private extractEmail(emailObject: Record<string, unknown> | undefined): string {
+    if (!emailObject) {
+      return 'unknown@example.com';
+    }
+    return this.readString(emailObject, 'a')
+      ?? this.readString(emailObject, 'd')
+      ?? 'unknown@example.com';
+  }
+
+  private readEpochMillisAsIso(value: string | undefined): string {
+    const millis = this.readEpochMillis(value);
+    return new Date(millis).toISOString();
+  }
+
+  private readEpochMillis(value: string | undefined): number {
+    if (!value) {
+      return Date.now();
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : Date.now();
+  }
+
+  private readObject(
+    input: Record<string, unknown>,
+    key: string,
+  ): Record<string, unknown> {
+    return this.asObject(input[key]);
+  }
+
+  private readArray(
+    input: Record<string, unknown>,
+    key: string,
+  ): unknown[] {
+    const value = input[key];
+    return Array.isArray(value) ? value : [];
+  }
+
+  private readString(
+    input: Record<string, unknown> | undefined,
+    key: string,
+  ): string | undefined {
+    if (!input) {
+      return undefined;
+    }
+    const value = input[key];
+    return typeof value === 'string' ? value : undefined;
+  }
+
+  private asObject(value: unknown): Record<string, unknown> {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+    return {};
+  }
+
+  private firstObject(items: unknown[]): Record<string, unknown> | undefined {
+    if (!items.length) {
+      return undefined;
+    }
+    const first = items[0];
+    if (first && typeof first === 'object' && !Array.isArray(first)) {
+      return first as Record<string, unknown>;
+    }
+    return undefined;
   }
 }

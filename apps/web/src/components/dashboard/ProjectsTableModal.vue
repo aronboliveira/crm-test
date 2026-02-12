@@ -5,6 +5,7 @@ import type { ProjectRow } from "../../pinia/types/projects.types";
 
 const props = defineProps<{
   filter?: "all" | "active";
+  projects?: ProjectRow[];
 }>();
 
 const emit = defineEmits<{
@@ -14,15 +15,18 @@ const emit = defineEmits<{
 const store = useProjectsStore();
 
 const rows = computed<ProjectRow[]>(() => {
+  // Use passed-in projects when provided (e.g. client-specific list)
+  if (props.projects) return props.projects;
   const all = store.rows.filter((p): p is NonNullable<typeof p> => !!p);
   if (props.filter === "active")
     return all.filter((p) => p.status === "active");
   return all;
 });
 
-const title = computed(() =>
-  props.filter === "active" ? "Projetos Ativos" : "Todos os Projetos",
-);
+const title = computed(() => {
+  if (props.projects) return "projetos";
+  return props.filter === "active" ? "Projetos Ativos" : "Todos os Projetos";
+});
 
 const statusClass = (s: string) =>
   ({

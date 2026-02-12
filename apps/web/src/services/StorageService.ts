@@ -1,3 +1,5 @@
+import SafeJsonService from "./SafeJsonService";
+
 type Store = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 class StorageFacade {
@@ -21,7 +23,7 @@ class StorageFacade {
       }
       const raw = this.#s.getItem(this.key(k));
       if (!raw) return fallback;
-      return JSON.parse(raw) as T;
+      return SafeJsonService.parse<T>(raw, fallback);
     } catch (error) {
       console.warn(`[StorageFacade] Failed to get JSON for key "${k}":`, error);
       return fallback;
@@ -34,7 +36,12 @@ class StorageFacade {
         console.warn("[StorageFacade] Invalid key provided to setJson");
         return;
       }
-      this.#s.setItem(this.key(k), JSON.stringify(v));
+      const serialized = SafeJsonService.tryStringify(v);
+      if (!serialized) {
+        console.warn(`[StorageFacade] Failed to serialize JSON for key "${k}"`);
+        return;
+      }
+      this.#s.setItem(this.key(k), serialized);
     } catch (error) {
       console.warn(`[StorageFacade] Failed to set JSON for key "${k}":`, error);
     }

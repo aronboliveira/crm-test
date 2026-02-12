@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type {
   IntegrationAdapter,
   IntegrationConfig,
+  IntegrationSyncDataset,
   IntegrationStatus,
 } from '../../types';
 import { GlpiApiClient } from './glpi-api.client';
@@ -28,17 +29,25 @@ export class GlpiAdapter implements IntegrationAdapter {
   private readonly logger = new Logger(GlpiAdapter.name);
   private config: IntegrationConfig = {};
   private client: GlpiApiClient | null = null;
+  private isConnected = false;
   private lastSyncAt?: string;
   private lastError?: string;
 
   async getStatus(): Promise<IntegrationStatus> {
     const isConfigured = this.isConfigured();
+    const status = !isConfigured
+      ? 'disconnected'
+      : this.lastError
+        ? 'error'
+        : this.isConnected
+          ? 'connected'
+          : 'disconnected';
 
     return {
       id: 'glpi',
       name: 'GLPI',
       type: 'Helpdesk/ITSM',
-      status: isConfigured ? 'disconnected' : 'disconnected',
+      status,
       configured: isConfigured,
       lastSyncAt: this.lastSyncAt,
       lastError: this.lastError,
@@ -67,14 +76,17 @@ export class GlpiAdapter implements IntegrationAdapter {
 
       if (result) {
         this.lastError = undefined;
+        this.isConnected = true;
         this.logger.log('GLPI connection test successful');
       } else {
         this.lastError = 'Connection test failed';
+        this.isConnected = false;
       }
 
       return result;
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      this.isConnected = false;
       this.logger.error('GLPI connection test failed', error);
       return false;
     }
@@ -84,6 +96,7 @@ export class GlpiAdapter implements IntegrationAdapter {
     this.logger.log('Updating GLPI configuration');
     this.config = { ...this.config, ...config };
     this.client = null;
+    this.isConnected = false;
     this.lastError = undefined;
   }
 
@@ -95,9 +108,7 @@ export class GlpiAdapter implements IntegrationAdapter {
     }
 
     try {
-      await this.syncTickets();
-      await this.syncUsers();
-      await this.syncEntities();
+      await this.pullSyncSnapshot();
 
       this.lastSyncAt = new Date().toISOString();
       this.lastError = undefined;
@@ -105,6 +116,44 @@ export class GlpiAdapter implements IntegrationAdapter {
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : 'Sync failed';
       this.logger.error('GLPI sync failed', error);
+      throw error;
+    }
+  }
+
+  async pullSyncSnapshot(): Promise<IntegrationSyncDataset[]> {
+    try {
+      const [tickets, users, entities] = await Promise.all([
+        this.syncTickets(),
+        this.syncUsers(),
+        this.syncEntities(),
+      ]);
+
+      this.lastSyncAt = new Date().toISOString();
+      this.lastError = undefined;
+
+      return [
+        {
+          recordType: 'tickets',
+          records: tickets.map(
+            (ticket) => ticket as unknown as Record<string, unknown>,
+          ),
+          externalIdField: 'sourceId',
+        },
+        {
+          recordType: 'users',
+          records: users.map((user) => user as unknown as Record<string, unknown>),
+          externalIdField: 'sourceId',
+        },
+        {
+          recordType: 'entities',
+          records: entities.map(
+            (entity) => entity as unknown as Record<string, unknown>,
+          ),
+          externalIdField: 'sourceId',
+        },
+      ];
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : 'Sync failed';
       throw error;
     }
   }
@@ -156,45 +205,77 @@ export class GlpiAdapter implements IntegrationAdapter {
   }
 
   private isConfigured(): boolean {
+    const resolved = this.resolveConfig();
+
     return Boolean(
-      this.config.baseUrl &&
-      this.config.apiKey &&
-      (this.config.username || this.config.password),
+      resolved.baseUrl &&
+        resolved.appToken &&
+        (resolved.userToken || (resolved.username && resolved.password)),
     );
   }
 
   private getClient(): GlpiApiClient {
+    const resolved = this.resolveConfig();
+
     if (!this.client) {
-      if (!this.config.baseUrl || !this.config.apiKey) {
+      if (!resolved.baseUrl || !resolved.appToken) {
         throw new Error('GLPI configuration incomplete');
       }
 
       this.client = new GlpiApiClient({
-        baseUrl: this.config.baseUrl,
-        appToken: this.config.apiKey,
-        username: this.config.username,
-        password: this.config.password,
+        baseUrl: resolved.baseUrl,
+        appToken: resolved.appToken,
+        userToken: resolved.userToken,
+        username: resolved.username,
+        password: resolved.password,
       });
     }
 
     return this.client;
   }
 
-  private async syncTickets(): Promise<void> {
+  private resolveConfig(): {
+    baseUrl?: string;
+    appToken?: string;
+    userToken?: string;
+    username?: string;
+    password?: string;
+  } {
+    return {
+      baseUrl: this.normalizeString(this.config.baseUrl ?? this.config.apiUrl),
+      appToken: this.normalizeString(this.config.appToken ?? this.config.apiKey),
+      userToken: this.normalizeString(this.config.userToken),
+      username: this.normalizeString(this.config.username),
+      password: this.normalizeString(this.config.password),
+    };
+  }
+
+  private normalizeString(value?: string): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  private async syncTickets(): Promise<CrmLead[]> {
     this.logger.debug('Syncing tickets from GLPI');
     const tickets = await this.getTickets({ range: '0-100' });
     this.logger.debug(`Fetched ${tickets.length} tickets from GLPI`);
+    return tickets;
   }
 
-  private async syncUsers(): Promise<void> {
+  private async syncUsers(): Promise<CrmContact[]> {
     this.logger.debug('Syncing users from GLPI');
     const users = await this.getUsers({ range: '0-100' });
     this.logger.debug(`Fetched ${users.length} users from GLPI`);
+    return users;
   }
 
-  private async syncEntities(): Promise<void> {
+  private async syncEntities(): Promise<CrmClient[]> {
     this.logger.debug('Syncing entities from GLPI');
     const entities = await this.getEntities({ range: '0-50' });
     this.logger.debug(`Fetched ${entities.length} entities from GLPI`);
+    return entities;
   }
 }

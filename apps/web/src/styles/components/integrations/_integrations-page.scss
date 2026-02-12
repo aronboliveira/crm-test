@@ -102,6 +102,30 @@
   line-height: 1.5;
 }
 
+.header-actions {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.integrations-help-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border-1));
+
+  &:hover,
+  &:focus-visible {
+    border-color: color-mix(in oklab, var(--primary) 55%, var(--border-1));
+  }
+}
+
+.integrations-help-btn__icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
 // ============================================================================
 // Header Stats
 // ============================================================================
@@ -240,6 +264,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--space-5);
+  align-items: start;
 
   // Staggered entrance animation for cards
   > * {
@@ -249,6 +274,271 @@
       }
     }
   }
+}
+
+.integrations-loading {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  color: var(--text-2);
+}
+
+// ============================================================================
+// GLPI Configuration Modal
+// ============================================================================
+
+.glpi-config-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--surface-0) 55%, transparent);
+  z-index: 1050;
+  padding: var(--space-4);
+  animation: integration-modal-backdrop-in 220ms var(--easing-standard) forwards;
+
+  @starting-style {
+    opacity: 0;
+  }
+}
+
+.glpi-config-modal {
+  width: min(640px, 100%);
+  background: var(--surface-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-3);
+  max-height: min(90vh, 760px);
+  overflow: auto;
+  opacity: 0;
+  transform: translateY(1rem) scale(0.985);
+  animation: integration-modal-enter 260ms var(--easing-snappy) forwards;
+
+  @starting-style {
+    opacity: 0;
+    transform: translateY(1.2rem) scale(0.98);
+  }
+}
+
+@keyframes integration-modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes integration-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(1.2rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.glpi-config-header {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border-1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+
+  h2 {
+    margin: 0;
+    color: var(--text-1);
+    font-size: 1.125rem;
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+.glpi-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.glpi-config-banner {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid color-mix(in oklab, var(--info) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--info-soft);
+  color: var(--text-2);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.glpi-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  span {
+    color: var(--text-2);
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-medium);
+  }
+
+  input {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius-sm);
+    background: var(--surface-0);
+    color: var(--text-1);
+    padding: var(--space-2) var(--space-3);
+    font-size: 0.95rem;
+
+    &:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      border-color: var(--primary);
+    }
+  }
+}
+
+.glpi-config-help {
+  color: var(--text-3);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.glpi-config-auth {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+
+  legend {
+    padding: 0 var(--space-2);
+    color: var(--text-2);
+    font-size: 0.85rem;
+    font-weight: var(--font-weight-medium);
+  }
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    color: var(--text-1);
+    font-size: 0.9rem;
+  }
+}
+
+.glpi-config-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.glpi-config-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.integration-whatsapp-health {
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--surface-0) 88%, var(--primary) 12%);
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.integration-whatsapp-health__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+
+  h3 {
+    margin: 0;
+    color: var(--text-1);
+    font-size: 0.95rem;
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+.integration-whatsapp-health__checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.integration-whatsapp-health__check-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-xs);
+  background: var(--surface-1);
+}
+
+.integration-whatsapp-health__status {
+  font-size: 0.72rem;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+
+  &.is-ready {
+    color: var(--success);
+    border-color: color-mix(in oklab, var(--success) 45%, transparent);
+    background: color-mix(in oklab, var(--success) 14%, transparent);
+  }
+
+  &.is-missing {
+    color: var(--error);
+    border-color: color-mix(in oklab, var(--error) 45%, transparent);
+    background: color-mix(in oklab, var(--error) 15%, transparent);
+  }
+
+  &.is-optional-missing {
+    color: var(--warning);
+    border-color: color-mix(in oklab, var(--warning) 45%, transparent);
+    background: color-mix(in oklab, var(--warning) 15%, transparent);
+  }
+}
+
+.integration-whatsapp-health__warning {
+  margin: 0;
+  color: var(--warning-700, var(--warning));
+  font-size: 0.82rem;
+}
+
+.integration-whatsapp-health__issues {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--error);
+  font-size: 0.82rem;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.integration-whatsapp-health__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
 }
 
 // ============================================================================
@@ -281,6 +571,10 @@
   .integrations-grid {
     grid-template-columns: 1fr;
     gap: var(--space-4);
+  }
+
+  .glpi-config-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -318,7 +612,9 @@
   .page-title,
   .header-stats,
   .integrations-notice,
-  .title-icon {
+  .title-icon,
+  .glpi-config-backdrop,
+  .glpi-config-modal {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;

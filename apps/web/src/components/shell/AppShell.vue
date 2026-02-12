@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
 import { useLayout } from "../../assets/scripts/shell/useLayout";
 import { useAuthStore } from "../../pinia/stores/auth.store";
 import AsideViewNav from "./AsideViewNav.vue";
@@ -14,6 +14,43 @@ const BotChatWidget = defineAsyncComponent(
 const authStore = useAuthStore();
 const { toggleMobileOpen } = useLayout();
 const showChatWidget = computed(() => authStore.isLoggedIn);
+const canRenderChatWidget = ref(false);
+let chatWidgetDeferredTimer: ReturnType<typeof setTimeout> | null = null;
+
+onMounted(() => {
+  if (typeof window === "undefined") {
+    canRenderChatWidget.value = true;
+    return;
+  }
+
+  const win = window as Window & {
+    requestIdleCallback?: (
+      callback: () => void,
+      options?: { timeout?: number },
+    ) => number;
+  };
+
+  if (typeof win.requestIdleCallback === "function") {
+    win.requestIdleCallback(
+      () => {
+        canRenderChatWidget.value = true;
+      },
+      { timeout: 1400 },
+    );
+    return;
+  }
+
+  chatWidgetDeferredTimer = window.setTimeout(() => {
+    canRenderChatWidget.value = true;
+  }, 420);
+});
+
+onBeforeUnmount(() => {
+  if (chatWidgetDeferredTimer) {
+    clearTimeout(chatWidgetDeferredTimer);
+    chatWidgetDeferredTimer = null;
+  }
+});
 </script>
 
 <template>
@@ -34,7 +71,7 @@ const showChatWidget = computed(() => authStore.isLoggedIn);
 
     <RowDetailsDrawer />
     <ModalContainer />
-    <BotChatWidget v-if="showChatWidget" />
+    <BotChatWidget v-if="showChatWidget && canRenderChatWidget" />
   </div>
 </template>
 

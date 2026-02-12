@@ -5,6 +5,7 @@ import {
   NotificationPriority,
 } from '../../entities/NotificationEntity';
 import * as crypto from 'crypto';
+import SafeJsonUtil from '../../common/json/safe-json.util';
 
 export interface WebhookEvent {
   source: 'zimbra' | 'outlook' | 'nextcloud';
@@ -19,6 +20,21 @@ export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
 
   constructor(private readonly notificationsService: NotificationsService) {}
+
+  private static resolveEventDataId(data: unknown): string {
+    if (data && typeof data === 'object') {
+      const record = data as Record<string, unknown>;
+      const primitiveId = record.id ?? record.path ?? record.file;
+      if (
+        typeof primitiveId === 'string' ||
+        typeof primitiveId === 'number' ||
+        typeof primitiveId === 'bigint'
+      ) {
+        return String(primitiveId);
+      }
+    }
+    return SafeJsonUtil.stringify(data, 'unknown-webhook-payload');
+  }
 
   /**
    * Verify webhook signature to ensure authenticity
@@ -58,8 +74,8 @@ export class WebhooksService {
       }
     } catch (error) {
       this.logger.error(
-        `Error processing Zimbra webhook: ${error.message}`,
-        error.stack,
+        `Error processing Zimbra webhook: ${SafeJsonUtil.errorMessage(error)}`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
@@ -89,8 +105,8 @@ export class WebhooksService {
       }
     } catch (error) {
       this.logger.error(
-        `Error processing Outlook webhook: ${error.message}`,
-        error.stack,
+        `Error processing Outlook webhook: ${SafeJsonUtil.errorMessage(error)}`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
@@ -124,8 +140,8 @@ export class WebhooksService {
       }
     } catch (error) {
       this.logger.error(
-        `Error processing Nextcloud webhook: ${error.message}`,
-        error.stack,
+        `Error processing Nextcloud webhook: ${SafeJsonUtil.errorMessage(error)}`,
+        error instanceof Error ? error.stack : undefined,
       );
       throw error;
     }
@@ -135,7 +151,7 @@ export class WebhooksService {
    * Handle file updated/created events from Nextcloud
    */
   private async handleFileUpdated(data: any, userId: string, source: string) {
-    const fileId = data.id || data.path || data.file || JSON.stringify(data);
+    const fileId = WebhooksService.resolveEventDataId(data);
     const externalId = `${source}-file-updated-${fileId}`;
 
     const exists = await this.notificationsService.existsByExternalId(
@@ -163,7 +179,7 @@ export class WebhooksService {
    * Handle file deleted events from Nextcloud
    */
   private async handleFileDeleted(data: any, userId: string, source: string) {
-    const fileId = data.id || data.path || data.file || JSON.stringify(data);
+    const fileId = WebhooksService.resolveEventDataId(data);
     const externalId = `${source}-file-deleted-${fileId}-${Date.now()}`;
 
     await this.notificationsService.create({
@@ -185,7 +201,7 @@ export class WebhooksService {
    * Handle file shared events from Nextcloud
    */
   private async handleFileShared(data: any, userId: string, source: string) {
-    const fileId = data.id || data.path || data.file || JSON.stringify(data);
+    const fileId = WebhooksService.resolveEventDataId(data);
     const externalId = `${source}-file-shared-${fileId}`;
 
     const exists = await this.notificationsService.existsByExternalId(

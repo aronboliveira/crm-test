@@ -1,0 +1,106 @@
+@keyframes dpIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dpSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dp-actions {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.dp-card {
+  animation: dpIn 160ms ease both;
+
+  &:hover {
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  ::selection {
+    background: rgba(120, 120, 200, 0.22);
+  }
+}
+
+.dp-page {
+  padding: 1rem;
+}
+
+.dp-layout {
+  display: flex;
+  gap: 1rem;
+}
+
+.dp-detail {
+  width: 340px;
+  min-width: 280px;
+  max-height: calc(100vh - 200px);
+}
+
+.dp-async-fallback {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.6rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--border-1);
+  background: color-mix(in oklab, var(--surface-2) 88%, transparent);
+  color: var(--text-3);
+  font-size: 0.78rem;
+}
+
+.dp-async-fallback__spinner {
+  width: 0.78rem;
+  height: 0.78rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in oklab, var(--primary) 28%, transparent);
+  border-top-color: var(--primary);
+  animation: dpSpin 0.8s linear infinite;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 960px) {
+  .dp-layout {
+    flex-direction: column;
+  }
+
+  .dp-detail {
+    width: 100%;
+    max-height: 50vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-card {
+    animation: none;
+  }
+
+  .dp-async-fallback__spinner {
+    animation: none;
+  }
+}
+
+@starting-style {
+  .dp-card {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

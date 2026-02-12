@@ -12,6 +12,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { WebhooksService } from './webhooks.service';
+import SafeJsonUtil from '../../common/json/safe-json.util';
 
 @Controller('webhooks')
 export class WebhooksController {
@@ -46,7 +47,11 @@ export class WebhooksController {
     // Verify signature if configured
     const secret = process.env.ZIMBRA_WEBHOOK_SECRET;
     if (secret && signature) {
-      const payloadString = JSON.stringify(payload);
+      const payloadString = SafeJsonUtil.tryStringify(payload);
+      if (!payloadString) {
+        this.logger.warn('Unable to serialize Zimbra webhook payload');
+        throw new BadRequestException('Invalid webhook payload');
+      }
       const isValid = this.webhooksService.verifySignature(
         payloadString,
         signature,
@@ -172,7 +177,11 @@ export class WebhooksController {
         throw new UnauthorizedException('Missing webhook signature');
       }
 
-      const payloadString = JSON.stringify(payload);
+      const payloadString = SafeJsonUtil.tryStringify(payload);
+      if (!payloadString) {
+        this.logger.warn('Unable to serialize Nextcloud webhook payload');
+        throw new BadRequestException('Invalid webhook payload');
+      }
       const isValid = this.webhooksService.verifySignature(
         payloadString,
         signature,

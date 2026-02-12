@@ -2,6 +2,7 @@ import type { PiniaPluginContext } from "pinia";
 
 export default class TabSyncPlugin {
   static #BOUND = "data-pinia-tab-sync";
+  static #LOCAL_KEYS = new Set(["_pinia_local_v1", "_pinia_local_prefs_v2"]);
 
   static create() {
     return ({ store }: PiniaPluginContext) => {
@@ -16,7 +17,7 @@ export default class TabSyncPlugin {
         k === "_pinia_session_v1"
           ? window.dispatchEvent(new CustomEvent("app:session-sync"))
           : void 0;
-        k === "_pinia_local_v1"
+        TabSyncPlugin.#LOCAL_KEYS.has(k)
           ? window.dispatchEvent(new CustomEvent("app:prefs-sync"))
           : void 0;
       };

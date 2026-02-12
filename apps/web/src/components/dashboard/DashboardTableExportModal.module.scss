@@ -1,0 +1,113 @@
+@scope (.exportModal) {
+  :scope {
+    display: grid;
+    gap: 1rem;
+  }
+
+  :scope input[type="checkbox"] {
+    inline-size: 1rem;
+    block-size: 1rem;
+    margin: 0;
+    accent-color: var(--primary);
+    cursor: pointer;
+    transition:
+      transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
+      filter var(--transition-fast, 140ms) var(--easing-standard, ease);
+  }
+
+  :scope input[type="checkbox"]:checked {
+    transform: scale(1.03);
+    filter: saturate(1.06);
+  }
+
+  :scope input[type="checkbox"]:focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--primary) 55%, white);
+    outline-offset: 2px;
+  }
+}
+
+.section {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--border-1);
+  border-radius: 0.8rem;
+  background: color-mix(in oklab, var(--surface-2) 45%, transparent);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.55rem;
+}
+
+.columnsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.45rem;
+}
+
+.choiceItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.1rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border-1);
+  border-radius: 0.6rem;
+  background: var(--surface-1);
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
+    border-color var(--transition-fast, 140ms) var(--easing-standard, ease),
+    background-color var(--transition-fast, 140ms) var(--easing-standard, ease),
+    color var(--transition-fast, 140ms) var(--easing-standard, ease);
+}
+
+.choiceItem:hover {
+  border-color: var(--border-hover);
+  background: color-mix(in oklab, var(--surface-2) 68%, transparent);
+}
+
+.choiceItemActive {
+  border-color: color-mix(in oklab, var(--primary) 48%, var(--border-1));
+  background: color-mix(in oklab, var(--primary) 13%, transparent);
+  color: var(--text-1);
+  transform: translateY(-1px);
+}
+
+.summary {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-3);
+}
+
+.error {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: color-mix(in oklab, var(--danger) 74%, var(--text-1));
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.55rem;
+}

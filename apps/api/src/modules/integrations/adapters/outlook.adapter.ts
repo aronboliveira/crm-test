@@ -5,19 +5,22 @@ import 'isomorphic-fetch';
 import type {
   IntegrationAdapter,
   IntegrationConfig,
+  IntegrationSyncDataset,
   IntegrationStatus,
 } from '../types';
+import {
+  IntegrationValueSanitizer,
+  MAIL_DATASET_TYPES,
+  MAIL_DEFAULTS,
+  MailSmtpProfileFactory,
+  type MailSmtpProfile,
+  SafeJsonCodec,
+} from './shared/mail-integration.shared';
 
 /**
  * Microsoft Outlook Integration Adapter
  *
  * Adapter for integrating with Microsoft 365 via Microsoft Graph API.
- * Supports email, calendar, contacts, and tasks (To Do).
- *
- * @remarks
- * Uses Microsoft Graph API with OAuth2 client credentials flow.
- *
- * @see https://learn.microsoft.com/en-us/graph/api/overview
  */
 @Injectable()
 export class OutlookAdapter implements IntegrationAdapter {
@@ -27,17 +30,28 @@ export class OutlookAdapter implements IntegrationAdapter {
   private graphClient?: Client;
   private accessToken?: string;
   private tokenExpiry?: Date;
+  private isConnected = false;
+  private lastSyncAt?: string;
+  private lastError?: string;
 
-  /** Microsoft Graph API base URL */
-  private readonly graphBaseUrl = 'https://graph.microsoft.com/v1.0';
+  async getStatus(): Promise<IntegrationStatus> {
+    const configured = this.isConfigured();
+    const status = !configured
+      ? 'disconnected'
+      : this.lastError
+        ? 'error'
+        : this.isConnected
+          ? 'connected'
+          : 'disconnected';
 
-  getStatus(): Promise<IntegrationStatus> {
-    return Promise.resolve({
+    return {
       id: 'outlook',
       name: 'Microsoft Outlook',
       type: 'Email/Microsoft 365',
-      status: this.config.clientId ? 'disconnected' : 'disconnected',
-      configured: !!this.config.clientId && !!this.config.tenantId,
+      status,
+      configured,
+      lastSyncAt: this.lastSyncAt,
+      lastError: this.lastError,
       features: [
         'Email sync (send/receive)',
         'Calendar events',
@@ -45,82 +59,131 @@ export class OutlookAdapter implements IntegrationAdapter {
         'Microsoft To Do',
         'Teams integration potential',
       ],
-    });
+    };
   }
 
   async testConnection(): Promise<boolean> {
     this.logger.log('Testing Microsoft Outlook connection...');
 
-    if (!this.config.clientId || !this.config.tenantId) {
-      this.logger.warn('Microsoft Outlook not configured');
+    if (!this.isConfigured()) {
+      this.lastError = 'Integration not configured';
+      this.isConnected = false;
       return false;
     }
 
     try {
       await this.authenticate();
-      const client = await this.getGraphClient();
-      const user = await client.api('/me').get();
-      this.logger.log(
-        `Outlook connection successful: ${user.displayName || user.userPrincipalName}`,
-      );
+      this.isConnected = true;
+      this.lastError = undefined;
+
+      // Best-effort probe to validate token usability without failing on tenant-specific RBAC.
+      await this.probeGraph().catch((error: unknown) => {
+        this.logger.warn(
+          `Graph probe failed after token acquisition: ${error instanceof Error ? error.message : SafeJsonCodec.stringify(error)}`,
+        );
+      });
+
+      this.logger.log('Outlook connection successful');
       return true;
     } catch (error) {
-      this.logger.error(
-        `Outlook connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      this.lastError = error instanceof Error ? error.message : 'Unknown error';
+      this.isConnected = false;
+      this.logger.error(`Outlook connection failed: ${this.lastError}`);
       return false;
     }
   }
 
-  configure(config: Partial<IntegrationConfig>): Promise<void> {
+  async configure(config: Partial<IntegrationConfig>): Promise<void> {
     this.logger.log('Updating Microsoft Outlook configuration');
-    this.config = { ...this.config, ...config };
+    const merged = { ...this.config, ...config };
+
+    this.config = {
+      ...merged,
+      tenantId: IntegrationValueSanitizer.normalizeString(merged.tenantId),
+      clientId: IntegrationValueSanitizer.normalizeString(merged.clientId),
+      clientSecret: IntegrationValueSanitizer.normalizeString(merged.clientSecret),
+      smtpHost: IntegrationValueSanitizer.normalizeString(merged.smtpHost),
+      smtpPort: IntegrationValueSanitizer.normalizePort(merged.smtpPort),
+      smtpSecure:
+        IntegrationValueSanitizer.normalizeBoolean(merged.smtpSecure)
+        ?? undefined,
+      smtpUser: IntegrationValueSanitizer.normalizeString(merged.smtpUser),
+      smtpPass: IntegrationValueSanitizer.normalizeString(merged.smtpPass),
+      smtpFrom: IntegrationValueSanitizer.normalizeString(merged.smtpFrom),
+      smtpProfile: merged.smtpProfile,
+      mockNotifications:
+        IntegrationValueSanitizer.normalizeBoolean(merged.mockNotifications)
+        ?? false,
+    };
+
     this.msalClient = undefined;
     this.graphClient = undefined;
     this.accessToken = undefined;
     this.tokenExpiry = undefined;
-    return Promise.resolve();
+    this.isConnected = false;
+    this.lastError = undefined;
   }
 
   isConfigured(): boolean {
-    return !!(
-      this.config.clientId &&
-      this.config.tenantId &&
-      this.config.clientSecret
+    return Boolean(
+      IntegrationValueSanitizer.hasString(this.config.clientId)
+      && IntegrationValueSanitizer.hasString(this.config.tenantId)
+      && IntegrationValueSanitizer.hasString(this.config.clientSecret),
     );
   }
 
-  getSmtpProfile(): {
-    host: string;
-    port: number;
-    secure: boolean;
-    user?: string;
-    pass?: string;
-    from?: string;
-    profile: 'outlook' | 'default';
-  } | null {
-    const host = this.config.smtpHost || 'smtp.office365.com';
-    const port = this.config.smtpPort || 587;
-    const secure = this.config.smtpSecure ?? false;
-
-    if (!host || !port) {
-      return null;
-    }
-
-    return {
-      host,
-      port,
-      secure,
-      user: this.config.smtpUser,
-      pass: this.config.smtpPass,
-      from: this.config.smtpFrom,
-      profile: this.config.smtpProfile === 'default' ? 'default' : 'outlook',
-    };
+  getSmtpProfile(): MailSmtpProfile | null {
+    return MailSmtpProfileFactory.fromConfig(this.config, {
+      fallbackHost: 'smtp.office365.com',
+      fallbackPort: MAIL_DEFAULTS.smtpPort,
+      fallbackSecure: MAIL_DEFAULTS.smtpSecure,
+      profile: 'outlook',
+    });
   }
 
-  sync(): Promise<void> {
-    this.logger.log('Microsoft Outlook sync triggered (manual)');
-    return Promise.resolve();
+  async sync(): Promise<void> {
+    await this.pullSyncSnapshot();
+  }
+
+  async pullSyncSnapshot(): Promise<IntegrationSyncDataset[]> {
+    if (!this.isConfigured()) {
+      throw new Error('Microsoft Outlook integration not configured');
+    }
+
+    try {
+      const [emails, events, tasks] = await Promise.all([
+        this.getUnreadEmails(),
+        this.getUpcomingEvents(MAIL_DEFAULTS.outlookSyncWindowMinutes),
+        this.getTasks(),
+      ]);
+
+      this.lastSyncAt = new Date().toISOString();
+      this.lastError = undefined;
+
+      // * FINISH INTEGRATION HERE [OUTLOOK]:
+      // * Add mailbox/user scoping strategy and delta/webhook sync for large tenants.
+      // * Current flow reads first discoverable mailbox via Graph polling.
+      return [
+        {
+          recordType: MAIL_DATASET_TYPES.unreadEmails,
+          records: emails.map((item) => item as unknown as Record<string, unknown>),
+          externalIdField: 'id',
+        },
+        {
+          recordType: MAIL_DATASET_TYPES.upcomingEvents,
+          records: events.map((item) => item as unknown as Record<string, unknown>),
+          externalIdField: 'id',
+        },
+        {
+          recordType: MAIL_DATASET_TYPES.tasks,
+          records: tasks.map((item) => item as unknown as Record<string, unknown>),
+          externalIdField: 'id',
+        },
+      ];
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : 'Sync failed';
+      throw error;
+    }
   }
 
   getAuthorizationUrl(): string {
@@ -158,39 +221,53 @@ export class OutlookAdapter implements IntegrationAdapter {
       const client = await this.getGraphClient();
 
       let query = client
-        .api('/me/mailFolders/inbox/messages')
+        .api('/users')
+        .top(1)
+        .select('id,mail,userPrincipalName');
+      const usersResponse = await query.get();
+      const userId = this.extractUserId(usersResponse);
+      if (!userId) {
+        return [];
+      }
+
+      let messagesQuery = client
+        .api(`/users/${encodeURIComponent(userId)}/mailFolders/inbox/messages`)
         .select('id,subject,from,receivedDateTime,hasAttachments,webLink')
         .filter('isRead eq false')
         .orderby('receivedDateTime DESC')
         .top(100);
 
       if (since) {
-        const sinceStr = since.toISOString();
-        query = query.filter(
-          `isRead eq false and receivedDateTime ge ${sinceStr}`,
+        messagesQuery = messagesQuery.filter(
+          `isRead eq false and receivedDateTime ge ${since.toISOString()}`,
         );
       }
 
-      const response = await query.get();
-      const messages = response.value || [];
+      const response = await messagesQuery.get();
+      const messages = this.readArray(response, 'value');
 
-      return messages.map((msg: any) => ({
-        id: msg.id,
-        subject: msg.subject || '(no subject)',
-        from: msg.from?.emailAddress?.address || 'unknown@example.com',
-        receivedAt: msg.receivedDateTime,
-        link: msg.webLink,
-        hasAttachments: msg.hasAttachments,
-      }));
+      return messages.map((message) => {
+        const raw = this.asObject(message);
+        const from = this.readNestedString(raw, ['from', 'emailAddress', 'address']);
+        return {
+          id: this.readString(raw, 'id') ?? 'unknown',
+          subject: this.readString(raw, 'subject') ?? '(no subject)',
+          from: from ?? 'unknown@example.com',
+          receivedAt:
+            this.readString(raw, 'receivedDateTime') ?? new Date().toISOString(),
+          link: this.readString(raw, 'webLink'),
+          hasAttachments: Boolean(raw.hasAttachments),
+        };
+      });
     } catch (error) {
       this.logger.error(
-        `Failed to fetch unread emails: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to fetch unread emails: ${error instanceof Error ? error.message : SafeJsonCodec.stringify(error)}`,
       );
       return [];
     }
   }
 
-  async getUpcomingEvents(withinMinutes = 60): Promise<
+  async getUpcomingEvents(withinMinutes = MAIL_DEFAULTS.outlookSyncWindowMinutes): Promise<
     Array<{
       id: string;
       subject: string;
@@ -207,11 +284,16 @@ export class OutlookAdapter implements IntegrationAdapter {
 
     try {
       const client = await this.getGraphClient();
+      const userId = await this.resolveGraphUserId(client);
+      if (!userId) {
+        return [];
+      }
+
       const startTime = new Date();
       const endTime = new Date(Date.now() + withinMinutes * 60 * 1000);
 
       const response = await client
-        .api('/me/calendarView')
+        .api(`/users/${encodeURIComponent(userId)}/calendarView`)
         .query({
           startDateTime: startTime.toISOString(),
           endDateTime: endTime.toISOString(),
@@ -221,20 +303,31 @@ export class OutlookAdapter implements IntegrationAdapter {
         .top(50)
         .get();
 
-      const events = response.value || [];
+      const events = this.readArray(response, 'value');
 
-      return events.map((event: any) => ({
-        id: event.id,
-        subject: event.subject || '(no subject)',
-        startAt: event.start.dateTime,
-        endAt: event.end.dateTime,
-        organizer: event.organizer?.emailAddress?.address,
-        link: event.webLink,
-        location: event.location?.displayName,
-      }));
+      return events.map((event) => {
+        const raw = this.asObject(event);
+        return {
+          id: this.readString(raw, 'id') ?? 'unknown',
+          subject: this.readString(raw, 'subject') ?? '(no subject)',
+          startAt:
+            this.readNestedString(raw, ['start', 'dateTime'])
+            ?? new Date().toISOString(),
+          endAt:
+            this.readNestedString(raw, ['end', 'dateTime'])
+            ?? new Date().toISOString(),
+          organizer: this.readNestedString(raw, [
+            'organizer',
+            'emailAddress',
+            'address',
+          ]),
+          link: this.readString(raw, 'webLink'),
+          location: this.readNestedString(raw, ['location', 'displayName']),
+        };
+      });
     } catch (error) {
       this.logger.error(
-        `Failed to fetch upcoming events: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to fetch upcoming events: ${error instanceof Error ? error.message : SafeJsonCodec.stringify(error)}`,
       );
       return [];
     }
@@ -255,57 +348,60 @@ export class OutlookAdapter implements IntegrationAdapter {
 
     try {
       const client = await this.getGraphClient();
-      const listsResponse = await client
-        .api('/me/todo/lists')
-        .filter("wellknownListName eq 'defaultList'")
-        .get();
-
-      const lists = listsResponse.value || [];
-      if (lists.length === 0) {
+      const userId = await this.resolveGraphUserId(client);
+      if (!userId) {
         return [];
       }
 
-      const defaultListId = lists[0].id;
+      const listsResponse = await client
+        .api(`/users/${encodeURIComponent(userId)}/todo/lists`)
+        .filter("wellknownListName eq 'defaultList'")
+        .get();
+
+      const lists = this.readArray(listsResponse, 'value');
+      if (!lists.length) {
+        return [];
+      }
+
+      const defaultListId = this.readString(this.asObject(lists[0]), 'id');
+      if (!defaultListId) {
+        return [];
+      }
 
       const tasksResponse = await client
-        .api(`/me/todo/lists/${defaultListId}/tasks`)
+        .api(`/users/${encodeURIComponent(userId)}/todo/lists/${encodeURIComponent(defaultListId)}/tasks`)
         .filter("status ne 'completed'")
         .select('id,title,dueDateTime,status,importance')
-        .orderby('dueDateTime')
+        .orderby('dueDateTime/dateTime')
         .top(50)
         .get();
 
-      const tasks = tasksResponse.value || [];
+      const tasks = this.readArray(tasksResponse, 'value');
 
-      return tasks.map((task: any) => ({
-        id: task.id,
-        title: task.title || '(no title)',
-        dueDate: task.dueDateTime?.dateTime,
-        status: task.status,
-        importance: task.importance,
-      }));
+      return tasks.map((task) => {
+        const raw = this.asObject(task);
+        return {
+          id: this.readString(raw, 'id') ?? 'unknown',
+          title: this.readString(raw, 'title') ?? '(no title)',
+          dueDate: this.readNestedString(raw, ['dueDateTime', 'dateTime']),
+          status: this.readString(raw, 'status') ?? 'unknown',
+          importance: this.readString(raw, 'importance') ?? 'normal',
+        };
+      });
     } catch (error) {
       this.logger.error(
-        `Failed to fetch tasks: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to fetch tasks: ${error instanceof Error ? error.message : SafeJsonCodec.stringify(error)}`,
       );
       return [];
     }
   }
-
-  // ===========================================================================
-  // MICROSOFT GRAPH API HELPERS
-  // ===========================================================================
 
   private async authenticate(): Promise<void> {
     if (this.accessToken && this.tokenExpiry && this.tokenExpiry > new Date()) {
       return;
     }
 
-    if (
-      !this.config.clientId ||
-      !this.config.tenantId ||
-      !this.config.clientSecret
-    ) {
+    if (!this.config.clientId || !this.config.tenantId || !this.config.clientSecret) {
       throw new Error('Microsoft Outlook credentials not configured');
     }
 
@@ -324,17 +420,15 @@ export class OutlookAdapter implements IntegrationAdapter {
         scopes: ['https://graph.microsoft.com/.default'],
       });
 
-      if (!response || !response.accessToken) {
+      if (!response?.accessToken) {
         throw new Error('No access token received from Microsoft');
       }
 
       this.accessToken = response.accessToken;
       this.tokenExpiry = response.expiresOn || new Date(Date.now() + 3600000);
-
-      this.logger.log('Microsoft Graph authentication successful');
     } catch (error) {
       this.logger.error(
-        `Microsoft Graph authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Microsoft Graph authentication failed: ${error instanceof Error ? error.message : SafeJsonCodec.stringify(error)}`,
       );
       throw error;
     }
@@ -352,11 +446,86 @@ export class OutlookAdapter implements IntegrationAdapter {
     if (!this.graphClient) {
       this.graphClient = Client.init({
         authProvider: (done) => {
-          done(null, this.accessToken!);
+          done(null, this.accessToken ?? '');
         },
       });
     }
 
     return this.graphClient;
+  }
+
+  private async probeGraph(): Promise<void> {
+    const client = await this.getGraphClient();
+    await client.api('/organization').top(1).get();
+  }
+
+  private async resolveGraphUserId(client: Client): Promise<string | undefined> {
+    const response = await client
+      .api('/users')
+      .top(1)
+      .select('id,mail,userPrincipalName')
+      .get();
+    return this.extractUserId(response);
+  }
+
+  private extractUserId(response: unknown): string | undefined {
+    const values = this.readArray(response, 'value');
+    if (!values.length) {
+      return undefined;
+    }
+    const user = this.asObject(values[0]);
+    return this.readString(user, 'id');
+  }
+
+  private readObject(
+    input: unknown,
+    key?: string,
+  ): Record<string, unknown> {
+    const object =
+      input && typeof input === 'object' && !Array.isArray(input)
+        ? (input as Record<string, unknown>)
+        : {};
+    if (!key) {
+      return object;
+    }
+    const value = object[key];
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  }
+
+  private asObject(value: unknown): Record<string, unknown> {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return value as Record<string, unknown>;
+    }
+    return {};
+  }
+
+  private readArray(input: unknown, key: string): unknown[] {
+    const object = this.readObject(input);
+    const value = object[key];
+    return Array.isArray(value) ? value : [];
+  }
+
+  private readString(
+    input: Record<string, unknown>,
+    key: string,
+  ): string | undefined {
+    const value = input[key];
+    return typeof value === 'string' ? value : undefined;
+  }
+
+  private readNestedString(
+    input: Record<string, unknown>,
+    path: string[],
+  ): string | undefined {
+    let cursor: unknown = input;
+    for (const segment of path) {
+      if (!cursor || typeof cursor !== 'object' || Array.isArray(cursor)) {
+        return undefined;
+      }
+      cursor = (cursor as Record<string, unknown>)[segment];
+    }
+    return typeof cursor === 'string' ? cursor : undefined;
   }
 }

@@ -119,7 +119,12 @@ const arcs = computed(() => {
       </g>
     </svg>
     <ul class="chart-legend">
-      <li v-for="(arc, i) in arcs" :key="i" class="chart-legend__item">
+      <li
+        v-for="(arc, i) in arcs"
+        :key="i"
+        class="chart-legend__item"
+        :title="`${arc.label}: ${arc.pct}%`"
+      >
         <span
           class="chart-legend__dot"
           :style="{ backgroundColor: arc.color }"
@@ -178,6 +183,7 @@ const arcs = computed(() => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
+  color: var(--text-2);
 }
 
 .chart-legend__dot {
@@ -193,6 +199,6 @@ const arcs = computed(() => {
 
 .chart-legend__value {
   font-weight: 600;
-  opacity: 0.8;
+  color: var(--text-3);
 }
 </style>

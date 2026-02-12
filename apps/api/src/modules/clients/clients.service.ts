@@ -8,6 +8,50 @@ import { MongoRepository } from 'typeorm';
 import ClientEntity from '../../entities/ClientEntity';
 import { ObjectId } from 'mongodb';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CLIENT_TYPE_RE = /^(pessoa|empresa)$/;
+const CNPJ_RE = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
+const CEP_RE = /^\d{5}-\d{3}$/;
+
+type NormalizedClientType = 'pessoa' | 'empresa';
+
+const normalizeClientType = (value: unknown): NormalizedClientType => {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (CLIENT_TYPE_RE.test(raw)) {
+    return raw as NormalizedClientType;
+  }
+  return 'pessoa';
+};
+
+const normalizeOptionalString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim();
+  return normalized ? normalized : undefined;
+};
+
+const normalizeEmail = (value: unknown): string | undefined => {
+  const email = normalizeOptionalString(value);
+  if (!email) return undefined;
+  return EMAIL_RE.test(email) ? email : undefined;
+};
+
+const formatCnpj = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 14) return undefined;
+  return digits.replace(
+    /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+    '$1.$2.$3/$4-$5',
+  );
+};
+
+const formatCep = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 8) return undefined;
+  return digits.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+};
+
 /**
  * Service responsible for managing client entities.
  * Provides CRUD operations for clients stored in MongoDB.
@@ -63,20 +107,41 @@ export class ClientsService {
     const name = typeof dto?.name === 'string' ? dto.name.trim() : '';
     if (!name) throw new BadRequestException('Invalid name');
 
+    const type = normalizeClientType(dto?.type);
+    const cnpj = formatCnpj(dto?.cnpj);
+    const cep = formatCep(dto?.cep);
+    const normalizedEmail = normalizeEmail(dto?.email);
+    const rawEmail = normalizeOptionalString(dto?.email);
+
+    if (rawEmail && !normalizedEmail) {
+      throw new BadRequestException('Invalid email');
+    }
+
+    if (type === 'empresa') {
+      if (!cnpj || !CNPJ_RE.test(cnpj)) {
+        throw new BadRequestException(
+          'CNPJ is required for clients of type empresa',
+        );
+      }
+      if (!cep || !CEP_RE.test(cep)) {
+        throw new BadRequestException(
+          'CEP is required for clients of type empresa',
+        );
+      }
+    }
+
     const now = new Date().toISOString();
     const id = new ObjectId().toHexString();
 
     return this.repo.save({
       id,
       name,
+      type,
       company:
         typeof dto?.company === 'string' && dto.company.trim()
           ? dto.company.trim()
           : undefined,
-      email:
-        typeof dto?.email === 'string' && dto.email.trim()
-          ? dto.email.trim()
-          : undefined,
+      email: normalizedEmail,
       phone:
         typeof dto?.phone === 'string' && dto.phone.trim()
           ? dto.phone.trim()
@@ -107,6 +172,8 @@ export class ClientsService {
         typeof dto?.notes === 'string' && dto.notes.trim()
           ? dto.notes.trim()
           : undefined,
+      cnpj,
+      cep,
       createdAt: now,
       updatedAt: now,
     } as any);
@@ -122,9 +189,16 @@ export class ClientsService {
     const patch: any = {
       updatedAt: new Date().toISOString(),
     };
+    let nextType: NormalizedClientType = normalizeClientType(cur?.type);
+    let nextCnpj = formatCnpj(cur?.cnpj) ?? undefined;
+    let nextCep = formatCep(cur?.cep) ?? undefined;
 
     if (typeof dto?.name === 'string' && dto.name.trim()) {
       patch.name = dto.name.trim();
+    }
+    if ('type' in (dto || {})) {
+      nextType = normalizeClientType(dto?.type);
+      patch.type = nextType;
     }
     if ('company' in (dto || {})) {
       patch.company =
@@ -133,10 +207,11 @@ export class ClientsService {
           : undefined;
     }
     if ('email' in (dto || {})) {
-      patch.email =
-        typeof dto?.email === 'string' && dto.email.trim()
-          ? dto.email.trim()
-          : undefined;
+      const maybeEmail = normalizeOptionalString(dto?.email);
+      if (maybeEmail && !normalizeEmail(dto?.email)) {
+        throw new BadRequestException('Invalid email');
+      }
+      patch.email = normalizeEmail(dto?.email);
     }
     if ('phone' in (dto || {})) {
       patch.phone =
@@ -183,6 +258,37 @@ export class ClientsService {
         typeof dto?.notes === 'string' && dto.notes.trim()
           ? dto.notes.trim()
           : undefined;
+    }
+    if ('cnpj' in (dto || {})) {
+      const normalizedCnpj = formatCnpj(dto?.cnpj);
+      const rawCnpj = normalizeOptionalString(dto?.cnpj);
+      if (rawCnpj && (!normalizedCnpj || !CNPJ_RE.test(normalizedCnpj))) {
+        throw new BadRequestException('Invalid CNPJ');
+      }
+      nextCnpj = normalizedCnpj;
+      patch.cnpj = normalizedCnpj;
+    }
+    if ('cep' in (dto || {})) {
+      const normalizedCep = formatCep(dto?.cep);
+      const rawCep = normalizeOptionalString(dto?.cep);
+      if (rawCep && (!normalizedCep || !CEP_RE.test(normalizedCep))) {
+        throw new BadRequestException('Invalid CEP');
+      }
+      nextCep = normalizedCep;
+      patch.cep = normalizedCep;
+    }
+
+    if (nextType === 'empresa') {
+      if (!nextCnpj || !CNPJ_RE.test(nextCnpj)) {
+        throw new BadRequestException(
+          'CNPJ is required for clients of type empresa',
+        );
+      }
+      if (!nextCep || !CEP_RE.test(nextCep)) {
+        throw new BadRequestException(
+          'CEP is required for clients of type empresa',
+        );
+      }
     }
 
     await this.repo.update(oid as any, patch);

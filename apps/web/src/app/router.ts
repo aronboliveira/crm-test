@@ -122,31 +122,36 @@ const routes: RouteRecordRaw[] = [
 ];
 
 const router = createRouter({ history: createWebHistory(), routes });
+let policyBootstrapInFlight: Promise<void> | null = null;
+
+const ensurePolicyBootstrap = async (
+  policy: ReturnType<typeof usePolicyStore>,
+  options?: Readonly<{ awaitCompletion?: boolean }>,
+): Promise<void> => {
+  const awaitCompletion = options?.awaitCompletion ?? true;
+
+  if (!policyBootstrapInFlight) {
+    policy.$patch({ ready: false, perms: [] });
+    policyBootstrapInFlight = policy
+      .bootstrap()
+      .catch((error) => {
+        console.error("[Router] policy.bootstrap() failed:", error);
+      })
+      .finally(() => {
+        policyBootstrapInFlight = null;
+      });
+  }
+
+  if (awaitCompletion) {
+    await policyBootstrapInFlight;
+  }
+};
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
   const policy = usePolicyStore();
 
   auth.isReady ? void 0 : await auth.bootstrap();
-
-  // Re-bootstrap policy whenever the user is logged in but perms are empty.
-  // This covers the scenario where the user just logged in and the
-  // policy store was previously reset() with an empty permission set.
-  if (auth.isLoggedIn) {
-    const needsBoot =
-      !policy.isReady ||
-      !Array.isArray(policy.perms) ||
-      policy.perms.length === 0;
-
-    if (needsBoot) {
-      try {
-        policy.$patch({ ready: false, perms: [] });
-        await policy.bootstrap();
-      } catch (err) {
-        console.error("[Router] policy.bootstrap() failed:", err);
-      }
-    }
-  }
 
   // Vue Router 4 does NOT merge parent meta into child meta automatically.
   // We must walk `to.matched` to check if any ancestor requires auth.
@@ -161,6 +166,23 @@ router.beforeEach(async (to) => {
 
   if (requiresAuth && !auth.isLoggedIn) {
     return { path: "/login", query: { next: to.fullPath } };
+  }
+
+  // For first post-login navigation into /dashboard (no route perm), avoid
+  // blocking navigation on /auth/me. Boot policy in background instead.
+  if (auth.isLoggedIn) {
+    const needsBoot =
+      !policy.isReady ||
+      !Array.isArray(policy.perms) ||
+      policy.perms.length === 0;
+
+    if (needsBoot) {
+      if (perm) {
+        await ensurePolicyBootstrap(policy, { awaitCompletion: true });
+      } else {
+        void ensurePolicyBootstrap(policy, { awaitCompletion: false });
+      }
+    }
   }
 
   if (perm) {

@@ -6,6 +6,24 @@ import ApiClientService from "../services/ApiClientService";
 import AlertService from "../services/AlertService";
 import type { ProjectRow } from "../pinia/types/projects.types";
 import type { FilterState } from "../components/ui/AdvancedFilter.vue";
+import {
+  PROJECTS_EMPTY_DATE_LABEL,
+  PROJECTS_EMPTY_VALUE_LABEL,
+  PROJECT_FILTER_DEFAULTS,
+  PROJECT_STATUS_LABEL_BY_ID,
+  PROJECT_STATUS_OPTIONS,
+} from "../utils/constants/dashboard-projects.constants";
+import {
+  DASHBOARD_PROJECTS_EXPORT_CENTERED_COLUMNS,
+  DASHBOARD_PROJECTS_EXPORT_COLUMNS,
+  DASHBOARD_PROJECTS_EXPORT_COLUMN_KEYS,
+  DASHBOARD_PROJECTS_EXPORT_COLUMN_WIDTHS,
+  DashboardProjectsCsvBlueprint,
+  SpreadsheetExporter,
+  type DashboardProjectsExportColumnKey,
+  type DashboardProjectsExportRow,
+  type SpreadsheetExportFormat,
+} from "../utils/export";
 
 const ProjectFormModal = defineAsyncComponent(
   () => import("../components/forms/ProjectFormModal.vue"),
@@ -27,43 +45,178 @@ const AttachmentsPanel = defineAsyncComponent(
   () => import("../components/ui/AttachmentsPanel.vue"),
 );
 
+const DashboardTableExportModal = defineAsyncComponent(
+  () => import("../components/dashboard/DashboardTableExportModal.vue"),
+);
+
 const { rows, loading, error, nextCursor, q, load, more } =
   useDashboardProjectsPage();
 
-const filter = ref<FilterState>({
-  status: "",
-  priority: "",
-  assignee: "",
-  tag: "",
-  dueBefore: "",
-  dueAfter: "",
+const createDefaultProjectFilter = (): FilterState => ({
+  ...PROJECT_FILTER_DEFAULTS,
 });
 
-const selectedProject = ref<ProjectRow | null>(null);
+const filter = ref<FilterState>(createDefaultProjectFilter());
+const selectedProjectId = ref<string | null>(null);
+const isDetailOpen = ref(false);
+
+const safeRows = computed(() => (rows.value || []).filter(Boolean) as ProjectRow[]);
+
+const rowById = computed(() => {
+  const result = new Map<string, ProjectRow>();
+  for (const project of safeRows.value) {
+    result.set(project.id, project);
+  }
+  return result;
+});
+
+const selectedProject = computed(() => {
+  const projectId = selectedProjectId.value;
+  if (!projectId) return null;
+  return rowById.value.get(projectId) ?? null;
+});
+
+const detailVisible = computed(
+  () => isDetailOpen.value && selectedProject.value !== null,
+);
+
+const normalizedFilter = computed<FilterState>(() => {
+  const current = filter.value;
+  return {
+    ...createDefaultProjectFilter(),
+    ...current,
+    tag: (current.tag || "").trim(),
+  };
+});
 
 const filteredRows = computed(() => {
-  let out = rows.value;
-  const f = filter.value;
-  if (f.status) out = out.filter((p) => p?.status === f.status);
-  if (f.tag) out = out.filter((p) => (p as any)?.tags?.includes(f.tag));
-  if (f.dueAfter) out = out.filter((p) => (p?.dueAt || "") >= f.dueAfter);
-  if (f.dueBefore) out = out.filter((p) => (p?.dueAt || "") <= f.dueBefore);
+  const f = normalizedFilter.value;
+  let out = safeRows.value;
+
+  if (f.status) out = out.filter((project) => project.status === f.status);
+  if (f.tag) out = out.filter((project) => project.tags?.includes(f.tag));
+  if (f.dueAfter) out = out.filter((project) => (project.dueAt || "") >= f.dueAfter);
+  if (f.dueBefore)
+    out = out.filter((project) => (project.dueAt || "") <= f.dueBefore);
+
   return out;
 });
 
-const onFilter = (s: FilterState) => {
-  filter.value = s;
+const onFilter = (state: FilterState) => {
+  filter.value = { ...createDefaultProjectFilter(), ...state };
 };
 
 const onReset = () => {
-  filter.value = {
-    status: "",
-    priority: "",
-    assignee: "",
-    tag: "",
-    dueBefore: "",
-    dueAfter: "",
-  };
+  filter.value = createDefaultProjectFilter();
+};
+
+type DashboardTableExportDialogResult = {
+  formats: SpreadsheetExportFormat[];
+  columnKeys: string[];
+};
+
+const DEFAULT_EXPORT_COLUMN_KEYS = [
+  ...DASHBOARD_PROJECTS_EXPORT_COLUMN_KEYS,
+] as DashboardProjectsExportColumnKey[];
+
+const projectsExporter = new SpreadsheetExporter<
+  DashboardProjectsExportRow,
+  DashboardProjectsExportColumnKey,
+  DashboardProjectsCsvBlueprint
+>({
+  fileNamePrefix: "projetos-dashboard",
+  sheetName: "Projetos",
+  defaultColumnKeys: DEFAULT_EXPORT_COLUMN_KEYS,
+  buildBlueprint: (columnKeys) =>
+    new DashboardProjectsCsvBlueprint({ columns: columnKeys }),
+  columnWidthByKey: DASHBOARD_PROJECTS_EXPORT_COLUMN_WIDTHS,
+  centeredColumnKeys: DASHBOARD_PROJECTS_EXPORT_CENTERED_COLUMNS,
+  resolveCellStyle: ({ columnKey, record }) => {
+    if (columnKey !== "status") return null;
+    if (record.status === "Bloqueado") {
+      return {
+        fillColor: "FFFEE2E2",
+        fontColor: "FFB91C1C",
+        bold: true,
+        align: "center",
+      };
+    }
+    if (record.status === "Concluído") {
+      return {
+        fillColor: "FFECFDF5",
+        fontColor: "FF166534",
+        bold: true,
+        align: "center",
+      };
+    }
+    return null;
+  },
+});
+
+const mapProjectStatusLabel = (status: string): string =>
+  (PROJECT_STATUS_LABEL_BY_ID[status] ?? status) || PROJECTS_EMPTY_VALUE_LABEL;
+
+const toDateLabel = (iso: string | null | undefined): string =>
+  iso ? iso.slice(0, 10) : PROJECTS_EMPTY_DATE_LABEL;
+
+const projectExportRows = computed<DashboardProjectsExportRow[]>(() =>
+  filteredRows.value.map((project) => ({
+    codigo: project.code || PROJECTS_EMPTY_VALUE_LABEL,
+    nome: project.name || PROJECTS_EMPTY_VALUE_LABEL,
+    responsavel: project.ownerEmail || PROJECTS_EMPTY_VALUE_LABEL,
+    status: mapProjectStatusLabel(project.status),
+    tags: project.tags?.length
+      ? project.tags.join(", ")
+      : PROJECTS_EMPTY_VALUE_LABEL,
+    prazo: toDateLabel(project.deadlineAt),
+    entrega: toDateLabel(project.dueAt),
+  })),
+);
+
+const openExportDialog =
+  async (): Promise<DashboardTableExportDialogResult | null> =>
+    ModalService.open<DashboardTableExportDialogResult>(
+      DashboardTableExportModal,
+      {
+        title: "Exportar Projetos",
+        size: "md",
+        data: {
+          totalRows: filteredRows.value.length,
+          entityLabel: "projeto(s)",
+          columnOptions: DASHBOARD_PROJECTS_EXPORT_COLUMNS,
+          defaultColumnKeys: [...DEFAULT_EXPORT_COLUMN_KEYS],
+          defaultFormats: ["csv", "xlsx"] as SpreadsheetExportFormat[],
+        },
+      },
+    );
+
+const handleOpenExportModal = async (): Promise<void> => {
+  try {
+    const selection = await openExportDialog();
+    if (!selection) return;
+
+    const records = projectExportRows.value;
+    if (!records.length) {
+      await AlertService.error(
+        "Exportação",
+        "Não há projetos para exportar com os filtros selecionados.",
+      );
+      return;
+    }
+
+    const exportedFormats = await projectsExporter.export(records, {
+      formats: selection.formats,
+      columnKeys: selection.columnKeys as DashboardProjectsExportColumnKey[],
+    });
+
+    await AlertService.success(
+      "Exportação concluída",
+      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
+    );
+  } catch (caughtError) {
+    console.error("[DashboardProjectsPage] Export failed:", caughtError);
+    await AlertService.error("Erro ao exportar", caughtError);
+  }
 };
 
 const openCreateProject = async () => {
@@ -92,21 +245,34 @@ const deleteProject = async (project: ProjectRow) => {
   try {
     await ApiClientService.projects.remove(project.id);
     await AlertService.success("Excluído", `"${project.name}" foi excluído.`);
-    selectedProject.value = null;
+
+    if (selectedProjectId.value === project.id) {
+      selectedProjectId.value = null;
+      isDetailOpen.value = false;
+    }
+
     await load(true);
-  } catch (e) {
-    console.error("[DashboardProjectsPage] Delete failed:", e);
+  } catch (caughtError) {
+    console.error("[DashboardProjectsPage] Delete failed:", caughtError);
     await AlertService.error("Erro", "Falha ao excluir projeto.");
   }
 };
 
-const projectStatusOptions = [
-  { label: "Planejado", value: "planned" },
-  { label: "Ativo", value: "active" },
-  { label: "Bloqueado", value: "blocked" },
-  { label: "Concluído", value: "done" },
-  { label: "Arquivado", value: "archived" },
-];
+const selectProject = (project: ProjectRow): void => {
+  selectedProjectId.value = project.id;
+  isDetailOpen.value = true;
+};
+
+const closeProjectDetail = (): void => {
+  isDetailOpen.value = false;
+};
+
+const getProjectRowKey = (project: ProjectRow, index: number): string =>
+  project.id || `project-row-${index}`;
+
+const projectStatusOptions = PROJECT_STATUS_OPTIONS.map((option) => ({
+  ...option,
+}));
 </script>
 
 <template>
@@ -132,10 +298,14 @@ const projectStatusOptions = [
           @reset="onReset"
         />
         <button
-          class="btn btn-primary"
+          class="btn btn-ghost"
           type="button"
-          @click="openCreateProject"
+          title="Exportar projetos da visão atual"
+          @click="handleOpenExportModal"
         >
+          Exportar...
+        </button>
+        <button class="btn btn-primary" type="button" @click="openCreateProject">
           + Novo
         </button>
         <button
@@ -151,7 +321,6 @@ const projectStatusOptions = [
     </header>
 
     <div class="dp-layout mt-3">
-      <!-- Table -->
       <div
         class="dp-card card p-2 overflow-auto flex-1"
         role="region"
@@ -173,20 +342,24 @@ const projectStatusOptions = [
 
           <tbody>
             <tr
-              v-for="p in filteredRows"
-              :key="p?.id || (Math.random() * Math.random()).toString(36)"
+              v-for="(p, projectIndex) in filteredRows"
+              :key="getProjectRowKey(p, projectIndex)"
               class="border-t border-white/10 cursor-pointer"
-              :class="{ 'bg-white/5': selectedProject?.id === p?.id }"
-              @click="selectedProject = p ?? null"
+              :class="{ 'bg-white/5': selectedProject?.id === p.id }"
+              @click="selectProject(p)"
             >
-              <td class="py-2 pr-3 font-semibold">{{ p?.code ?? "-" }}</td>
-              <td class="py-2 pr-3">{{ p?.name ?? "-" }}</td>
-              <td class="py-2 pr-3">{{ p?.ownerEmail ?? "-" }}</td>
-              <td class="py-2 pr-3">{{ p?.status ?? "-" }}</td>
+              <td class="py-2 pr-3 font-semibold">
+                {{ p.code || PROJECTS_EMPTY_VALUE_LABEL }}
+              </td>
+              <td class="py-2 pr-3">{{ p.name || PROJECTS_EMPTY_VALUE_LABEL }}</td>
+              <td class="py-2 pr-3">
+                {{ p.ownerEmail || PROJECTS_EMPTY_VALUE_LABEL }}
+              </td>
+              <td class="py-2 pr-3">{{ mapProjectStatusLabel(p.status) }}</td>
               <td class="py-2 pr-3">
                 <div class="flex gap-0.5 flex-wrap">
                   <span
-                    v-for="tag in ((p as any)?.tags ?? []).slice(0, 3)"
+                    v-for="tag in p.tags.slice(0, 3)"
                     :key="tag"
                     class="text-xs bg-emerald-500/15 px-1 rounded"
                   >
@@ -194,17 +367,15 @@ const projectStatusOptions = [
                   </span>
                 </div>
               </td>
-              <td class="py-2 pr-3">
-                {{ (p as any)?.deadlineAt?.slice(0, 10) ?? "-" }}
-              </td>
-              <td class="py-2 pr-3">{{ p?.dueAt?.slice(0, 10) ?? "-" }}</td>
+              <td class="py-2 pr-3">{{ toDateLabel(p.deadlineAt) }}</td>
+              <td class="py-2 pr-3">{{ toDateLabel(p.dueAt) }}</td>
               <td class="py-2 pr-3">
                 <div class="flex gap-1">
                   <button
                     class="btn btn-ghost btn-sm"
                     type="button"
                     aria-label="Editar projeto"
-                    @click.stop="openEditProject(p!)"
+                    @click.stop="openEditProject(p)"
                   >
                     Editar
                   </button>
@@ -212,7 +383,7 @@ const projectStatusOptions = [
                     class="btn btn-ghost btn-sm text-danger"
                     type="button"
                     aria-label="Excluir projeto"
-                    @click.stop="deleteProject(p!)"
+                    @click.stop="deleteProject(p)"
                   >
                     Excluir
                   </button>
@@ -229,38 +400,71 @@ const projectStatusOptions = [
         </table>
       </div>
 
-      <!-- Detail sidebar -->
       <aside
-        v-if="selectedProject"
+        v-show="detailVisible"
         class="dp-detail card p-3 overflow-y-auto"
         aria-label="Detalhes do projeto"
       >
-        <div class="flex justify-between items-start mb-2">
-          <h2 class="font-bold text-sm">{{ selectedProject.name }}</h2>
-          <button
-            class="text-xs opacity-40 hover:opacity-100"
-            @click="selectedProject = null"
-          >
-            ✕
-          </button>
-        </div>
+        <template v-if="selectedProject">
+          <div class="flex justify-between items-start mb-2">
+            <h2 class="font-bold text-sm">{{ selectedProject.name }}</h2>
+            <button class="text-xs opacity-40 hover:opacity-100" @click="closeProjectDetail">
+              ✕
+            </button>
+          </div>
 
-        <div class="text-xs opacity-60 mb-3">
-          Status: {{ selectedProject.status }}
-          <span v-if="selectedProject.ownerEmail">
-            · {{ selectedProject.ownerEmail }}
-          </span>
-        </div>
+          <div class="text-xs opacity-60 mb-3">
+            Status: {{ mapProjectStatusLabel(selectedProject.status) }}
+            <span v-if="selectedProject.ownerEmail">
+              · {{ selectedProject.ownerEmail }}
+            </span>
+          </div>
 
-        <CommentsPanel
-          :target-type="'project'"
-          :target-id="selectedProject.id"
-        />
-        <NotesPanel :target-type="'project'" :target-id="selectedProject.id" />
-        <AttachmentsPanel
-          :target-type="'project'"
-          :target-id="selectedProject.id"
-        />
+          <Suspense>
+            <template #default>
+              <CommentsPanel
+                :target-type="'project'"
+                :target-id="selectedProject.id"
+              />
+            </template>
+            <template #fallback>
+              <div class="dp-async-fallback" role="status" aria-live="polite">
+                <span class="dp-async-fallback__spinner" aria-hidden="true"></span>
+                <span>Carregando comentários…</span>
+              </div>
+            </template>
+          </Suspense>
+
+          <Suspense>
+            <template #default>
+              <NotesPanel
+                :target-type="'project'"
+                :target-id="selectedProject.id"
+              />
+            </template>
+            <template #fallback>
+              <div class="dp-async-fallback" role="status" aria-live="polite">
+                <span class="dp-async-fallback__spinner" aria-hidden="true"></span>
+                <span>Carregando notas…</span>
+              </div>
+            </template>
+          </Suspense>
+
+          <Suspense>
+            <template #default>
+              <AttachmentsPanel
+                :target-type="'project'"
+                :target-id="selectedProject.id"
+              />
+            </template>
+            <template #fallback>
+              <div class="dp-async-fallback" role="status" aria-live="polite">
+                <span class="dp-async-fallback__spinner" aria-hidden="true"></span>
+                <span>Carregando anexos…</span>
+              </div>
+            </template>
+          </Suspense>
+        </template>
       </aside>
     </div>
 
@@ -280,79 +484,5 @@ const projectStatusOptions = [
 </template>
 
 <style lang="scss">
-@keyframes dpIn {
-  0% {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dp-actions {
-  align-items: end;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: space-between;
-}
-
-.dp-card {
-  animation: dpIn 160ms ease both;
-
-  &:hover {
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
-  }
-  &:active {
-    transform: translateY(1px);
-  }
-
-  ::selection {
-    background: rgba(120, 120, 200, 0.22);
-  }
-}
-
-.dp-page {
-  padding: 1rem;
-}
-
-.dp-layout {
-  display: flex;
-  gap: 1rem;
-}
-
-.dp-detail {
-  width: 340px;
-  min-width: 280px;
-  max-height: calc(100vh - 200px);
-}
-
-@media (max-width: 960px) {
-  .dp-layout {
-    flex-direction: column;
-  }
-  .dp-detail {
-    width: 100%;
-    max-height: 50vh;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dp-card {
-    animation: none;
-  }
-}
-
-@starting-style {
-  .dp-card {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
-
-@supports (position-try: flip-block) {
-  @position-try flip-block;
-}
+@use "../styles/pages/dashboard-projects.module";
 </style>

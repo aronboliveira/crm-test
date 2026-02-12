@@ -5,6 +5,7 @@ const emit = defineEmits<{ (e: "toggle-aside"): void }>();
 
 const {
   email,
+  showEmailInTopBar,
   displayName,
   logout,
   toggleTheme,
@@ -110,7 +111,12 @@ const {
           <span class="topbar-user__name" :title="displayName">{{
             displayName
           }}</span>
-          <span class="topbar-user__email" :title="email">{{ email }}</span>
+          <span
+            v-if="showEmailInTopBar"
+            class="topbar-user__email"
+            :title="email"
+            >{{ email }}</span
+          >
         </div>
       </button>
 

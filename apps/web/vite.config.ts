@@ -43,6 +43,7 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
+    chunkSizeWarningLimit: 1200,
     // Optimize chunking to reduce number of requests
     rollupOptions: {
       output: {
@@ -64,6 +65,13 @@ export default defineConfig({
             "./src/pinia/stores/bootstrap.store.ts",
           ],
         },
+      },
+    },
+  },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        silenceDeprecations: ["import"],
       },
     },
   },

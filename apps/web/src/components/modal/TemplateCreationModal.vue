@@ -13,7 +13,7 @@
  * - Accessibility (ARIA attributes, focus management)
  * - Security attributes for form tracking
  */
-import { computed, ref, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { computed, ref, watch, nextTick, onUnmounted } from "vue";
 
 /**
  * Validation constants matching backend Zod schema

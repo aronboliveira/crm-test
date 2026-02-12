@@ -4,6 +4,7 @@ import type { ClientRow } from "../../pinia/types/clients.types";
 import type { ProjectRow } from "../../pinia/types/projects.types";
 import type { LeadRow } from "../../pinia/types/leads.types";
 import ClientStatisticsService from "../../services/ClientStatisticsService";
+import { ACTION_TITLES } from "../../utils/constants/dom-titles";
 import DonutChart from "../charts/DonutChart.vue";
 import BarChart from "../charts/BarChart.vue";
 import StatCard from "../charts/StatCard.vue";
@@ -77,6 +78,14 @@ const handleSelectClient = (clientId: string) => {
   emit("selectClient", clientId);
 };
 
+const getSectionToggleTitle = (
+  sectionId: DashboardSection,
+  label: string,
+): string =>
+  isFilterActive(sectionId)
+    ? `${ACTION_TITLES.COLLAPSE}: ${label}`
+    : `${ACTION_TITLES.EXPAND}: ${label}`;
+
 // Computed statistics
 const statistics = computed(() =>
   ClientStatisticsService.calculateStatistics(props.clients, props.projects),
@@ -139,7 +148,7 @@ const companiesDonutData = computed(() => {
     .map(([company, count], i) => ({
       label: company,
       value: count,
-      color: colors[i % colors.length],
+      color: colors[i % colors.length] ?? "#3b82f6",
     }));
 });
 
@@ -161,6 +170,49 @@ const timelineBars = computed(() =>
     color: "#16a34a",
   })),
 );
+
+// Additional company charts
+const companiesBars = computed(() => {
+  const companies = statistics.value.clientsByCompany;
+  return Object.entries(companies)
+    .sort(([, a], [, b]) => b - a)
+    .map(([company, count]) => ({
+      label: company.length > 25 ? company.substring(0, 25) + "..." : company,
+      value: count,
+      color: "#3b82f6",
+    }));
+});
+
+// Cumulative growth chart
+const cumulativeGrowthBars = computed(() =>
+  timeline.value.map((t) => ({
+    label: t.month,
+    value: t.totalClients,
+    color: "#8b5cf6",
+  })),
+);
+
+// Month-over-month growth rate
+const growthRateBars = computed(() => {
+  const rates = timeline.value.map((t, i) => {
+    if (i === 0) return { label: t.month, value: 0, color: "#06b6d4" };
+
+    const prevTotal = timeline.value[i - 1]?.totalClients ?? 0;
+    const currentTotal = t.totalClients;
+    const rate =
+      prevTotal > 0
+        ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100)
+        : 0;
+
+    return {
+      label: t.month,
+      value: rate,
+      color: rate >= 10 ? "#16a34a" : rate >= 5 ? "#f59e0b" : "#06b6d4",
+    };
+  });
+
+  return rates.slice(1); // Skip first month (always 0%)
+});
 
 const conversionBars = computed(() =>
   leadConversion.value.slice(0, 8).map((c) => ({
@@ -186,13 +238,25 @@ const conversionBars = computed(() =>
       <div class="filters-header">
         <h3 class="filters-title">Filtros do Dashboard</h3>
         <div class="filters-actions">
-          <button class="btn btn-sm btn-primary" @click="openHighlightsModal">
+          <button
+            class="btn btn-sm btn-primary"
+            title="Visualizar destaques dos clientes"
+            @click="openHighlightsModal"
+          >
             ✨ Ver Destaques
           </button>
-          <button class="btn btn-xs btn-ghost" @click="showAllSections">
+          <button
+            class="btn btn-xs btn-ghost"
+            :title="ACTION_TITLES.SELECT_ALL"
+            @click="showAllSections"
+          >
             Todos
           </button>
-          <button class="btn btn-xs btn-ghost" @click="hideAllSections">
+          <button
+            class="btn btn-xs btn-ghost"
+            :title="ACTION_TITLES.DESELECT_ALL"
+            @click="hideAllSections"
+          >
             Nenhum
           </button>
         </div>
@@ -203,6 +267,7 @@ const conversionBars = computed(() =>
           :key="section.id"
           class="filter-chip"
           :class="{ 'filter-chip--active': isFilterActive(section.id) }"
+          :title="getSectionToggleTitle(section.id, section.label)"
           @click="toggleFilter(section.id)"
         >
           <span class="filter-chip__icon">{{ section.icon }}</span>
@@ -310,6 +375,7 @@ const conversionBars = computed(() =>
               v-for="(client, i) in statistics.topClientsByProjects"
               :key="client.clientId"
               class="top-client-item"
+              :title="`${client.clientName} - ${client.projectCount} projeto(s)`"
             >
               <span class="rank">{{ i + 1 }}</span>
               <span class="name">{{ client.clientName }}</span>
@@ -326,20 +392,32 @@ const conversionBars = computed(() =>
     <!-- Companies Section -->
     <section v-if="isFilterActive('companies')" class="dashboard-section">
       <h2 class="section-title">🏢 Clientes por Empresa</h2>
-      <div class="chart-card card">
-        <h3 class="chart-title">Distribuição por Empresa (Top 7)</h3>
-        <div
-          v-if="companiesDonutData.length > 0"
-          class="chart-content chart-content--centered"
-        >
-          <DonutChart
-            :slices="companiesDonutData"
-            :size="200"
-            :stroke-width="35"
-          />
+      <div class="chart-grid">
+        <div class="chart-card card">
+          <h3 class="chart-title">Distribuição por Empresa (Top 7)</h3>
+          <div
+            v-if="companiesDonutData.length > 0"
+            class="chart-content chart-content--centered"
+          >
+            <DonutChart
+              :slices="companiesDonutData"
+              :size="200"
+              :stroke-width="35"
+            />
+          </div>
+          <div v-else class="chart-empty">
+            <p>Nenhum dado disponível</p>
+          </div>
         </div>
-        <div v-else class="chart-empty">
-          <p>Nenhum dado disponível</p>
+
+        <div class="chart-card card">
+          <h3 class="chart-title">Ranking de Empresas (Todas)</h3>
+          <div v-if="companiesBars.length > 0" class="chart-content">
+            <BarChart :bars="companiesBars" :horizontal="true" />
+          </div>
+          <div v-else class="chart-empty">
+            <p>Nenhum dado disponível</p>
+          </div>
         </div>
       </div>
     </section>
@@ -347,18 +425,51 @@ const conversionBars = computed(() =>
     <!-- Timeline Section -->
     <section v-if="isFilterActive('timeline')" class="dashboard-section">
       <h2 class="section-title">📈 Crescimento ao Longo do Tempo</h2>
-      <div class="chart-card card">
-        <h3 class="chart-title">Novos Clientes por Mês (Últimos 12 meses)</h3>
-        <div v-if="timelineBars.length > 0" class="chart-content">
-          <BarChart
-            :bars="timelineBars"
-            :horizontal="false"
-            :max-bar-width="60"
-            :show-axis-labels="true"
-          />
+
+      <div class="chart-grid chart-grid--triple">
+        <div class="chart-card card">
+          <h3 class="chart-title">Novos Clientes por Mês</h3>
+          <div v-if="timelineBars.length > 0" class="chart-content">
+            <BarChart
+              :bars="timelineBars"
+              :horizontal="false"
+              :max-bar-width="60"
+              :show-axis-labels="true"
+            />
+          </div>
+          <div v-else class="chart-empty">
+            <p>Nenhum dado disponível</p>
+          </div>
         </div>
-        <div v-else class="chart-empty">
-          <p>Nenhum dado disponível</p>
+
+        <div class="chart-card card">
+          <h3 class="chart-title">Crescimento Acumulado</h3>
+          <div v-if="cumulativeGrowthBars.length > 0" class="chart-content">
+            <BarChart
+              :bars="cumulativeGrowthBars"
+              :horizontal="false"
+              :max-bar-width="60"
+              :show-axis-labels="true"
+            />
+          </div>
+          <div v-else class="chart-empty">
+            <p>Nenhum dado disponível</p>
+          </div>
+        </div>
+
+        <div class="chart-card card">
+          <h3 class="chart-title">Taxa de Crescimento (%)</h3>
+          <div v-if="growthRateBars.length > 0" class="chart-content">
+            <BarChart
+              :bars="growthRateBars"
+              :horizontal="false"
+              :max-bar-width="60"
+              :show-axis-labels="true"
+            />
+          </div>
+          <div v-else class="chart-empty">
+            <p>Nenhum dado disponível</p>
+          </div>
         </div>
       </div>
     </section>
@@ -386,26 +497,29 @@ const conversionBars = computed(() =>
 .client-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  gap: 0.95rem;
+  margin-bottom: 1.35rem;
 }
 
 /* Filters */
 .dashboard-filters {
-  padding: 1rem;
+  padding: clamp(0.78rem, 1.5vw, 0.98rem);
+  padding-inline-start: clamp(1.2rem, 2.3vw, 1.7rem);
+  padding-inline-end: clamp(0.78rem, 1.45vw, 1.05rem);
 }
 
 .filters-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.72rem;
 }
 
 .filters-title {
   font-size: 1rem;
   font-weight: 600;
   margin: 0;
+  color: var(--text-1);
 }
 
 .filters-actions {
@@ -416,53 +530,34 @@ const conversionBars = computed(() =>
 .filters-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  padding-inline-start: clamp(0.1rem, 0.3vw, 0.2rem);
 }
 
 .filter-chip {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: 2px solid #e2e8f0;
+  gap: 0.4rem;
+  padding: 0.42rem 0.82rem;
+  border: 1px solid var(--border-1);
   border-radius: 9999px;
-  background: white;
+  background: var(--surface-1);
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 0.875rem;
+  font-size: 0.83rem;
   font-weight: 500;
-  color: #334155;
+  color: var(--text-2);
 }
 
 .filter-chip:hover {
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  border-color: var(--border-hover);
+  background: var(--surface-2);
 }
 
 .filter-chip--active {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  color: #3b82f6;
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .filter-chip {
-    border-color: #334155;
-    background: #1e293b;
-    color: #cbd5e1;
-  }
-
-  .filter-chip:hover {
-    border-color: #475569;
-    background: #334155;
-  }
-
-  .filter-chip--active {
-    border-color: #60a5fa;
-    background: #1e3a8a;
-    color: #93c5fd;
-  }
+  border-color: color-mix(in oklab, var(--primary) 55%, var(--border-1));
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--text-1);
 }
 
 .filter-chip__icon {
@@ -480,53 +575,90 @@ const conversionBars = computed(() =>
 .dashboard-section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.78rem;
+  padding-inline-start: clamp(0.38rem, 0.75vw, 0.62rem);
+  padding-inline-end: clamp(0.2rem, 0.45vw, 0.35rem);
 }
 
 .section-title {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  padding: 0 0 0.5rem 0.75rem;
-  border-left: 4px solid #3b82f6;
+  margin: 0 0 0.34rem 0;
+  padding: 0 0 0.34rem 0;
+  border-left: none;
+  border-bottom: 1px solid color-mix(in oklab, var(--border-1) 88%, transparent);
   color: var(--text-1);
 }
 
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  padding-left: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.8rem;
+  padding-inline-start: clamp(0.4rem, 0.82vw, 0.64rem);
+  padding-inline-end: clamp(0.2rem, 0.42vw, 0.35rem);
+}
+
+.stats-grid > * {
+  margin-block: 0;
 }
 
 /* Chart Grid */
 .chart-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
-  padding-left: 1rem;
+  gap: 0.78rem;
+  padding-inline-start: clamp(0.36rem, 0.72vw, 0.56rem);
+  padding-inline-end: clamp(0.16rem, 0.36vw, 0.28rem);
+}
+
+.chart-grid--triple {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
 .chart-card {
-  padding: 1.5rem;
+  padding: clamp(0.88rem, 1.45vw, 1.05rem);
+  overflow: hidden;
 }
 
 .chart-title {
   font-size: 1rem;
   font-weight: 600;
-  margin: 0 0 1rem 0;
-  opacity: 0.8;
+  margin: 0 0 0.72rem 0;
+  color: var(--text-2);
 }
 
 .chart-content {
-  min-height: 200px;
+  min-height: 184px;
+  max-height: 400px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.32rem;
+}
+
+.chart-content::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chart-content::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 3px;
+}
+
+.chart-content::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 3px;
+}
+
+.chart-content::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
 }
 
 .chart-content--centered {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: visible;
 }
 
 .chart-empty {
@@ -534,7 +666,8 @@ const conversionBars = computed(() =>
   justify-content: center;
   align-items: center;
   min-height: 200px;
-  opacity: 0.5;
+  color: var(--text-3);
+  opacity: 0.7;
 }
 
 /* Top Clients List */
@@ -544,21 +677,25 @@ const conversionBars = computed(() =>
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.58rem;
 }
 
 .top-client-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  background: #f8fafc;
+  gap: 0.62rem;
+  padding: 0.62rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
   border-radius: 6px;
-  transition: background 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 
 .top-client-item:hover {
-  background: #f1f5f9;
+  background: color-mix(in oklab, var(--surface-2), var(--text-1) 4%);
+  border-color: var(--border-hover);
 }
 
 .top-client-item .rank {
@@ -567,8 +704,8 @@ const conversionBars = computed(() =>
   justify-content: center;
   width: 24px;
   height: 24px;
-  background: #3b82f6;
-  color: white;
+  background: var(--primary);
+  color: var(--text-inverse);
   border-radius: 50%;
   font-weight: 700;
   font-size: 0.875rem;
@@ -578,11 +715,12 @@ const conversionBars = computed(() =>
 .top-client-item .name {
   flex: 1;
   font-weight: 500;
+  color: var(--text-1);
 }
 
 .top-client-item .count {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-3);
 }
 </style>

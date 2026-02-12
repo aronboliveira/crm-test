@@ -1,0 +1,778 @@
+@scope (.mw-page) {
+  :scope {
+    --mw-gap: clamp(1rem, 1.35vw, 1.45rem);
+    --mw-card-radius: 1rem;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: clamp(1.1rem, 1.7vw, 1.6rem);
+    display: grid;
+    gap: var(--mw-gap);
+    animation: mwPageReveal 320ms var(--easing-bounce, ease) both;
+  }
+
+  :scope[data-projects-visible="false"] .mw-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mw-header {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1.35fr) auto;
+  align-items: start;
+  column-gap: clamp(0.9rem, 1.5vw, 1.4rem);
+  row-gap: 0.65rem;
+  padding-inline: clamp(0.8rem, 1.65vw, 1.6rem);
+}
+
+.mw-header-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.mw-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.56rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--text-1) 14%, transparent);
+  background: color-mix(in oklab, var(--surface-2) 86%, var(--surface-1));
+  color: var(--text-3);
+  font-size: 0.74rem;
+}
+
+.mw-sync-badge__spinner {
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid color-mix(in oklab, var(--text-1) 22%, transparent);
+  border-top-color: var(--primary);
+  border-radius: 999px;
+  animation: mwSyncBadgeSpin 0.8s linear infinite;
+}
+
+.mw-header-copy {
+  display: grid;
+  gap: 0.42rem;
+  max-width: none;
+  flex: 1 1 auto;
+  align-content: start;
+  padding-inline-end: clamp(0.4rem, 0.9vw, 0.85rem);
+}
+
+.mw-title {
+  margin: 0;
+  font-size: clamp(1.52rem, 3vw, 2.16rem);
+  font-weight: 800;
+  letter-spacing: 0.005em;
+  line-height: 1.08;
+}
+
+.mw-subtitle,
+.mw-role {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.46;
+  color: var(--text-2);
+}
+
+.mw-role {
+  font-size: 0.84rem;
+  color: var(--text-3);
+}
+
+.mw-filter-shell {
+  padding: clamp(1.08rem, 1.5vw, 1.28rem);
+  border-radius: var(--mw-card-radius);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: clamp(0.84rem, 1.1vw, 1.05rem);
+  border: 1px solid var(--border-1);
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in oklab, var(--primary-soft) 18%, transparent), transparent 44%),
+    var(--surface-1);
+  animation: mwCardRise 360ms var(--easing-bounce, ease) both;
+}
+
+.mw-tabs-group {
+  display: grid;
+  gap: 0.56rem;
+  min-width: 0;
+  align-content: start;
+}
+
+.mw-tabs-title {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  text-align: left;
+  justify-self: start;
+}
+
+.mw-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.mw-tab {
+  border: 1px solid color-mix(in oklab, var(--primary) 22%, var(--border-1));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--surface-2) 92%, var(--primary-soft) 8%);
+  color: var(--text-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 0.46rem 0.76rem;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
+    border-color var(--transition-fast, 140ms) var(--easing-standard, ease),
+    color var(--transition-fast, 140ms) var(--easing-standard, ease),
+    background var(--transition-fast, 140ms) var(--easing-standard, ease);
+}
+
+.mw-tab[aria-pressed="true"] {
+  color: var(--text-1);
+  border-color: color-mix(in oklab, var(--primary) 48%, transparent);
+  background: linear-gradient(
+    140deg,
+    color-mix(in oklab, var(--primary) 22%, var(--surface-2)),
+    color-mix(in oklab, var(--primary-active) 24%, var(--surface-1))
+  );
+  transform: translateY(-1px);
+}
+
+.mw-tab:hover,
+.mw-tab:focus-visible {
+  color: var(--text-1);
+  border-color: color-mix(in oklab, var(--primary) 46%, transparent);
+  transform: translateY(-1px);
+}
+
+.mw-tab:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.mw-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--mw-gap);
+}
+
+.mw-stat-card {
+  border-radius: var(--mw-card-radius);
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
+  padding: 1.06rem 1.16rem;
+  display: grid;
+  gap: 0.2rem;
+  animation: mwCardRise 340ms var(--easing-bounce, ease) both;
+}
+
+.mw-stat-card--danger {
+  border-color: color-mix(in oklab, var(--danger) 55%, transparent);
+}
+
+.mw-stat-value {
+  margin: 0;
+  font-size: clamp(1.32rem, 2.2vw, 1.8rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mw-stat-label {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-3);
+}
+
+.mw-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(19rem, 1fr);
+  gap: clamp(1rem, 1.3vw, 1.35rem);
+  align-items: start;
+}
+
+.mw-grid--without-projects {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mw-main {
+  min-width: 0;
+  display: grid;
+  gap: var(--mw-gap);
+  align-content: start;
+}
+
+.mw-main-highlight {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.95rem, 1.15vw, 1.2rem);
+  align-items: start;
+}
+
+.mw-aside {
+  min-width: 0;
+  display: grid;
+  gap: var(--mw-gap);
+  align-content: start;
+}
+
+.mw-section {
+  border-radius: var(--mw-card-radius);
+  border: 1px solid var(--border-1);
+  padding: clamp(1.08rem, 1.3vw, 1.26rem);
+  display: grid;
+  gap: 0.94rem;
+  animation: mwCardRise 360ms var(--easing-bounce, ease) both;
+}
+
+.mw-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.mw-section-title {
+  margin: 0;
+  font-size: clamp(1.02rem, 1.35vw, 1.12rem);
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.mw-counter {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--surface-2) 85%, var(--primary-soft) 15%);
+  border: 1px solid color-mix(in oklab, var(--primary) 20%, transparent);
+  color: var(--text-2);
+  font-size: 0.68rem;
+  padding: 0.22rem 0.52rem;
+  white-space: nowrap;
+}
+
+.mw-empty {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.mw-section--deadlines {
+  place-content: start stretch;
+  padding-inline-start: clamp(1.85rem, 3vw, 2.7rem);
+  padding-block-start: clamp(1.18rem, 1.45vw, 1.36rem);
+}
+
+.mw-section--deadlines .mw-section-head {
+  align-self: start;
+}
+
+.mw-section--deadlines .mw-empty,
+.mw-section--deadlines .mw-list {
+  align-self: start;
+  justify-self: stretch;
+  margin-inline-start: clamp(0.2rem, 0.8vw, 0.6rem);
+}
+
+.mw-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.72rem;
+}
+
+.mw-task-item,
+.mw-project-item {
+  border-radius: 0.7rem;
+  border: 1px solid color-mix(in oklab, var(--border-1) 88%, var(--primary) 12%);
+  background: color-mix(in oklab, var(--surface-2) 94%, var(--surface-1) 6%);
+  padding: 0.92rem;
+  transition:
+    transform var(--transition-fast, 140ms) var(--easing-bounce, ease),
+    border-color var(--transition-fast, 140ms) var(--easing-standard, ease),
+    box-shadow var(--transition-fast, 140ms) var(--easing-standard, ease);
+}
+
+.mw-task-item {
+  cursor: pointer;
+}
+
+.mw-task-item:hover,
+.mw-task-item:focus-within,
+.mw-project-item:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in oklab, var(--primary) 46%, transparent);
+  box-shadow: 0 10px 18px color-mix(in oklab, var(--text-1) 8%, transparent);
+}
+
+.mw-task-header,
+.mw-project-head,
+.mw-client-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mw-task-title {
+  margin: 0.42rem 0 0.3rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.mw-task-meta,
+.mw-project-code,
+.mw-client-role {
+  margin: 0;
+  font-size: 0.73rem;
+  color: var(--text-3);
+}
+
+.badge-p {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.35rem;
+  padding: 0.16rem 0.38rem;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.badge-p[data-p="1"] {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.badge-p[data-p="2"] {
+  color: #f97316;
+  background: color-mix(in srgb, #f97316 16%, transparent);
+}
+
+.badge-p[data-p="3"] {
+  color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 16%, transparent);
+}
+
+.mw-status-pill {
+  border-radius: 999px;
+  padding: 0.14rem 0.5rem;
+  font-size: 0.67rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.mw-status-tone-neutral {
+  color: var(--text-2);
+  background: color-mix(in oklab, var(--surface-3) 85%, transparent);
+  border-color: color-mix(in oklab, var(--text-3) 20%, transparent);
+}
+
+.mw-status-tone-info {
+  color: #60a5fa;
+  background: color-mix(in oklab, #60a5fa 16%, transparent);
+  border-color: color-mix(in oklab, #60a5fa 35%, transparent);
+}
+
+.mw-status-tone-warning {
+  color: #f59e0b;
+  background: color-mix(in oklab, #f59e0b 16%, transparent);
+  border-color: color-mix(in oklab, #f59e0b 35%, transparent);
+}
+
+.mw-status-tone-success {
+  color: #22c55e;
+  background: color-mix(in oklab, #22c55e 16%, transparent);
+  border-color: color-mix(in oklab, #22c55e 35%, transparent);
+}
+
+.mw-status-tone-danger {
+  color: var(--danger);
+  background: color-mix(in oklab, var(--danger) 16%, transparent);
+  border-color: color-mix(in oklab, var(--danger) 35%, transparent);
+}
+
+.mw-table-wrapper {
+  overflow: auto;
+  border-radius: 0.72rem;
+  border: 1px solid color-mix(in oklab, var(--border-1) 92%, var(--primary) 8%);
+}
+
+.mw-table {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.mw-table thead th {
+  text-align: left;
+  padding: 0.78rem 0.86rem;
+  color: var(--text-3);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: color-mix(in oklab, var(--surface-2) 94%, var(--surface-1) 6%);
+}
+
+.mw-table tbody td {
+  padding: 0.78rem 0.86rem;
+  border-top: 1px solid color-mix(in oklab, var(--border-1) 84%, transparent);
+  color: var(--text-2);
+}
+
+.mw-table tbody tr {
+  cursor: pointer;
+  transition: background var(--transition-fast, 140ms) var(--easing-standard, ease);
+}
+
+.mw-table tbody tr:hover {
+  background: color-mix(in oklab, var(--primary-soft) 24%, transparent);
+}
+
+.mw-cell-title {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.mw-table-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.72rem;
+  padding-inline: 0.2rem;
+}
+
+.mw-table-pager__summary {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.8rem;
+}
+
+.mw-table-pager__size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-3);
+  font-size: 0.78rem;
+}
+
+.mw-table-pager__select {
+  min-width: 4rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--border-1);
+  background: var(--surface-1);
+  color: var(--text-1);
+  font-size: 0.78rem;
+}
+
+.mw-table-pager__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.mw-table-pager__page {
+  min-width: 7.2rem;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 0.8rem;
+}
+
+.mw-info-card {
+  border: 1px solid color-mix(in oklab, var(--border-1) 88%, transparent);
+  border-radius: 0.72rem;
+  background: color-mix(in oklab, var(--surface-2) 94%, var(--surface-1) 6%);
+  padding: 0.92rem;
+  display: grid;
+  gap: 0.72rem;
+  max-height: 17.5rem;
+  overflow: auto;
+}
+
+.mw-info-title {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-3);
+}
+
+.mw-client-row {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.mw-client-name {
+  font-size: 0.79rem;
+  font-weight: 600;
+}
+
+.mw-client-count {
+  font-size: 0.72rem;
+  color: var(--text-3);
+}
+
+.mw-progress-track {
+  height: 0.32rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--surface-3) 82%, transparent);
+  overflow: hidden;
+}
+
+.mw-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    140deg,
+    var(--primary),
+    color-mix(in oklab, var(--primary-active) 72%, var(--primary))
+  );
+  transition: width var(--transition-mid, 220ms) var(--easing-standard, ease);
+}
+
+.mw-connected-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.mw-connected-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  font-size: 0.75rem;
+}
+
+.mw-project-name {
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.mw-project-status {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.mw-charts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--mw-gap);
+}
+
+.mw-chart-card {
+  padding: clamp(1.08rem, 1.3vw, 1.26rem);
+  border-radius: var(--mw-card-radius);
+  border: 1px solid var(--border-1);
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  animation: mwCardRise 360ms var(--easing-bounce, ease) both;
+}
+
+.mw-chart-card--span-2 {
+  grid-column: span 2;
+}
+
+.mw-chart-body {
+  min-height: 14rem;
+  display: grid;
+  align-content: center;
+}
+
+.mw-chart-body--centered {
+  justify-items: center;
+}
+
+.mw-panel-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mw-async-fallback {
+  min-height: 10.5rem;
+  width: 100%;
+  border: 1px dashed color-mix(in oklab, var(--text-1) 18%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in oklab, var(--surface-2) 86%, var(--surface-1));
+  color: var(--text-3);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.55rem;
+}
+
+.mw-async-fallback--panel {
+  min-height: 12rem;
+  min-width: min(100%, 38rem);
+}
+
+.mw-async-fallback__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid color-mix(in oklab, var(--text-1) 24%, transparent);
+  border-top-color: var(--primary);
+  border-radius: 999px;
+  animation: mwAsyncSpin 0.8s linear infinite;
+}
+
+@supports (animation-timeline: auto) {
+  @starting-style {
+    .mw-page {
+      opacity: 0;
+      transform: translateY(0.8rem);
+    }
+
+    .mw-filter-shell,
+    .mw-stat-card,
+    .mw-section,
+    .mw-chart-card {
+      opacity: 0;
+      transform: translateY(0.65rem) scale(0.985);
+    }
+  }
+}
+
+@keyframes mwPageReveal {
+  from {
+    opacity: 0;
+    transform: translateY(0.8rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mwCardRise {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem) scale(0.986);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mwAsyncSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mwSyncBadgeSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1360px) {
+  .mw-filter-shell {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mw-tabs-group:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .mw-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mw-grid,
+  .mw-grid--without-projects {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mw-main-highlight {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mw-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mw-chart-card--span-2 {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 920px) {
+  .mw-page {
+    padding: 1rem;
+  }
+
+  .mw-filter-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mw-tabs-group:last-child {
+    grid-column: auto;
+  }
+
+  .mw-header {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.72rem;
+    padding-inline: 0.2rem;
+  }
+
+  .mw-filter-shell,
+  .mw-stat-card,
+  .mw-section,
+  .mw-chart-card {
+    padding: 0.96rem;
+  }
+
+  .mw-stats,
+  .mw-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mw-chart-card--span-2 {
+    grid-column: span 1;
+  }
+
+  .mw-table {
+    min-width: 34rem;
+  }
+
+  .mw-section--deadlines {
+    padding-inline-start: 1.08rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-page,
+  .mw-filter-shell,
+  .mw-stat-card,
+  .mw-section,
+  .mw-chart-card,
+  .mw-tab,
+  .mw-task-item,
+  .mw-project-item,
+  .mw-progress-fill {
+    animation: none;
+    transition: none;
+  }
+}

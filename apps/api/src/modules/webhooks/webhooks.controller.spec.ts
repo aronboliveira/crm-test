@@ -93,6 +93,19 @@ describe('WebhooksController', () => {
       expect(result.status).toBe('ok');
     });
 
+    it('should reject non-serializable Nextcloud payloads when signature is required', async () => {
+      process.env.NEXTCLOUD_WEBHOOK_SECRET = 'test-secret';
+      const circular: Record<string, unknown> = { event: 'file_created' };
+      circular.self = circular;
+
+      await expect(
+        controller.handleNextcloudWebhook(circular, 'valid-signature-hash', userId),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(webhooksService.verifySignature).not.toHaveBeenCalled();
+      expect(webhooksService.handleNextcloudWebhook).not.toHaveBeenCalled();
+    });
+
     it('should reject invalid signature', async () => {
       process.env.NEXTCLOUD_WEBHOOK_SECRET = 'test-secret';
       webhooksService.verifySignature.mockReturnValue(false);
@@ -255,6 +268,23 @@ describe('WebhooksController', () => {
         'valid-sig',
         'zimbra-secret',
       );
+    });
+
+    it('should reject non-serializable Zimbra payloads when signature is required', async () => {
+      process.env.ZIMBRA_WEBHOOK_SECRET = 'zimbra-secret';
+      const circular: Record<string, unknown> = {
+        eventType: 'mail.new',
+        data: {},
+        timestamp: '2026-02-10T12:00:00Z',
+      };
+      circular.self = circular;
+
+      await expect(
+        controller.handleZimbraWebhook(circular, 'valid-sig', userId),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(webhooksService.verifySignature).not.toHaveBeenCalled();
+      expect(webhooksService.handleZimbraWebhook).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when userId missing', async () => {

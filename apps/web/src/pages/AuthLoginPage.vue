@@ -2,10 +2,13 @@
 import { useAuthLoginPage } from "../assets/scripts/pages/useAuthLoginPage";
 const { formId, formEl, busy, email, password, submit, passwordVisibility } =
   useAuthLoginPage();
+const bindFormEl = (node: unknown): void => {
+  formEl.value = node instanceof HTMLFormElement ? node : null;
+};
 </script>
 
 <style lang="scss">
-@import "../styles/components/auth-login";
+@use "../styles/components/auth-login";
 </style>
 
 <template>
@@ -19,7 +22,7 @@ const { formId, formEl, busy, email, password, submit, passwordVisibility } =
       </header>
 
       <form
-        ref="formEl"
+        :ref="bindFormEl"
         :id="formId"
         class="auth-form"
         aria-label="Formulário de login"

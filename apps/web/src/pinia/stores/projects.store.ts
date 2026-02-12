@@ -30,14 +30,21 @@ export const useProjectsStore = defineStore("projects", {
       this.prefs = { ...this.prefs, ...(p || {}) };
     },
 
-    async list(args?: Readonly<{ reset?: boolean; q?: string }>) {
+    async list(
+      args?: Readonly<{ reset?: boolean; q?: string; limit?: number }>,
+    ) {
       const reset = !!args?.reset;
 
       this.loading = true;
       this.error = null;
 
       try {
-        const limit = this.prefs?.pageSize || DEFAULT_PREFS.pageSize;
+        const argsLimit =
+          typeof args?.limit === "number" && Number.isFinite(args.limit)
+            ? Math.max(1, Math.trunc(args.limit))
+            : null;
+        const limit =
+          argsLimit ?? (this.prefs?.pageSize || DEFAULT_PREFS.pageSize);
         const cursor = reset ? undefined : this.nextCursor || undefined;
 
         const r = await AdminApiService.projectsList({
@@ -45,7 +52,8 @@ export const useProjectsStore = defineStore("projects", {
           cursor,
           q: args?.q ? String(args.q) : undefined,
         });
-        const items = Array.isArray(r?.items) ? r.items : [];
+        const sourceItems = Array.isArray(r?.items) ? r.items : [];
+        const items = sourceItems.slice(0, limit);
         const nextCursor = r?.nextCursor ? String(r.nextCursor) : null;
 
         const rows = items
@@ -97,11 +105,31 @@ const normalizeProject = (x: any): ProjectRow | null => {
       .toLowerCase() || "unknown@corp.local";
   const status = String(x?.status || "planned").trim() as any;
 
+  const clientId =
+    typeof x?.clientId === "string"
+      ? x.clientId
+      : x?.clientId?.toString?.() || undefined;
   const createdAt = String(x?.createdAt || new Date().toISOString());
   const updatedAt = String(x?.updatedAt || createdAt);
   const dueAt = x?.dueAt ? String(x.dueAt) : null;
+  const deadlineAt = x?.deadlineAt ? String(x.deadlineAt) : null;
+  const tags = Array.isArray(x?.tags) ? x.tags.map(String) : [];
+  const templateKey = x?.templateKey ? String(x.templateKey) : null;
 
-  return { id, code, name, ownerEmail, status, dueAt, createdAt, updatedAt };
+  return {
+    id,
+    code,
+    name,
+    ownerEmail,
+    status,
+    clientId,
+    dueAt,
+    deadlineAt,
+    tags,
+    templateKey,
+    createdAt,
+    updatedAt,
+  };
 };
 
 const normId = (x: any): string => {

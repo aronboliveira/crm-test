@@ -41,9 +41,6 @@ export function useDashboardTasksPage() {
 
   onMounted(async () => {
     try {
-      if (!tasks.rows.length) {
-        await tasks.list({ reset: true });
-      }
       await load(true);
     } catch (e) {
       console.error("[DashboardTasksPage] mount load failed:", e);

@@ -3,14 +3,12 @@ FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files for workspace
 COPY package*.json ./
 COPY apps/web/package*.json ./apps/web/
 
-# Install dependencies
-RUN npm ci && \
-    cd apps/web && \
-    npm ci
+# Install all workspace dependencies
+RUN npm ci
 
 # Development stage
 FROM base AS development

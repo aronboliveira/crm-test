@@ -27,7 +27,7 @@ const colorClasses = {
 </script>
 
 <template>
-  <div class="stat-card card" :class="colorClasses[color]">
+  <div class="stat-card card" :class="colorClasses[color]" :title="title">
     <div class="stat-card__header">
       <span v-if="icon" class="stat-card__icon">{{ icon }}</span>
       <h3 class="stat-card__title">{{ title }}</h3>
@@ -51,15 +51,30 @@ const colorClasses = {
 
 <style scoped>
 .stat-card {
+  position: relative;
   padding: 1.5rem;
-  border-radius: 8px;
-  border-left: 4px solid var(--accent-color, #3b82f6);
+  padding-left: 1.85rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, var(--border-1) 42%, transparent);
+  overflow: hidden;
   transition: all 0.2s;
+}
+
+.stat-card::before {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  top: 0.55rem;
+  bottom: 0.55rem;
+  width: 1.5px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent-color, #3b82f6) 48%, transparent);
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-2);
+  border-color: color-mix(in oklab, var(--accent-color, #3b82f6) 14%, var(--border-1));
 }
 
 .stat-card--blue {
@@ -97,7 +112,7 @@ const colorClasses = {
 .stat-card__title {
   font-size: 0.875rem;
   font-weight: 600;
-  opacity: 0.7;
+  color: var(--text-2);
   text-transform: uppercase;
   letter-spacing: 0.025em;
   margin: 0;
@@ -118,7 +133,7 @@ const colorClasses = {
 
 .stat-card__subtitle {
   font-size: 0.875rem;
-  opacity: 0.6;
+  color: var(--text-3);
   margin: 0;
 }
 

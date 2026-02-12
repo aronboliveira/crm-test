@@ -18,8 +18,10 @@ import { HttpService } from '@nestjs/axios';
 import type {
   IntegrationAdapter,
   IntegrationConfig,
+  IntegrationSyncDataset,
   IntegrationStatus,
 } from '../../types';
+import { IntegrationValueSanitizer } from '../shared/mail-integration.shared';
 import { WhatsAppApiClient } from './whatsapp-api.client';
 import {
   WhatsAppDataMapper,
@@ -43,6 +45,14 @@ import type {
   TemplateUsageLog,
 } from './whatsapp.types';
 
+type WhatsAppSetupFieldState = Readonly<{
+  key: 'accessToken' | 'businessAccountId' | 'phoneNumberId' | 'apiVersion';
+  label: string;
+  required: boolean;
+  present: boolean;
+  note?: string;
+}>;
+
 /**
  * WhatsApp Business Platform Integration Adapter
  *
@@ -55,8 +65,10 @@ import type {
 @Injectable()
 export class WhatsAppAdapter implements IntegrationAdapter {
   private readonly logger = new Logger(WhatsAppAdapter.name);
+  private static readonly DEFAULT_API_VERSION = 'v18.0';
   private config: IntegrationConfig = {};
   private client: WhatsAppApiClient | null = null;
+  private isConnected = false;
   private lastSyncAt?: string;
   private lastError?: string;
 
@@ -73,12 +85,19 @@ export class WhatsAppAdapter implements IntegrationAdapter {
 
   async getStatus(): Promise<IntegrationStatus> {
     const isConfigured = this.isConfigured();
+    const status = !isConfigured
+      ? 'disconnected'
+      : this.lastError
+        ? 'error'
+        : this.isConnected
+          ? 'connected'
+          : 'disconnected';
 
     return {
       id: 'whatsapp',
       name: 'WhatsApp Business',
       type: 'Communication/Analytics',
-      status: isConfigured ? 'disconnected' : 'disconnected',
+      status,
       configured: isConfigured,
       lastSyncAt: this.lastSyncAt,
       lastError: this.lastError,
@@ -100,20 +119,24 @@ export class WhatsAppAdapter implements IntegrationAdapter {
 
     if (!this.isConfigured()) {
       this.lastError = 'Integration not configured';
+      this.isConnected = false;
       return false;
     }
 
     try {
       const success = await this.client!.testConnection();
       if (success) {
+        this.isConnected = true;
         this.lastError = undefined;
         this.logger.log('WhatsApp connection test successful');
       } else {
+        this.isConnected = false;
         this.lastError = 'Connection test failed';
       }
       return success;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.isConnected = false;
       this.lastError = message;
       this.logger.error('WhatsApp connection test failed:', message);
       return false;
@@ -123,17 +146,23 @@ export class WhatsAppAdapter implements IntegrationAdapter {
   async configure(config: IntegrationConfig): Promise<void> {
     this.logger.log('Configuring WhatsApp integration');
 
-    this.config = config;
+    // TODO(user): production setup should inject Meta credentials from a secret manager.
+    this.config = this.normalizeConfig(config);
 
     if (this.isConfigured()) {
       this.client = new WhatsAppApiClient(this.httpService);
       this.client.configure({
-        accessToken: config.accessToken as string,
-        businessAccountId: config.businessAccountId as string,
-        phoneNumberId: config.phoneNumberId as string,
-        apiVersion: config.apiVersion as string,
+        accessToken: this.config.accessToken!,
+        businessAccountId: this.config.businessAccountId!,
+        phoneNumberId: this.config.phoneNumberId,
+        apiVersion: this.config.apiVersion!,
       });
+    } else {
+      this.client = null;
     }
+
+    this.isConnected = false;
+    this.lastError = undefined;
   }
 
   async sync(): Promise<{ success: boolean; message: string }> {
@@ -145,6 +174,7 @@ export class WhatsAppAdapter implements IntegrationAdapter {
 
     try {
       const result = await this.syncTemplates();
+      this.isConnected = true;
       this.lastSyncAt = new Date().toISOString();
       this.lastError = undefined;
       return {
@@ -153,9 +183,122 @@ export class WhatsAppAdapter implements IntegrationAdapter {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.isConnected = false;
       this.lastError = message;
       this.logger.error('Template sync failed:', message);
       return { success: false, message };
+    }
+  }
+
+  async pullSyncSnapshot(): Promise<IntegrationSyncDataset[]> {
+    this.ensureConfigured();
+    try {
+      const result = await this.syncTemplates();
+      const templates = this.getLocalTemplates().map((template) => ({
+        sourceId: template.externalId ?? template.id,
+        templateId: template.id,
+        name: template.name,
+        language: template.language,
+        category: template.category,
+        status: template.status,
+        usageCount: template.usageCount,
+        lastUsedAt: template.lastUsedAt,
+        updatedAt: template.updatedAt,
+      }));
+
+      const usage = this.getUsageStatistics();
+      const usageRecords = usage.mostUsed.map((item) => ({
+        sourceId: item.name,
+        name: item.name,
+        usageCount: item.count,
+        totalTemplates: usage.totalTemplates,
+        totalUsage: usage.totalUsage,
+      }));
+
+      this.isConnected = true;
+      this.lastError = undefined;
+      this.lastSyncAt = new Date().toISOString();
+      this.logger.log(
+        `Prepared WhatsApp sync snapshot: ${result.synced} templates, ${usageRecords.length} usage rows`,
+      );
+
+      return [
+        {
+          recordType: 'whatsapp_templates',
+          externalIdField: 'sourceId',
+          records: templates,
+        },
+        {
+          recordType: 'whatsapp_template_usage',
+          externalIdField: 'sourceId',
+          records: usageRecords,
+        },
+      ];
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.isConnected = false;
+      this.lastError = message;
+      throw error;
+    }
+  }
+
+  async getHealthInfo(): Promise<Record<string, unknown>> {
+    const setup = this.buildSetupChecklist();
+    const missingRequired = setup
+      .filter((item) => item.required && !item.present)
+      .map((item) => item.label);
+    const setupReady = missingRequired.length === 0;
+    const configState = {
+      configured: this.isConfigured(),
+      hasAccessToken: IntegrationValueSanitizer.hasString(this.config.accessToken),
+      hasBusinessAccountId: IntegrationValueSanitizer.hasString(
+        this.config.businessAccountId,
+      ),
+      hasPhoneNumberId: IntegrationValueSanitizer.hasString(this.config.phoneNumberId),
+      apiVersion:
+        IntegrationValueSanitizer.normalizeString(this.config.apiVersion)
+        ?? WhatsAppAdapter.DEFAULT_API_VERSION,
+      localTemplates: this.localTemplates.size,
+      connected: this.isConnected,
+      lastSyncAt: this.lastSyncAt,
+      setup,
+      setupReady,
+      missingRequired,
+    };
+
+    if (!setupReady) {
+      return {
+        ...configState,
+        healthy: false,
+        issues: ['Integration not configured', ...missingRequired],
+        nextStep:
+          'Provide required Meta credentials (Access Token + Business Account ID) and retest the connection.',
+      };
+    }
+
+    try {
+      const business = await this.getBusinessInfo();
+      return {
+        ...configState,
+        healthy: business.healthy,
+        accountName: business.accountName,
+        phoneNumbers: business.phoneNumbers.length,
+        issues: business.issues,
+        nextStep:
+          business.healthy
+            ? 'Connection is healthy. Run sync jobs to refresh templates and analytics datasets.'
+            : 'Fix account issues reported by Meta and retest connectivity.',
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Health metadata fetch failed: ${message}`);
+      return {
+        ...configState,
+        healthy: false,
+        issues: [message],
+        nextStep:
+          'Connection test failed. Confirm Access Token scopes and Business Account ID, then retry.',
+      };
     }
   }
 
@@ -164,7 +307,57 @@ export class WhatsAppAdapter implements IntegrationAdapter {
   // ===========================================================================
 
   private isConfigured(): boolean {
-    return !!(this.config.accessToken && this.config.businessAccountId);
+    return (
+      IntegrationValueSanitizer.hasString(this.config.accessToken)
+      && IntegrationValueSanitizer.hasString(this.config.businessAccountId)
+    );
+  }
+
+  private normalizeConfig(config: IntegrationConfig): IntegrationConfig {
+    return {
+      ...config,
+      accessToken: IntegrationValueSanitizer.normalizeString(config.accessToken),
+      businessAccountId: IntegrationValueSanitizer.normalizeString(
+        config.businessAccountId,
+      ),
+      phoneNumberId: IntegrationValueSanitizer.normalizeString(
+        config.phoneNumberId,
+      ),
+      apiVersion:
+        IntegrationValueSanitizer.normalizeString(config.apiVersion)
+        ?? WhatsAppAdapter.DEFAULT_API_VERSION,
+    };
+  }
+
+  private buildSetupChecklist(): WhatsAppSetupFieldState[] {
+    return [
+      {
+        key: 'accessToken',
+        label: 'Access Token (Meta Graph API)',
+        required: true,
+        present: IntegrationValueSanitizer.hasString(this.config.accessToken),
+      },
+      {
+        key: 'businessAccountId',
+        label: 'WhatsApp Business Account ID',
+        required: true,
+        present: IntegrationValueSanitizer.hasString(this.config.businessAccountId),
+      },
+      {
+        key: 'phoneNumberId',
+        label: 'Phone Number ID',
+        required: false,
+        present: IntegrationValueSanitizer.hasString(this.config.phoneNumberId),
+        note: 'Needed for detailed message analytics.',
+      },
+      {
+        key: 'apiVersion',
+        label: 'Meta Graph API version',
+        required: false,
+        present: IntegrationValueSanitizer.hasString(this.config.apiVersion),
+        note: `Defaults to ${WhatsAppAdapter.DEFAULT_API_VERSION} when omitted.`,
+      },
+    ];
   }
 
   // ===========================================================================

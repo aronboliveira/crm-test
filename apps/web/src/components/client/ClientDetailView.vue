@@ -184,11 +184,12 @@ const mockTasks = computed<Task[]>(() => {
     (p) => p.clientId === props.client.id,
   );
   if (clientProjects.length === 0) return [];
+  const taskStatuses: Task["status"][] = ["todo", "doing", "done", "blocked"];
 
   return clientProjects.slice(0, 3).map((project, i) => ({
     id: `task_${project.id}_${i}`,
     title: `Tarefa relacionada a ${project.name}`,
-    status: (["todo", "doing", "done"] as const)[i % 3],
+    status: taskStatuses[i % taskStatuses.length] ?? "todo",
     priority: ((i % 5) + 1) as 1 | 2 | 3 | 4 | 5,
     createdAt: new Date(
       Date.now() - (i + 1) * 7 * 24 * 60 * 60 * 1000,
@@ -452,6 +453,12 @@ const emailTrendBars = computed(() => {
     color: "#3b82f6",
   }));
 });
+
+const showWhatsAppStub = (number: string) => {
+  window.alert(
+    `Chamada WhatsApp para ${number} — funcionalidade desabilitada nesta versão.`,
+  );
+};
 </script>
 
 <template>
@@ -514,15 +521,18 @@ const emailTrendBars = computed(() => {
             class="info-item whatsapp-info"
           >
             <span class="info-label">WhatsApp:</span>
-            <a
-              :href="`https://wa.me/55${(client.whatsappNumber || client.cellPhone || '').replace(/\D/g, '')}`"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               class="info-value info-link whatsapp-link-detail"
+              @click="
+                showWhatsAppStub(
+                  client.whatsappNumber || client.cellPhone || '',
+                )
+              "
             >
               <span class="whatsapp-icon-detail" aria-hidden="true">💬</span>
               {{ client.whatsappNumber || client.cellPhone }}
-            </a>
+            </button>
             <span
               v-if="client.preferredContact === 'whatsapp'"
               class="preferred-badge"
@@ -723,8 +733,8 @@ const emailTrendBars = computed(() => {
                 {{ project.status }}
               </span>
             </div>
-            <p v-if="project.description" class="project-description">
-              {{ project.description }}
+            <p class="project-description">
+              {{ project.code }} • {{ project.ownerEmail }}
             </p>
           </div>
         </div>

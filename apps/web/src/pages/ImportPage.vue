@@ -1,12 +1,51 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { defineAsyncComponent, ref } from "vue";
 import ApiClientService from "../services/ApiClientService";
 import AlertService from "../services/AlertService";
+import ModalService from "../services/ModalService";
+import type { ImportEntityKind } from "../utils/import";
+
+type ImportCardOption = Readonly<{
+  kind: ImportEntityKind;
+  title: string;
+  description: string;
+  cta: string;
+}>;
+
+const importCards: readonly ImportCardOption[] = [
+  {
+    kind: "clients",
+    title: "Clientes",
+    description:
+      "Importe clientes com validação rígida (tipo, CNPJ e CEP para Empresa).",
+    cta: "Abrir formulário de clientes",
+  },
+  {
+    kind: "projects",
+    title: "Projetos",
+    description:
+      "Importe projetos com status, prazos e tags já na estrutura final do dashboard.",
+    cta: "Abrir formulário de projetos",
+  },
+  {
+    kind: "users",
+    title: "Usuários",
+    description:
+      "Importe usuários com perfil/role e revisão antes de provisionar no sistema.",
+    cta: "Abrir formulário de usuários",
+  },
+];
+
+const ImportEntityModal = defineAsyncComponent(
+  () => import("../components/import/ImportEntityModal.vue"),
+);
 
 const file = ref<File | null>(null);
 const uploading = ref(false);
 const resultMsg = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
+const legacyCollapsed = ref(true);
+const manualImportSummary = ref("");
 
 function onFileChange(ev: Event) {
   const f = (ev.target as HTMLInputElement)?.files?.[0] ?? null;
@@ -14,14 +53,31 @@ function onFileChange(ev: Event) {
   resultMsg.value = "";
 }
 
-async function submit() {
+const openStructuredImport = async (kind: ImportEntityKind) => {
+  const selected = importCards.find((card) => card.kind === kind);
+  const label = selected?.title ?? "Registros";
+  const result = await ModalService.open<{ kind: ImportEntityKind; imported: number }>(
+    ImportEntityModal,
+    {
+      title: `Importar ${label}`,
+      size: "xl",
+      data: { kind },
+    },
+  );
+
+  if (result?.imported) {
+    manualImportSummary.value = `${result.imported} ${label.toLowerCase()} importado(s) com sucesso.`;
+  }
+};
+
+async function submitLegacyFile() {
   if (!file.value) return;
 
   const ext = file.value.name.split(".").pop()?.toLowerCase();
   if (!["csv", "yml", "yaml", "xml"].includes(ext || "")) {
     await AlertService.error(
-      "Formato Inválido",
-      "Somente arquivos .csv, .yml e .xml são suportados.",
+      "Formato inválido",
+      "Somente arquivos .csv, .yml, .yaml e .xml são suportados.",
     );
     return;
   }
@@ -30,14 +86,14 @@ async function submit() {
     uploading.value = true;
     const res = await ApiClientService.import.upload(file.value);
     resultMsg.value = res.message || "Importação concluída.";
-    await AlertService.success("Importação Concluída", resultMsg.value);
+    await AlertService.success("Importação concluída", resultMsg.value);
     file.value = null;
     if (fileInput.value) fileInput.value.value = "";
   } catch (e: any) {
     const msg =
       e?.response?.data?.message || e?.message || "Falha na importação.";
     resultMsg.value = msg;
-    await AlertService.error("Falha na Importação", msg);
+    await AlertService.error("Falha na importação", msg);
   } finally {
     uploading.value = false;
   }
@@ -46,94 +102,100 @@ async function submit() {
 
 <template>
   <section class="import-page" aria-label="Importar Dados">
-    <header class="mb-4">
-      <h1 class="text-xl font-black">Importar</h1>
-      <p class="opacity-70 mt-1">
-        Envie um arquivo CSV, YML ou XML para criar projetos e tarefas em massa.
+    <header class="import-header">
+      <h1 class="import-title">Importar</h1>
+      <p class="import-subtitle">
+        Use formulários guiados com validação estrita, prévia e aprovação interativa
+        antes de gravar no sistema.
       </p>
     </header>
 
-    <div
-      class="card p-4 max-w-xl"
-      role="region"
-      aria-label="Formulário de importação"
-    >
-      <div class="mb-3">
-        <h2 class="font-semibold text-sm mb-1">Formatos esperados</h2>
-        <details class="text-xs opacity-70 mb-2">
-          <summary class="cursor-pointer">CSV</summary>
-          <pre class="mt-1 bg-black/20 p-2 rounded text-xs overflow-x-auto">
-type,name,description,status,priority,dueAt,tags
-project,My Project,Description,planned,3,,frontend;backend
-task,My Task,Task desc,todo,2,2025-09-01,api</pre
-          >
-        </details>
-        <details class="text-xs opacity-70 mb-2">
-          <summary class="cursor-pointer">YML</summary>
-          <pre class="mt-1 bg-black/20 p-2 rounded text-xs overflow-x-auto">
-- type: project
-  name: My Project
-  status: planned
-- type: task
-  name: My Task
-  priority: 2</pre
-          >
-        </details>
-        <details class="text-xs opacity-70">
-          <summary class="cursor-pointer">XML</summary>
-          <pre class="mt-1 bg-black/20 p-2 rounded text-xs overflow-x-auto">
-&lt;items&gt;
-  &lt;item type="project"&gt;&lt;name&gt;My Project&lt;/name&gt;&lt;/item&gt;
-  &lt;item type="task"&gt;&lt;name&gt;My Task&lt;/name&gt;&lt;/item&gt;
-&lt;/items&gt;</pre
-          >
-        </details>
-      </div>
+    <div class="import-cards">
+      <article
+        v-for="card in importCards"
+        :key="card.kind"
+        class="import-card card"
+      >
+        <h2 class="import-card__title">{{ card.title }}</h2>
+        <p class="import-card__description">{{ card.description }}</p>
+        <button
+          class="btn btn-primary btn-sm"
+          :title="card.cta"
+          @click="openStructuredImport(card.kind)"
+        >
+          {{ card.cta }}
+        </button>
+      </article>
+    </div>
 
-      <form @submit.prevent="submit" class="grid gap-3">
+    <p v-if="manualImportSummary" class="import-summary" role="status">
+      {{ manualImportSummary }}
+    </p>
+
+    <section class="legacy-section card" aria-label="Importação por arquivo">
+      <header class="legacy-header">
         <div>
-          <label class="block text-sm font-medium mb-1"
-            >Selecionar arquivo</label
-          >
+          <h2 class="legacy-title">Importação por arquivo (legado)</h2>
+          <p class="legacy-subtitle">
+            Mantido para compatibilidade com o endpoint `/import`.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-sm btn-ghost"
+          :title="legacyCollapsed ? 'Expandir importação por arquivo' : 'Recolher importação por arquivo'"
+          @click="legacyCollapsed = !legacyCollapsed"
+        >
+          {{ legacyCollapsed ? "Expandir" : "Recolher" }}
+        </button>
+      </header>
+
+      <form
+        v-if="!legacyCollapsed"
+        class="legacy-form"
+        novalidate
+        @submit.prevent="submitLegacyFile"
+      >
+        <label class="legacy-label">
+          <span>Selecionar arquivo</span>
           <input
             ref="fileInput"
             type="file"
             accept=".csv,.yml,.yaml,.xml"
             @change="onFileChange"
-            class="text-sm"
           />
-        </div>
+        </label>
 
-        <div v-if="file" class="text-xs opacity-70">
+        <p v-if="file" class="legacy-file">
           {{ file.name }} ({{ (file.size / 1024).toFixed(1) }} KB)
+        </p>
+
+        <div class="legacy-actions">
+          <button
+            type="submit"
+            class="btn btn-primary"
+            :disabled="!file || uploading"
+          >
+            {{ uploading ? "Importando..." : "Importar arquivo" }}
+          </button>
         </div>
 
-        <button
-          type="submit"
-          class="btn btn-primary"
-          :disabled="!file || uploading"
-        >
-          {{ uploading ? "Importando…" : "Importar" }}
-        </button>
-
-        <div
+        <p
           v-if="resultMsg"
-          class="text-sm p-2 rounded"
+          class="legacy-result"
           :class="
-            resultMsg.includes('failed') || resultMsg.includes('Error')
-              ? 'bg-red-500/10 text-red-300'
-              : 'bg-green-500/10 text-green-300'
+            resultMsg.includes('Falha') || resultMsg.includes('Erro')
+              ? 'legacy-result--error'
+              : 'legacy-result--ok'
           "
         >
           {{ resultMsg }}
-        </div>
+        </p>
       </form>
-    </div>
+    </section>
   </section>
 </template>
 
-<style lang="scss" scoped>
-.import-page {
-  padding: 1rem;
-}
+<style scoped lang="scss">
+@use "../styles/pages/import.module";
 </style>

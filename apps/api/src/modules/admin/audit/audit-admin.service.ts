@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MongoRepository } from 'typeorm';
-import { createHash } from 'crypto';
 import AuthAuditEventEntity from '../../../entities/AuthAuditEventEntity';
 import type { PagedResult } from '../../audit/types/audit.types';
 
@@ -12,6 +11,8 @@ type Query = Readonly<{
   q?: string;
   cursor?: string;
   limit?: string;
+  startDate?: string;
+  endDate?: string;
 }>;
 
 @Injectable()
@@ -45,7 +46,16 @@ export default class AuditAdminService {
 
       const cursor =
         typeof query.cursor === 'string' ? query.cursor.trim() : '';
-      cursor ? (where.createdAt = { $lt: cursor }) : void 0;
+      const createdAtFilter: Record<string, string> = {};
+      const startDate = AuditAdminService.normalizeIsoDate(query.startDate);
+      const endDate = AuditAdminService.normalizeIsoDate(query.endDate);
+
+      cursor ? (createdAtFilter.$lt = cursor) : void 0;
+      startDate ? (createdAtFilter.$gte = startDate) : void 0;
+      endDate ? (createdAtFilter.$lte = endDate) : void 0;
+      Object.keys(createdAtFilter).length > 0
+        ? (where.createdAt = createdAtFilter)
+        : void 0;
 
       const qLower = q.toLowerCase();
       const looksEmail =
@@ -95,7 +105,12 @@ export default class AuditAdminService {
     return x < min ? min : x > max ? max : x;
   }
 
-  private static sha256(v: string): string {
-    return createHash('sha256').update(v).digest('hex');
+  private static normalizeIsoDate(v: unknown): string | null {
+    if (typeof v !== 'string') return null;
+    const trimmed = v.trim();
+    if (!trimmed) return null;
+    const parsed = Date.parse(trimmed);
+    if (Number.isNaN(parsed)) return null;
+    return new Date(parsed).toISOString();
   }
 }

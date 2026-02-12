@@ -44,6 +44,7 @@ export default class ProjectsController {
         name: p.name,
         description: p.description,
         status: p.status,
+        clientId: (p as any).clientId || null,
         ownerEmail: (p as any).ownerEmail || null,
         dueAt: (p as any).dueAt || null,
         deadlineAt: (p as any).deadlineAt || null,

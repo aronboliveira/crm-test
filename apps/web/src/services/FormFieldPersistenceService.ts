@@ -1,4 +1,5 @@
 import DOMValidator from "./DOMValidator";
+import SafeJsonService from "./SafeJsonService";
 
 type StorageKind = "session" | "local";
 type PersistMap = Record<string, Record<string, any>>;
@@ -100,7 +101,7 @@ export default class FormFieldPersistenceService {
     try {
       const store = storage === "local" ? localStorage : sessionStorage;
       const raw = store.getItem(FormFieldPersistenceService.#K);
-      const obj = raw ? (JSON.parse(raw) as PersistMap) : {};
+      const obj = SafeJsonService.parseObject(raw, {}) as PersistMap;
       return obj && typeof obj === "object" ? obj : {};
     } catch {
       return {};
@@ -110,7 +111,11 @@ export default class FormFieldPersistenceService {
   static #writeAll(storage: StorageKind, obj: PersistMap): void {
     try {
       const store = storage === "local" ? localStorage : sessionStorage;
-      store.setItem(FormFieldPersistenceService.#K, JSON.stringify(obj || {}));
+      const serialized = SafeJsonService.tryStringify(obj || {});
+      if (!serialized) {
+        return;
+      }
+      store.setItem(FormFieldPersistenceService.#K, serialized);
     } catch {
       void 0;
     }

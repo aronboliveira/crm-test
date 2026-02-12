@@ -140,7 +140,4 @@ const { sections, go } = useAsideMenu();
   }
 }
 
-@supports (position-try: flip-block) {
-  @position-try flip-block;
-}
 </style>

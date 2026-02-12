@@ -22,7 +22,8 @@ function storageKey(field: string): string {
 function loadEntries(field: string): string[] {
   try {
     const raw = localStorage.getItem(storageKey(field));
-    return raw ? JSON.parse(raw) : [];
+    const parsed = SafeJsonService.parse<unknown[]>(raw, []);
+    return parsed.filter((entry): entry is string => typeof entry === "string");
   } catch {
     return [];
   }
@@ -30,10 +31,13 @@ function loadEntries(field: string): string[] {
 
 function saveEntries(field: string, entries: string[]): void {
   try {
-    localStorage.setItem(
-      storageKey(field),
-      JSON.stringify(entries.slice(0, MAX_ENTRIES)),
+    const serialized = SafeJsonService.tryStringify(
+      entries.slice(0, MAX_ENTRIES),
     );
+    if (!serialized) {
+      return;
+    }
+    localStorage.setItem(storageKey(field), serialized);
   } catch {
     /* quota exceeded — silently ignore */
   }
@@ -94,3 +98,4 @@ export default class SmartAutocompleteService {
     }
   }
 }
+import SafeJsonService from "./SafeJsonService";

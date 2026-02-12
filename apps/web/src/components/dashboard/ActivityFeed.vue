@@ -130,14 +130,6 @@ const formatTime = (timestamp: string): string => {
   }
 };
 
-const activityIcons: Record<ActivityItem["type"], string> = {
-  project_created: "folder-plus",
-  task_completed: "check-circle",
-  task_created: "plus-circle",
-  project_updated: "edit",
-  user_joined: "user-plus",
-};
-
 const activityColors: Record<ActivityItem["type"], string> = {
   project_created: "activity--project",
   task_completed: "activity--success",
