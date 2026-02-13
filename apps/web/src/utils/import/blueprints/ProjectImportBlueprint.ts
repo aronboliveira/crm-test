@@ -6,6 +6,7 @@ export type ProjectImportDraft = {
   name: string;
   code: string;
   description: string;
+  notes: string;
   status: "planned" | "active" | "blocked" | "done" | "archived";
   ownerEmail: string;
   dueAt: string;
@@ -17,6 +18,7 @@ export type ProjectImportPayload = Readonly<{
   name: string;
   code?: string;
   description?: string;
+  notes?: string;
   status: "planned" | "active" | "blocked" | "done" | "archived";
   ownerEmail?: string;
   dueAt?: string;
@@ -44,6 +46,7 @@ export class ProjectImportBlueprint extends ImportBlueprint<
       name: "",
       code: "",
       description: "",
+      notes: "",
       status: "planned",
       ownerEmail: "",
       dueAt: "",
@@ -93,6 +96,7 @@ export class ProjectImportBlueprint extends ImportBlueprint<
       name: ImportFieldRules.normalizeText(draft.name),
       code: draft.code.trim().toUpperCase() || undefined,
       description: ImportFieldRules.normalizeText(draft.description) || undefined,
+      notes: ImportFieldRules.normalizeText(draft.notes) || undefined,
       status: PROJECT_STATUS_SET.has(draft.status) ? draft.status : "planned",
       ownerEmail: draft.ownerEmail.trim() || undefined,
       dueAt: draft.dueAt.trim() || undefined,

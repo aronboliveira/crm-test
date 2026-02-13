@@ -70,6 +70,26 @@ describe("ImportSourceIngestionService", () => {
     expect(result.rejected).toHaveLength(1);
   });
 
+  it("supports Markdown table parsing", async () => {
+    const service = new ImportSourceIngestionService();
+    const blueprint = new ProjectImportBlueprint();
+    const file = createFile(
+      "projetos.md",
+      "text/markdown",
+      [
+        "| name | status | owner_email | tags |",
+        "| --- | --- | --- | --- |",
+        "| Projeto Atlas | active | atlas@corp.local | growth,priority |",
+      ].join("\n"),
+    );
+
+    const result = await service.ingest("projects", file, blueprint);
+
+    expect(result.format).toBe("md");
+    expect(result.accepted).toHaveLength(1);
+    expect(result.accepted[0]?.payload.name).toBe("Projeto Atlas");
+  });
+
   it("supports PDF in assisted key:value mode", async () => {
     const service = new ImportSourceIngestionService();
     const blueprint = new UserImportBlueprint();
@@ -149,6 +169,22 @@ describe("ImportSourceIngestionService", () => {
     expect(result.accepted).toHaveLength(1);
     expect(result.accepted[0]?.payload.roleKey).toBe("member");
     expect(result.accepted[0]?.payload.department).toBe("Operações");
+  });
+
+  it("moves unmapped columns to notes when draft supports notes", async () => {
+    const service = new ImportSourceIngestionService();
+    const blueprint = new ProjectImportBlueprint();
+    const file = createFile(
+      "projects-extra.csv",
+      "text/csv",
+      "name,status,owner_email,legacy_phase,legacy_owner\nProjeto Neo,active,neo@corp.local,Fase Delta,Joao",
+    );
+
+    const result = await service.ingest("projects", file, blueprint);
+
+    expect(result.accepted).toHaveLength(1);
+    expect(result.accepted[0]?.payload.notes).toContain("legacy_phase");
+    expect(result.accepted[0]?.payload.notes).toContain("legacy_owner");
   });
 
   it("throws for unsupported file format", async () => {

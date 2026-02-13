@@ -27,6 +27,7 @@ interface CreateUserBody {
   lastName?: unknown;
   phone?: unknown;
   department?: unknown;
+  notes?: unknown;
   roleKey?: unknown;
 }
 
@@ -136,6 +137,11 @@ export default class UserAdminService {
         throw new BadRequestException('Invalid department format');
       }
 
+      const notes = typeof body?.notes === 'string' ? body.notes.trim() : '';
+      if (notes && notes.length > 1200) {
+        throw new BadRequestException('Invalid notes length');
+      }
+
       const exists = await this.usersRepo.findOne({
         where: { email } as any,
       } as any);
@@ -177,6 +183,7 @@ export default class UserAdminService {
         ...(lastName ? { lastName } : {}),
         ...(phone ? { phone } : {}),
         ...(department ? { department } : {}),
+        ...(notes ? { notes } : {}),
       } as any);
 
       const savedUser = u as UserEntity;

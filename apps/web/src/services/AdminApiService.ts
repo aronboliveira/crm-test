@@ -219,7 +219,15 @@ export default class AdminApiService {
   }
 
   static async userCreate(
-    payload: Readonly<{ email: string; roleKey: string }>,
+    payload: Readonly<{
+      email: string;
+      roleKey: string;
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      department?: string;
+      notes?: string;
+    }>,
   ): Promise<{ invite?: { resetUrl?: string; devResetToken?: string } }> {
     try {
       if (!payload || typeof payload !== "object") {

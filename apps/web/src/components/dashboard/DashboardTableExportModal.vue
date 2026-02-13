@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import styles from "./DashboardTableExportModal.module.scss";
 import type { SpreadsheetExportFormat } from "../../utils/export";
+import TableExportPreferencesService from "../../services/TableExportPreferencesService";
 
 type TableExportColumnOption = Readonly<{
   key: string;
@@ -19,6 +20,7 @@ interface Props {
   defaultFormats?: SpreadsheetExportFormat[];
   columnOptions: readonly TableExportColumnOption[];
   defaultColumnKeys?: string[];
+  presetKey?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -35,10 +37,21 @@ const emit = defineEmits<{
 
 const allColumnKeys = computed(() => props.columnOptions.map((column) => column.key));
 
-const selectedFormats = ref<SpreadsheetExportFormat[]>([...props.defaultFormats]);
-const selectedColumnKeys = ref<string[]>(
-  props.defaultColumnKeys.length ? [...props.defaultColumnKeys] : allColumnKeys.value,
-);
+const initialSelection = TableExportPreferencesService.load({
+  presetKey: props.presetKey,
+  availableColumnKeys: allColumnKeys.value,
+  defaultFormats: props.defaultFormats,
+  defaultColumnKeys: props.defaultColumnKeys.length
+    ? props.defaultColumnKeys
+    : allColumnKeys.value,
+});
+
+const selectedFormats = ref<SpreadsheetExportFormat[]>([
+  ...initialSelection.formats,
+]);
+const selectedColumnKeys = ref<string[]>([
+  ...initialSelection.columnKeys,
+]);
 const validationError = ref<string>("");
 
 const selectedSummary = computed(
@@ -89,6 +102,17 @@ const submit = (): void => {
     validationError.value = "Selecione ao menos uma coluna.";
     return;
   }
+
+  TableExportPreferencesService.save({
+    presetKey: props.presetKey,
+    formats: selectedFormats.value,
+    columnKeys: selectedColumnKeys.value,
+    availableColumnKeys: allColumnKeys.value,
+    defaultFormats: props.defaultFormats,
+    defaultColumnKeys: props.defaultColumnKeys.length
+      ? props.defaultColumnKeys
+      : allColumnKeys.value,
+  });
 
   emit("confirm", {
     formats: [...selectedFormats.value],

@@ -35,6 +35,9 @@ const normalizeEmail = (value: unknown): string | undefined => {
   return EMAIL_RE.test(email) ? email : undefined;
 };
 
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const formatCnpj = (value: unknown): string | undefined => {
   if (typeof value !== 'string') return undefined;
   const digits = value.replace(/\D/g, '');
@@ -130,6 +133,19 @@ export class ClientsService {
       }
     }
 
+    const duplicate = await this.findDuplicate({
+      name,
+      type,
+      company: normalizeOptionalString(dto?.company),
+      email: normalizedEmail,
+      cnpj,
+    });
+    if (duplicate) {
+      throw new BadRequestException(
+        'Client already exists. Review name/email/CNPJ before importing.',
+      );
+    }
+
     const now = new Date().toISOString();
     const id = new ObjectId().toHexString();
 
@@ -177,6 +193,49 @@ export class ClientsService {
       createdAt: now,
       updatedAt: now,
     } as any);
+  }
+
+  private async findDuplicate(input: {
+    name: string;
+    type: NormalizedClientType;
+    company?: string;
+    email?: string;
+    cnpj?: string;
+  }): Promise<ClientEntity | null> {
+    if (input.cnpj) {
+      const existingByCnpj = (await this.repo.findOne({
+        where: { cnpj: input.cnpj } as any,
+      })) as ClientEntity | null;
+      if (existingByCnpj) return existingByCnpj;
+    }
+
+    if (input.email) {
+      const existingByEmail = (await this.repo.findOne({
+        where: {
+          email: {
+            $regex: new RegExp(`^${escapeRegex(input.email)}$`, 'i'),
+          },
+        } as any,
+      })) as ClientEntity | null;
+      if (existingByEmail) return existingByEmail;
+    }
+
+    const where: Record<string, unknown> = {
+      name: {
+        $regex: new RegExp(`^${escapeRegex(input.name)}$`, 'i'),
+      },
+      type: input.type,
+    };
+    if (input.company) {
+      where['company'] = {
+        $regex: new RegExp(`^${escapeRegex(input.company)}$`, 'i'),
+      };
+    }
+
+    const existingByIdentity = (await this.repo.findOne({
+      where: where as any,
+    })) as ClientEntity | null;
+    return existingByIdentity;
   }
 
   async update(id: string, dto: any): Promise<ClientEntity> {

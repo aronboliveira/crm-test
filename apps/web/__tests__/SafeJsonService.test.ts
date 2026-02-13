@@ -19,6 +19,19 @@ describe("SafeJsonService", () => {
     });
   });
 
+  it("parses arrays and coerces object/array values", () => {
+    expect(SafeJsonService.parseArray<string>('["a","b"]')).toEqual(["a", "b"]);
+    expect(SafeJsonService.parseArray<string>('{"x":1}', ["fallback"])).toEqual([
+      "fallback",
+    ]);
+    expect(SafeJsonService.asObject({ x: 1 })).toEqual({ x: 1 });
+    expect(SafeJsonService.asObject(["x"], { fallback: true })).toEqual({
+      fallback: true,
+    });
+    expect(SafeJsonService.asArray(["x"])).toEqual(["x"]);
+    expect(SafeJsonService.asArray("x", ["fallback"])).toEqual(["fallback"]);
+  });
+
   it("stringifies safely", () => {
     expect(SafeJsonService.stringify({ k: "v" })).toBe('{"k":"v"}');
     expect(SafeJsonService.stringify({ k: "v" }, "{}", 2)).toBe(

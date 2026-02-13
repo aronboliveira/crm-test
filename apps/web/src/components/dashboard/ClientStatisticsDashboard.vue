@@ -435,6 +435,8 @@ const conversionBars = computed(() =>
               :horizontal="false"
               :max-bar-width="60"
               :show-axis-labels="true"
+              :show-trend-line="true"
+              trend-line-color="#86efac"
             />
           </div>
           <div v-else class="chart-empty">
@@ -450,6 +452,8 @@ const conversionBars = computed(() =>
               :horizontal="false"
               :max-bar-width="60"
               :show-axis-labels="true"
+              :show-trend-line="true"
+              trend-line-color="#c4b5fd"
             />
           </div>
           <div v-else class="chart-empty">
@@ -465,6 +469,8 @@ const conversionBars = computed(() =>
               :horizontal="false"
               :max-bar-width="60"
               :show-axis-labels="true"
+              :show-trend-line="true"
+              trend-line-color="#67e8f9"
             />
           </div>
           <div v-else class="chart-empty">

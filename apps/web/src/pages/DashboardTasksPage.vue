@@ -6,6 +6,7 @@ import ModalService from "../services/ModalService";
 import ApiClientService from "../services/ApiClientService";
 import AlertService from "../services/AlertService";
 import StorageService from "../services/StorageService";
+import TableExportFlowOrchestrator from "../services/TableExportFlowOrchestrator";
 import type { TaskRow } from "../pinia/types/tasks.types";
 import type { FilterState } from "../components/ui/AdvancedFilter.vue";
 import {
@@ -170,6 +171,7 @@ const tasksExporter = new SpreadsheetExporter<
     return null;
   },
 });
+const exportFlow = new TableExportFlowOrchestrator("DashboardTasksPage");
 
 const mapTaskStatusLabel = (status: string): string => {
   return (TASK_STATUS_LABEL_BY_ID[status] ?? status) || TASKS_EMPTY_VALUE_LABEL;
@@ -199,6 +201,7 @@ const openExportDialog =
         title: "Exportar Tarefas",
         size: "md",
         data: {
+          presetKey: "dashboard.tasks",
           totalRows: filteredRows.value.length,
           entityLabel: "tarefa(s)",
           columnOptions: DASHBOARD_TASKS_EXPORT_COLUMNS,
@@ -209,32 +212,16 @@ const openExportDialog =
     );
 
 const handleOpenExportModal = async (): Promise<void> => {
-  try {
-    const selection = await openExportDialog();
-    if (!selection) return;
-
-    const records = taskExportRows.value;
-    if (!records.length) {
-      await AlertService.error(
-        "Exportação",
-        "Não há tarefas para exportar com os filtros selecionados.",
-      );
-      return;
-    }
-
-    const exportedFormats = await tasksExporter.export(records, {
-      formats: selection.formats,
-      columnKeys: selection.columnKeys as DashboardTasksExportColumnKey[],
-    });
-
-    await AlertService.success(
-      "Exportação concluída",
-      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
-    );
-  } catch (caughtError) {
-    console.error("[DashboardTasksPage] Export failed:", caughtError);
-    await AlertService.error("Erro ao exportar", caughtError);
-  }
+  await exportFlow.execute({
+    openDialog: openExportDialog,
+    emptyStateMessage: "Não há tarefas para exportar com os filtros selecionados.",
+    buildRecords: () => taskExportRows.value,
+    exportRecords: async (records, selection) =>
+      tasksExporter.export(records, {
+        formats: selection.formats,
+        columnKeys: selection.columnKeys as DashboardTasksExportColumnKey[],
+      }),
+  });
 };
 
 /* ── CRUD actions ───────────────────────────────────── */

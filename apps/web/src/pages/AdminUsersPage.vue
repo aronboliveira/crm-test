@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useAdminUsersPage } from "../assets/scripts/pages/useAdminUsersPage";
 import { usePolicyStore } from "../pinia/stores/policy.store";
 import AdminUserDetailsDrawer from "../components/admin/AdminUserDetailsDrawer.vue";
 import CreateUserModal from "../components/admin/CreateUserModal.vue";
+import AdminApiService from "../services/AdminApiService";
 import ModalService from "../services/ModalService";
-import AlertService from "../services/AlertService";
+import AdminUsersQueryStateService from "../services/AdminUsersQueryStateService";
+import TableExportFlowOrchestrator from "../services/TableExportFlowOrchestrator";
 import {
   ADMIN_USERS_EXPORT_CENTERED_COLUMNS,
   ADMIN_USERS_EXPORT_COLUMNS,
@@ -39,9 +42,12 @@ const {
 
 const policy = usePolicyStore();
 const isAdmin = computed(() => policy.can("admin.full"));
+const route = useRoute();
+const router = useRouter();
 const DashboardTableExportModal = defineAsyncComponent(
   () => import("../components/dashboard/DashboardTableExportModal.vue"),
 );
+let hydratingFromRoute = false;
 
 const roleLabels: Record<string, string> = {
   viewer: "Visualizador",
@@ -81,6 +87,8 @@ type DashboardTableExportDialogResult = {
 const DEFAULT_EXPORT_COLUMN_KEYS = [
   ...ADMIN_USERS_EXPORT_COLUMN_KEYS,
 ] as AdminUsersExportColumnKey[];
+const EXPORT_FETCH_LIMIT = 200;
+const EXPORT_MAX_PAGES = 100;
 
 const usersExporter = new SpreadsheetExporter<
   AdminUsersExportRow,
@@ -113,6 +121,7 @@ const usersExporter = new SpreadsheetExporter<
     return null;
   },
 });
+const exportFlow = new TableExportFlowOrchestrator("AdminUsersPage");
 
 const visibleExportColumns = computed(() =>
   ADMIN_USERS_EXPORT_COLUMNS.filter((column) => {
@@ -125,8 +134,10 @@ const defaultVisibleExportKeys = computed(
   () => visibleExportColumns.value.map((column) => column.key),
 );
 
-const buildUsersExportRows = (): AdminUsersExportRow[] =>
-  rows.value
+const buildUsersExportRows = (
+  sourceRows: readonly AdminUserRow[] = rows.value,
+): AdminUsersExportRow[] =>
+  sourceRows
     .filter((user): user is AdminUserRow => !!user)
     .map((user) => ({
       nome: displayName(user),
@@ -138,6 +149,34 @@ const buildUsersExportRows = (): AdminUsersExportRow[] =>
       bloqueado: user.lockedAt ? "Sim" : "Não",
     }));
 
+const fetchAllFilteredRowsForExport = async (): Promise<AdminUserRow[]> => {
+  const deduped = new Map<string, AdminUserRow>();
+  let cursor: string | undefined;
+
+  for (let page = 0; page < EXPORT_MAX_PAGES; page += 1) {
+    const response = await AdminApiService.usersList({
+      q: st.value.q.trim() || undefined,
+      roleKey: st.value.roleKey.trim() || undefined,
+      cursor,
+      limit: EXPORT_FETCH_LIMIT,
+    });
+
+    const pageRows = Array.isArray(response?.items) ? response.items : [];
+    if (!pageRows.length) break;
+
+    pageRows.forEach((row) => {
+      if (!row?.id) return;
+      deduped.set(String(row.id), row);
+    });
+
+    const next = String(response?.nextCursor || "").trim();
+    if (!next) break;
+    cursor = next;
+  }
+
+  return [...deduped.values()];
+};
+
 const openExportDialog =
   async (): Promise<DashboardTableExportDialogResult | null> =>
     ModalService.open<DashboardTableExportDialogResult>(
@@ -146,6 +185,7 @@ const openExportDialog =
         title: "Exportar Usuários",
         size: "md",
         data: {
+          presetKey: "admin.users",
           totalRows: rows.value.length,
           entityLabel: "usuário(s)",
           columnOptions: visibleExportColumns.value,
@@ -156,30 +196,73 @@ const openExportDialog =
     );
 
 const handleOpenExportModal = async (): Promise<void> => {
-  try {
-    const selection = await openExportDialog();
-    if (!selection) return;
-
-    const records = buildUsersExportRows();
-    if (!records.length) {
-      await AlertService.error("Exportação", "Não há usuários para exportar.");
-      return;
-    }
-
-    const exportedFormats = await usersExporter.export(records, {
-      formats: selection.formats,
-      columnKeys: selection.columnKeys as AdminUsersExportColumnKey[],
-    });
-
-    await AlertService.success(
-      "Exportação concluída",
-      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
-    );
-  } catch (caughtError) {
-    console.error("[AdminUsersPage] Export failed:", caughtError);
-    await AlertService.error("Erro ao exportar", caughtError);
-  }
+  await exportFlow.execute({
+    openDialog: openExportDialog,
+    emptyStateMessage: "Não há usuários para exportar.",
+    buildRecords: async () => buildUsersExportRows(await fetchAllFilteredRowsForExport()),
+    exportRecords: async (records, selection) =>
+      usersExporter.export(records, {
+        formats: selection.formats,
+        columnKeys: selection.columnKeys as AdminUsersExportColumnKey[],
+      }),
+  });
 };
+
+const buildRouteState = () => ({
+  q: String(st.value.q || "").trim(),
+  roleKey: String(st.value.roleKey || "").trim(),
+});
+
+const applyRouteState = (query: typeof route.query): boolean => {
+  const parsed = AdminUsersQueryStateService.fromQuery(query);
+  const hasChanges =
+    parsed.q !== String(st.value.q || "").trim() ||
+    parsed.roleKey !== String(st.value.roleKey || "").trim();
+
+  if (!hasChanges) return false;
+
+  hydratingFromRoute = true;
+  st.value.q = parsed.q;
+  st.value.roleKey = parsed.roleKey;
+  hydratingFromRoute = false;
+  return true;
+};
+
+const syncRouteQuery = (): void => {
+  if (hydratingFromRoute) return;
+  const nextState = buildRouteState();
+  if (AdminUsersQueryStateService.isSameState(route.query, nextState)) {
+    return;
+  }
+  void router
+    .replace({ query: AdminUsersQueryStateService.toQuery(nextState) })
+    .catch((caughtError) => {
+      console.error("[AdminUsersPage] route sync failed:", caughtError);
+    });
+};
+
+applyRouteState(route.query);
+
+watch(
+  [() => st.value.q, () => st.value.roleKey],
+  () => {
+    syncRouteQuery();
+  },
+);
+
+watch(
+  () => route.query,
+  (query) => {
+    const changed = applyRouteState(query);
+    if (changed) {
+      void load(true);
+    }
+  },
+);
+
+onMounted(() => {
+  syncRouteQuery();
+});
 </script>
 
 <template>

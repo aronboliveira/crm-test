@@ -176,36 +176,61 @@ export class ClientTimelineCalculator implements IStatisticsCalculator<
 > {
   calculate(input: { clients: ClientRow[] }): ClientTimelineData[] {
     const { clients } = input;
+    if (clients.length === 0) {
+      return [];
+    }
 
-    // Group by month
+    const validClientDates = clients
+      .map((client) => new Date(client.createdAt))
+      .filter((date) => !Number.isNaN(date.getTime()))
+      .sort((a, b) => a.getTime() - b.getTime());
+
+    if (validClientDates.length === 0) {
+      return [];
+    }
+
+    const toMonthKey = (date: Date): string =>
+      `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+
     const monthMap = new Map<string, number>();
-    const sortedClients = [...clients].sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    );
-
-    let runningTotal = 0;
-    sortedClients.forEach((client) => {
-      const date = new Date(client.createdAt);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    validClientDates.forEach((date) => {
+      const monthKey = toMonthKey(date);
       monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + 1);
     });
 
-    // Build timeline with cumulative totals
-    const timeline: ClientTimelineData[] = [];
-    const sortedMonths = Array.from(monthMap.keys()).sort();
+    const latestClientDate = validClientDates[validClientDates.length - 1]!;
+    const now = new Date();
+    const anchorDate =
+      latestClientDate.getTime() > now.getTime() ? latestClientDate : now;
 
-    sortedMonths.forEach((month) => {
-      runningTotal += monthMap.get(month) || 0;
+    const windowStart = new Date(
+      Date.UTC(anchorDate.getUTCFullYear(), anchorDate.getUTCMonth() - 11, 1),
+    );
+    const clientsBeforeWindow = validClientDates.filter(
+      (date) => date.getTime() < windowStart.getTime(),
+    ).length;
+
+    const timeline: ClientTimelineData[] = [];
+    let runningTotal = clientsBeforeWindow;
+    for (let offset = 0; offset < 12; offset++) {
+      const monthDate = new Date(
+        Date.UTC(
+          windowStart.getUTCFullYear(),
+          windowStart.getUTCMonth() + offset,
+          1,
+        ),
+      );
+      const month = toMonthKey(monthDate);
+      const newClients = monthMap.get(month) || 0;
+      runningTotal += newClients;
       timeline.push({
         month,
-        newClients: monthMap.get(month) || 0,
+        newClients,
         totalClients: runningTotal,
       });
-    });
+    }
 
-    // Return last 12 months
-    return timeline.slice(-12);
+    return timeline;
   }
 }
 

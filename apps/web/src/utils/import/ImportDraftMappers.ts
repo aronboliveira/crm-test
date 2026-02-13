@@ -7,6 +7,12 @@ import type { ImportEntityKind } from "./ImportTypes";
 export type ImportDraftMappingResult<TDraft> = Readonly<{
   draft: TDraft;
   matchedFieldCount: number;
+  unmappedEntries: readonly ImportUnmappedEntry[];
+}>;
+
+export type ImportUnmappedEntry = Readonly<{
+  key: string;
+  value: string;
 }>;
 
 interface ImportDraftMapper<TDraft> {
@@ -32,6 +38,7 @@ const normalizeKey = (value: string): string =>
 
 class NormalizedRecordReader {
   private readonly values = new Map<string, string>();
+  private readonly originalKeyByNormalized = new Map<string, string>();
   private readonly matched = new Set<string>();
 
   constructor(record: ImportRawRecord) {
@@ -39,6 +46,7 @@ class NormalizedRecordReader {
       const normalized = normalizeKey(String(key));
       if (!normalized || this.values.has(normalized)) return;
       this.values.set(normalized, String(value ?? "").trim());
+      this.originalKeyByNormalized.set(normalized, String(key).trim() || normalized);
     });
   }
 
@@ -56,6 +64,18 @@ class NormalizedRecordReader {
 
   getMatchedFieldCount(): number {
     return this.matched.size;
+  }
+
+  listUnmappedEntries(): readonly ImportUnmappedEntry[] {
+    const entries: ImportUnmappedEntry[] = [];
+    this.values.forEach((value, normalizedKey) => {
+      if (!value || this.matched.has(normalizedKey)) return;
+      entries.push({
+        key: this.originalKeyByNormalized.get(normalizedKey) ?? normalizedKey,
+        value,
+      });
+    });
+    return entries;
   }
 }
 
@@ -122,6 +142,7 @@ class ClientImportDraftMapper implements ImportDraftMapper<ClientImportDraft> {
     return {
       draft,
       matchedFieldCount: reader.getMatchedFieldCount(),
+      unmappedEntries: reader.listUnmappedEntries(),
     };
   }
 
@@ -163,6 +184,14 @@ class ProjectImportDraftMapper implements ImportDraftMapper<ProjectImportDraft> 
       name: reader.pick("name", "nome", "project", "projeto"),
       code: reader.pick("code", "codigo", "project_code", "projectid"),
       description: reader.pick("description", "descricao", "detalhes"),
+      notes: reader.pick(
+        "notes",
+        "notas",
+        "observacao",
+        "observacoes",
+        "comments",
+        "comentarios",
+      ),
       status: this.resolveStatus(
         reader.pick("status", "estado", "situacao", "stage"),
       ),
@@ -185,6 +214,7 @@ class ProjectImportDraftMapper implements ImportDraftMapper<ProjectImportDraft> 
     return {
       draft,
       matchedFieldCount: reader.getMatchedFieldCount(),
+      unmappedEntries: reader.listUnmappedEntries(),
     };
   }
 
@@ -236,11 +266,20 @@ class UserImportDraftMapper implements ImportDraftMapper<UserImportDraft> {
       ),
       phone: reader.pick("phone", "telefone", "tel"),
       department: reader.pick("department", "departamento", "team", "equipe"),
+      notes: reader.pick(
+        "notes",
+        "notas",
+        "observacao",
+        "observacoes",
+        "comments",
+        "comentarios",
+      ),
     };
 
     return {
       draft,
       matchedFieldCount: reader.getMatchedFieldCount(),
+      unmappedEntries: reader.listUnmappedEntries(),
     };
   }
 

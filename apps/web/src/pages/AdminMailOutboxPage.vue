@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { defineAsyncComponent } from "vue";
+import { defineAsyncComponent, onMounted, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { useAdminMailOutboxPage } from "../assets/scripts/pages/useAdminMailOutboxPage";
+import AdminApiService, { type MailOutboxItem } from "../services/AdminApiService";
 import SafeJsonService from "../services/SafeJsonService";
 import ModalService from "../services/ModalService";
-import AlertService from "../services/AlertService";
-import type { MailOutboxItem } from "../services/AdminApiService";
+import AdminMailOutboxQueryStateService from "../services/AdminMailOutboxQueryStateService";
+import TableExportFlowOrchestrator from "../services/TableExportFlowOrchestrator";
 import {
   ADMIN_MAIL_OUTBOX_EXPORT_CENTERED_COLUMNS,
   ADMIN_MAIL_OUTBOX_EXPORT_COLUMNS,
@@ -23,6 +25,9 @@ const formatMeta = (meta: unknown): string =>
 const DashboardTableExportModal = defineAsyncComponent(
   () => import("../components/dashboard/DashboardTableExportModal.vue"),
 );
+const route = useRoute();
+const router = useRouter();
+let hydratingFromRoute = false;
 
 const {
   st,
@@ -46,6 +51,8 @@ type DashboardTableExportDialogResult = {
 const DEFAULT_EXPORT_COLUMN_KEYS = [
   ...ADMIN_MAIL_OUTBOX_EXPORT_COLUMN_KEYS,
 ] as AdminMailOutboxExportColumnKey[];
+const EXPORT_FETCH_LIMIT = 200;
+const EXPORT_MAX_PAGES = 100;
 
 const outboxExporter = new SpreadsheetExporter<
   AdminMailOutboxExportRow,
@@ -71,9 +78,12 @@ const outboxExporter = new SpreadsheetExporter<
     return null;
   },
 });
+const exportFlow = new TableExportFlowOrchestrator("AdminMailOutboxPage");
 
-const buildOutboxExportRows = (): AdminMailOutboxExportRow[] =>
-  items.value
+const buildOutboxExportRows = (
+  sourceRows: readonly MailOutboxItem[] = items.value,
+): AdminMailOutboxExportRow[] =>
+  sourceRows
     .filter((item): item is MailOutboxItem => !!item)
     .map((item) => ({
       data: DateMapper.fmtIso(item.createdAt) || "—",
@@ -84,6 +94,71 @@ const buildOutboxExportRows = (): AdminMailOutboxExportRow[] =>
       meta: item.meta ? formatMeta(item.meta) : "—",
     }));
 
+const buildRouteState = () => ({
+  q: String(st.q || "").trim(),
+  kind: String(st.kind || "").trim(),
+});
+
+const applyRouteState = (query: typeof route.query): boolean => {
+  const parsed = AdminMailOutboxQueryStateService.fromQuery(query);
+  const hasChanges =
+    parsed.q !== String(st.q || "").trim() ||
+    parsed.kind !== String(st.kind || "").trim();
+
+  if (!hasChanges) return false;
+
+  hydratingFromRoute = true;
+  st.q = parsed.q;
+  st.kind = parsed.kind;
+  st.cursor = "";
+  hydratingFromRoute = false;
+  return true;
+};
+
+const syncRouteQuery = (): void => {
+  if (hydratingFromRoute) return;
+  const nextState = buildRouteState();
+  if (AdminMailOutboxQueryStateService.isSameState(route.query, nextState)) {
+    return;
+  }
+  void router
+    .replace({ query: AdminMailOutboxQueryStateService.toQuery(nextState) })
+    .catch((caughtError) => {
+      console.error("[AdminMailOutboxPage] route sync failed:", caughtError);
+    });
+};
+
+const fetchAllFilteredRowsForExport = async (): Promise<MailOutboxItem[]> => {
+  const deduped = new Map<string, MailOutboxItem>();
+  let cursor: string | undefined;
+
+  for (let page = 0; page < EXPORT_MAX_PAGES; page += 1) {
+    const response = await AdminApiService.mailOutboxList({
+      q: st.q || undefined,
+      kind: st.kind || undefined,
+      cursor,
+      limit: EXPORT_FETCH_LIMIT,
+    });
+
+    const rows = Array.isArray(response?.items) ? response.items : [];
+    if (!rows.length) break;
+
+    rows.forEach((row, rowIndex) => {
+      const id = String(
+        row?._id ||
+          `${row?.createdAt || ""}-${row?.to || ""}-${row?.subject || ""}-${rowIndex}`,
+      );
+      deduped.set(id, row);
+    });
+
+    const next = String(response?.nextCursor || "").trim();
+    if (!next) break;
+    cursor = next;
+  }
+
+  return [...deduped.values()];
+};
+
 const openExportDialog =
   async (): Promise<DashboardTableExportDialogResult | null> =>
     ModalService.open<DashboardTableExportDialogResult>(
@@ -92,6 +167,7 @@ const openExportDialog =
         title: "Exportar Caixa de Saída",
         size: "md",
         data: {
+          presetKey: "admin.mail-outbox",
           totalRows: items.value.length,
           entityLabel: "mensagem(ns)",
           columnOptions: ADMIN_MAIL_OUTBOX_EXPORT_COLUMNS,
@@ -102,33 +178,40 @@ const openExportDialog =
     );
 
 const handleOpenExportModal = async (): Promise<void> => {
-  try {
-    const selection = await openExportDialog();
-    if (!selection) return;
-
-    const records = buildOutboxExportRows();
-    if (!records.length) {
-      await AlertService.error(
-        "Exportação",
-        "Não há mensagens na caixa de saída para exportar.",
-      );
-      return;
-    }
-
-    const exportedFormats = await outboxExporter.export(records, {
-      formats: selection.formats,
-      columnKeys: selection.columnKeys as AdminMailOutboxExportColumnKey[],
-    });
-
-    await AlertService.success(
-      "Exportação concluída",
-      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
-    );
-  } catch (caughtError) {
-    console.error("[AdminMailOutboxPage] Export failed:", caughtError);
-    await AlertService.error("Erro ao exportar", caughtError);
-  }
+  await exportFlow.execute({
+    openDialog: openExportDialog,
+    emptyStateMessage: "Não há mensagens na caixa de saída para exportar.",
+    buildRecords: async () => buildOutboxExportRows(await fetchAllFilteredRowsForExport()),
+    exportRecords: async (records, selection) =>
+      outboxExporter.export(records, {
+        formats: selection.formats,
+        columnKeys: selection.columnKeys as AdminMailOutboxExportColumnKey[],
+      }),
+  });
 };
+
+applyRouteState(route.query);
+
+watch(
+  [() => st.q, () => st.kind],
+  () => {
+    syncRouteQuery();
+  },
+);
+
+watch(
+  () => route.query,
+  (query) => {
+    const changed = applyRouteState(query);
+    if (changed) {
+      void load(true);
+    }
+  },
+);
+
+onMounted(() => {
+  syncRouteQuery();
+});
 </script>
 
 <template>

@@ -4,6 +4,7 @@ import styles from "./ImportEntityModal.module.scss";
 import AlertService from "../../services/AlertService";
 import SmartAutocompleteService from "../../services/SmartAutocompleteService";
 import ApiClientService, {
+  type ImportFieldSuggestionsItem,
   type ImportSourceProfile,
   type ImportTemplateRecord,
 } from "../../services/ApiClientService";
@@ -19,6 +20,7 @@ import {
   ImportExecutionService,
   ImportFieldCatalog,
   ImportFieldRules,
+  ImportInputSuggestionService,
   ImportPersonalizationService,
   ImportSourceIngestionService,
   type ClientImportDraft,
@@ -121,6 +123,9 @@ const templateNameSuggestions = ref<string[]>([]);
 const sourceProfiles = ref<ImportSourceProfile[]>([]);
 const selectedProfileKey = ref("");
 const templateDiffPreview = ref<TemplateDiffPreview | null>(null);
+const fieldSuggestions = ref<Record<string, readonly { value: string; score: number }[]>>(
+  {},
+);
 
 const roleOptions: readonly UserRoleKey[] = [
   "admin",
@@ -139,6 +144,24 @@ const clientTypeOptions = [
   { value: "pessoa", label: "Pessoa" },
   { value: "empresa", label: "Empresa" },
 ] as const;
+
+const inputIconByField: Readonly<Record<string, string | undefined>> = {
+  name: styles.iconPerson,
+  type: styles.iconBriefcase,
+  company: styles.iconBuilding,
+  email: styles.iconEnvelope,
+  cnpj: styles.iconHash,
+  cep: styles.iconGeo,
+  phone: styles.iconPhone,
+  cellPhone: styles.iconPhone,
+  whatsappNumber: styles.iconChat,
+  code: styles.iconHash,
+  ownerEmail: styles.iconBriefcase,
+  tags: styles.iconHash,
+  firstName: styles.iconPerson,
+  lastName: styles.iconPerson,
+  department: styles.iconBriefcase,
+};
 
 const approvedRows = computed(() =>
   previewRows.value.filter((row) => row.approved && row.status !== "success"),
@@ -211,6 +234,7 @@ const normalizeDraft = (): void => {
     current.name = ImportFieldRules.normalizeText(current.name);
     current.code = current.code.trim().toUpperCase();
     current.description = ImportFieldRules.normalizeText(current.description);
+    current.notes = ImportFieldRules.normalizeText(current.notes);
     current.ownerEmail = current.ownerEmail.trim();
     current.tags = current.tags.trim();
     return;
@@ -222,6 +246,7 @@ const normalizeDraft = (): void => {
   current.lastName = ImportFieldRules.normalizeText(current.lastName);
   current.phone = ImportFieldRules.normalizePhone(current.phone);
   current.department = ImportFieldRules.normalizeText(current.department);
+  current.notes = ImportFieldRules.normalizeText(current.notes);
 };
 
 const refreshSyncErrors = (): void => {
@@ -476,15 +501,15 @@ const refreshSourceProfiles = async (): Promise<void> => {
 
 const refreshTemplateNameSuggestions = (): void => {
   const query = templateNameInput.value.trim().toLowerCase();
-  const fromHistory = templateNameAutocomplete.suggest(templateNameInput.value, 8);
+  const fromHistory = templateNameAutocomplete.suggest(templateNameInput.value);
   const fromTemplates = savedTemplates.value
     .map((template) => template.name)
     .filter((name) => !query || name.toLowerCase().includes(query))
-    .slice(0, 8);
+    .slice(0, 5);
   const merged = [...fromTemplates, ...fromHistory].filter(
     (name, index, names) => names.indexOf(name) === index,
   );
-  templateNameSuggestions.value = merged.slice(0, 8);
+  templateNameSuggestions.value = merged.slice(0, 5);
 };
 
 const applyProfile = (profile: ImportSourceProfile): void => {
@@ -706,6 +731,30 @@ const getAutofillOptions = (
   return [];
 };
 
+const datalistIdForField = (field: string): string =>
+  `import-field-suggestions-${props.kind}-${field}`;
+
+const inputIconClass = (field: string): string =>
+  inputIconByField[field] ?? styles.iconFolder ?? "";
+
+const resolveInputSuggestions = (field: string, query: string): string[] => {
+  const suggestions = fieldSuggestions.value[field] ?? [];
+  return ImportInputSuggestionService.rankValues(suggestions, query, 5);
+};
+
+const refreshFieldSuggestions = async (): Promise<void> => {
+  try {
+    const response = await ApiClientService.import.listFieldSuggestions(props.kind, {
+      limit: 5,
+    });
+    fieldSuggestions.value = ImportInputSuggestionService.toFieldMap(
+      (response.items ?? []) as ImportFieldSuggestionsItem[],
+    ) as Record<string, readonly { value: string; score: number }[]>;
+  } catch {
+    fieldSuggestions.value = {};
+  }
+};
+
 const onTemplateNameInput = (): void => {
   refreshTemplateNameSuggestions();
   const typedName = templateNameInput.value.trim().toLowerCase();
@@ -802,7 +851,11 @@ const onSourceFileChange = async (event: Event): Promise<void> => {
 
 const initializeSourcePersonalization = async (): Promise<void> => {
   resetSourceAnalysis();
-  await Promise.all([refreshSavedTemplates(), refreshSourceProfiles()]);
+  await Promise.all([
+    refreshSavedTemplates(),
+    refreshSourceProfiles(),
+    refreshFieldSuggestions(),
+  ]);
   await loadLastTemplate();
   refreshTemplateNameSuggestions();
 };
@@ -957,7 +1010,7 @@ const submitApproved = async (): Promise<void> => {
       <header :class="styles.sourceHeader">
         <h4 :class="styles.sourceTitle">Importar de arquivo de origem</h4>
         <p :class="styles.sourceSubtitle">
-          Envie JSON, CSV ou XML para preencher automaticamente os campos.
+          Envie JSON, CSV, XML ou MD para preencher automaticamente os campos.
           PDF funciona em modo assistido (chave:valor).
         </p>
       </header>
@@ -968,7 +1021,7 @@ const submitApproved = async (): Promise<void> => {
           <input
             ref="sourceFileInput"
             type="file"
-            accept=".json,.csv,.xml,.pdf,application/json,text/csv,application/xml,text/xml,application/pdf"
+            accept=".json,.csv,.xml,.md,.pdf,application/json,text/csv,application/xml,text/xml,text/markdown,text/x-markdown,application/pdf"
             @change="onSourceFileChange"
           />
         </label>
@@ -1279,360 +1332,575 @@ const submitApproved = async (): Promise<void> => {
       @submit.prevent="addToPreview"
     >
       <template v-if="props.kind === 'clients'">
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>Nome *</span>
-            <input
-              v-model="(draft as ClientImportDraft).name"
-              type="text"
-              required
-              autocomplete="name"
-              autocapitalize="words"
-              :data-invalid="fieldErrors.name ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.name">{{ fieldErrors.name }}</small>
-          </label>
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Identificação</legend>
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>Nome *</span>
+              <input
+                v-model="(draft as ClientImportDraft).name"
+                :class="[styles.inputWithIcon, inputIconClass('name')]"
+                :list="datalistIdForField('name')"
+                type="text"
+                required
+                placeholder="Ex.: Ana Souza"
+                autocomplete="name"
+                autocapitalize="words"
+                :data-invalid="fieldErrors.name ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('name')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('name', (draft as ClientImportDraft).name)"
+                  :key="`clients-name-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.name">{{ fieldErrors.name }}</small>
+            </label>
 
-          <label :class="styles.field">
-            <span>Tipo *</span>
-            <select
-              v-model="(draft as ClientImportDraft).type"
-              required
-              :data-invalid="fieldErrors.type ? 'true' : undefined"
-              @change="handleClientTypeChange"
-            >
-              <option
-                v-for="option in clientTypeOptions"
-                :key="option.value"
-                :value="option.value"
+            <label :class="styles.field">
+              <span>Tipo *</span>
+              <select
+                v-model="(draft as ClientImportDraft).type"
+                required
+                :data-invalid="fieldErrors.type ? 'true' : undefined"
+                @change="handleClientTypeChange"
               >
-                {{ option.label }}
-              </option>
-            </select>
-            <small v-if="fieldErrors.type">{{ fieldErrors.type }}</small>
-          </label>
-        </div>
+                <option
+                  v-for="option in clientTypeOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+              <small v-if="fieldErrors.type">{{ fieldErrors.type }}</small>
+            </label>
+          </div>
 
-        <div :class="styles.gridTwo">
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>Empresa</span>
+              <input
+                v-model="(draft as ClientImportDraft).company"
+                :class="[styles.inputWithIcon, inputIconClass('company')]"
+                :list="datalistIdForField('company')"
+                type="text"
+                placeholder="Ex.: Nexo Tecnologia"
+                autocomplete="organization"
+                autocapitalize="words"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('company')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('company', (draft as ClientImportDraft).company)"
+                  :key="`clients-company-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+            </label>
+
+            <label :class="styles.field">
+              <span>E-mail</span>
+              <input
+                v-model="(draft as ClientImportDraft).email"
+                :class="[styles.inputWithIcon, inputIconClass('email')]"
+                :list="datalistIdForField('email')"
+                type="email"
+                placeholder="contato@empresa.com"
+                autocomplete="email"
+                autocapitalize="none"
+                :data-invalid="fieldErrors.email ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('email')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('email', (draft as ClientImportDraft).email)"
+                  :key="`clients-email-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.email">{{ fieldErrors.email }}</small>
+            </label>
+          </div>
+
+          <div v-if="isCompanyDraft" :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>CNPJ *</span>
+              <input
+                v-model="(draft as ClientImportDraft).cnpj"
+                :class="[styles.inputWithIcon, inputIconClass('cnpj')]"
+                :list="datalistIdForField('cnpj')"
+                type="text"
+                inputmode="numeric"
+                required
+                :pattern="ImportFieldRules.CNPJ_PATTERN_ATTR"
+                placeholder="00.000.000/0000-00"
+                autocomplete="off"
+                :data-invalid="fieldErrors.cnpj ? 'true' : undefined"
+                @blur="(draft as ClientImportDraft).cnpj = ImportFieldRules.normalizeCnpj((draft as ClientImportDraft).cnpj)"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('cnpj')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('cnpj', (draft as ClientImportDraft).cnpj)"
+                  :key="`clients-cnpj-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.cnpj">{{ fieldErrors.cnpj }}</small>
+            </label>
+
+            <label :class="styles.field">
+              <span>CEP *</span>
+              <input
+                v-model="(draft as ClientImportDraft).cep"
+                :class="[styles.inputWithIcon, inputIconClass('cep')]"
+                :list="datalistIdForField('cep')"
+                type="text"
+                inputmode="numeric"
+                required
+                :pattern="ImportFieldRules.CEP_PATTERN_ATTR"
+                placeholder="00000-000"
+                autocomplete="postal-code"
+                :data-invalid="fieldErrors.cep ? 'true' : undefined"
+                @blur="(draft as ClientImportDraft).cep = ImportFieldRules.normalizeCep((draft as ClientImportDraft).cep)"
+                @change="handleCepChange"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('cep')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('cep', (draft as ClientImportDraft).cep)"
+                  :key="`clients-cep-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.cep">{{ fieldErrors.cep }}</small>
+              <small v-else-if="cepLookupHint">{{ cepLookupHint }}</small>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Contato</legend>
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>Telefone</span>
+              <input
+                v-model="(draft as ClientImportDraft).phone"
+                :class="[styles.inputWithIcon, inputIconClass('phone')]"
+                :list="datalistIdForField('phone')"
+                type="tel"
+                placeholder="(11) 3333-3333"
+                autocomplete="tel"
+                :data-invalid="fieldErrors.phone ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('phone')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('phone', (draft as ClientImportDraft).phone)"
+                  :key="`clients-phone-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.phone">{{ fieldErrors.phone }}</small>
+            </label>
+
+            <label :class="styles.field">
+              <span>Celular</span>
+              <input
+                v-model="(draft as ClientImportDraft).cellPhone"
+                :class="[styles.inputWithIcon, inputIconClass('cellPhone')]"
+                :list="datalistIdForField('cellPhone')"
+                type="tel"
+                placeholder="(11) 99999-9999"
+                autocomplete="tel-national"
+                :data-invalid="fieldErrors.cellPhone ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('cellPhone')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('cellPhone', (draft as ClientImportDraft).cellPhone)"
+                  :key="`clients-cell-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.cellPhone">{{ fieldErrors.cellPhone }}</small>
+            </label>
+          </div>
+
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>WhatsApp</span>
+              <input
+                v-model="(draft as ClientImportDraft).whatsappNumber"
+                :class="[styles.inputWithIcon, inputIconClass('whatsappNumber')]"
+                :list="datalistIdForField('whatsappNumber')"
+                type="tel"
+                placeholder="(11) 98888-8888"
+                autocomplete="tel"
+                :data-invalid="fieldErrors.whatsappNumber ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('whatsappNumber')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('whatsappNumber', (draft as ClientImportDraft).whatsappNumber)"
+                  :key="`clients-whatsapp-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.whatsappNumber">{{
+                fieldErrors.whatsappNumber
+              }}</small>
+            </label>
+
+            <label :class="styles.field">
+              <span>Contato preferido *</span>
+              <select
+                v-model="(draft as ClientImportDraft).preferredContact"
+                required
+                :data-invalid="fieldErrors.preferredContact ? 'true' : undefined"
+                @change="refreshSyncErrors"
+              >
+                <option value="email">E-mail</option>
+                <option value="phone">Telefone</option>
+                <option value="cellphone">Celular</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+              <small v-if="fieldErrors.preferredContact">{{
+                fieldErrors.preferredContact
+              }}</small>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Notas</legend>
           <label :class="styles.field">
-            <span>Empresa</span>
-            <input
-              v-model="(draft as ClientImportDraft).company"
-              type="text"
-              autocomplete="organization"
-              autocapitalize="words"
+            <span>Notas</span>
+            <textarea
+              v-model="(draft as ClientImportDraft).notes"
+              rows="3"
+              placeholder="Contexto livre, observações de origem e campos extras."
               @input="refreshSyncErrors"
-            />
+            ></textarea>
           </label>
-
-          <label :class="styles.field">
-            <span>E-mail</span>
-            <input
-              v-model="(draft as ClientImportDraft).email"
-              type="email"
-              autocomplete="email"
-              autocapitalize="none"
-              :data-invalid="fieldErrors.email ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.email">{{ fieldErrors.email }}</small>
-          </label>
-        </div>
-
-        <div v-if="isCompanyDraft" :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>CNPJ *</span>
-            <input
-              v-model="(draft as ClientImportDraft).cnpj"
-              type="text"
-              inputmode="numeric"
-              required
-              :pattern="ImportFieldRules.CNPJ_PATTERN_ATTR"
-              placeholder="00.000.000/0000-00"
-              autocomplete="off"
-              :data-invalid="fieldErrors.cnpj ? 'true' : undefined"
-              @blur="(draft as ClientImportDraft).cnpj = ImportFieldRules.normalizeCnpj((draft as ClientImportDraft).cnpj)"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.cnpj">{{ fieldErrors.cnpj }}</small>
-          </label>
-
-          <label :class="styles.field">
-            <span>CEP *</span>
-            <input
-              v-model="(draft as ClientImportDraft).cep"
-              type="text"
-              inputmode="numeric"
-              required
-              :pattern="ImportFieldRules.CEP_PATTERN_ATTR"
-              placeholder="00000-000"
-              autocomplete="postal-code"
-              :data-invalid="fieldErrors.cep ? 'true' : undefined"
-              @blur="(draft as ClientImportDraft).cep = ImportFieldRules.normalizeCep((draft as ClientImportDraft).cep)"
-              @change="handleCepChange"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.cep">{{ fieldErrors.cep }}</small>
-            <small v-else-if="cepLookupHint">{{ cepLookupHint }}</small>
-          </label>
-        </div>
-
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>Telefone</span>
-            <input
-              v-model="(draft as ClientImportDraft).phone"
-              type="tel"
-              autocomplete="tel"
-              :data-invalid="fieldErrors.phone ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.phone">{{ fieldErrors.phone }}</small>
-          </label>
-
-          <label :class="styles.field">
-            <span>Celular</span>
-            <input
-              v-model="(draft as ClientImportDraft).cellPhone"
-              type="tel"
-              autocomplete="tel-national"
-              :data-invalid="fieldErrors.cellPhone ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.cellPhone">{{ fieldErrors.cellPhone }}</small>
-          </label>
-        </div>
-
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>WhatsApp</span>
-            <input
-              v-model="(draft as ClientImportDraft).whatsappNumber"
-              type="tel"
-              autocomplete="tel"
-              :data-invalid="fieldErrors.whatsappNumber ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.whatsappNumber">{{
-              fieldErrors.whatsappNumber
-            }}</small>
-          </label>
-
-          <label :class="styles.field">
-            <span>Contato preferido *</span>
-            <select
-              v-model="(draft as ClientImportDraft).preferredContact"
-              required
-              :data-invalid="fieldErrors.preferredContact ? 'true' : undefined"
-              @change="refreshSyncErrors"
-            >
-              <option value="email">E-mail</option>
-              <option value="phone">Telefone</option>
-              <option value="cellphone">Celular</option>
-              <option value="whatsapp">WhatsApp</option>
-            </select>
-            <small v-if="fieldErrors.preferredContact">{{
-              fieldErrors.preferredContact
-            }}</small>
-          </label>
-        </div>
-
-        <label :class="styles.field">
-          <span>Notas</span>
-          <textarea
-            v-model="(draft as ClientImportDraft).notes"
-            rows="3"
-            @input="refreshSyncErrors"
-          ></textarea>
-        </label>
+        </fieldset>
       </template>
 
       <template v-else-if="props.kind === 'projects'">
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>Nome do projeto *</span>
-            <input
-              v-model="(draft as ProjectImportDraft).name"
-              type="text"
-              required
-              autocapitalize="words"
-              :data-invalid="fieldErrors.name ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.name">{{ fieldErrors.name }}</small>
-          </label>
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Identificação</legend>
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>Nome do projeto *</span>
+              <input
+                v-model="(draft as ProjectImportDraft).name"
+                :class="[styles.inputWithIcon, inputIconClass('name')]"
+                :list="datalistIdForField('name')"
+                type="text"
+                required
+                placeholder="Ex.: Projeto Orion"
+                autocapitalize="words"
+                :data-invalid="fieldErrors.name ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('name')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('name', (draft as ProjectImportDraft).name)"
+                  :key="`projects-name-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.name">{{ fieldErrors.name }}</small>
+            </label>
 
-          <label :class="styles.field">
-            <span>Código</span>
-            <input
-              v-model="(draft as ProjectImportDraft).code"
-              type="text"
-              autocomplete="off"
-              :data-invalid="fieldErrors.code ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.code">{{ fieldErrors.code }}</small>
-          </label>
-        </div>
+            <label :class="styles.field">
+              <span>Código</span>
+              <input
+                v-model="(draft as ProjectImportDraft).code"
+                :class="[styles.inputWithIcon, inputIconClass('code')]"
+                :list="datalistIdForField('code')"
+                type="text"
+                placeholder="Ex.: ORN-102"
+                autocomplete="off"
+                :data-invalid="fieldErrors.code ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('code')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('code', (draft as ProjectImportDraft).code)"
+                  :key="`projects-code-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.code">{{ fieldErrors.code }}</small>
+            </label>
+          </div>
+        </fieldset>
 
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>Status *</span>
-            <select
-              v-model="(draft as ProjectImportDraft).status"
-              required
-              :data-invalid="fieldErrors.status ? 'true' : undefined"
-              @change="refreshSyncErrors"
-            >
-              <option
-                v-for="status in projectStatusOptions"
-                :key="status"
-                :value="status"
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Planejamento</legend>
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>Status *</span>
+              <select
+                v-model="(draft as ProjectImportDraft).status"
+                required
+                :data-invalid="fieldErrors.status ? 'true' : undefined"
+                @change="refreshSyncErrors"
               >
-                {{ status }}
-              </option>
-            </select>
-            <small v-if="fieldErrors.status">{{ fieldErrors.status }}</small>
-          </label>
+                <option
+                  v-for="status in projectStatusOptions"
+                  :key="status"
+                  :value="status"
+                >
+                  {{ status }}
+                </option>
+              </select>
+              <small v-if="fieldErrors.status">{{ fieldErrors.status }}</small>
+            </label>
 
+            <label :class="styles.field">
+              <span>Responsável (e-mail)</span>
+              <input
+                v-model="(draft as ProjectImportDraft).ownerEmail"
+                :class="[styles.inputWithIcon, inputIconClass('ownerEmail')]"
+                :list="datalistIdForField('ownerEmail')"
+                type="email"
+                placeholder="gestor@empresa.com"
+                autocomplete="email"
+                :data-invalid="fieldErrors.ownerEmail ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('ownerEmail')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('ownerEmail', (draft as ProjectImportDraft).ownerEmail)"
+                  :key="`projects-owner-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.ownerEmail">{{ fieldErrors.ownerEmail }}</small>
+            </label>
+          </div>
+
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>Previsão (YYYY-MM-DD)</span>
+              <input
+                v-model="(draft as ProjectImportDraft).dueAt"
+                type="date"
+                :data-invalid="fieldErrors.dueAt ? 'true' : undefined"
+                @change="refreshSyncErrors"
+              />
+              <small v-if="fieldErrors.dueAt">{{ fieldErrors.dueAt }}</small>
+            </label>
+
+            <label :class="styles.field">
+              <span>Entrega (YYYY-MM-DD)</span>
+              <input
+                v-model="(draft as ProjectImportDraft).deadlineAt"
+                type="date"
+                :data-invalid="fieldErrors.deadlineAt ? 'true' : undefined"
+                @change="refreshSyncErrors"
+              />
+              <small v-if="fieldErrors.deadlineAt">{{ fieldErrors.deadlineAt }}</small>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Contexto</legend>
           <label :class="styles.field">
-            <span>Responsável (e-mail)</span>
+            <span>Tags (separadas por vírgula)</span>
             <input
-              v-model="(draft as ProjectImportDraft).ownerEmail"
-              type="email"
-              autocomplete="email"
-              :data-invalid="fieldErrors.ownerEmail ? 'true' : undefined"
+              v-model="(draft as ProjectImportDraft).tags"
+              :class="[styles.inputWithIcon, inputIconClass('tags')]"
+              :list="datalistIdForField('tags')"
+              type="text"
+              placeholder="backend, prioridade, sprint-12"
+              autocomplete="off"
               @input="refreshSyncErrors"
             />
-            <small v-if="fieldErrors.ownerEmail">{{ fieldErrors.ownerEmail }}</small>
-          </label>
-        </div>
-
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>Previsão (YYYY-MM-DD)</span>
-            <input
-              v-model="(draft as ProjectImportDraft).dueAt"
-              type="date"
-              :data-invalid="fieldErrors.dueAt ? 'true' : undefined"
-              @change="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.dueAt">{{ fieldErrors.dueAt }}</small>
+            <datalist :id="datalistIdForField('tags')">
+              <option
+                v-for="suggestion in resolveInputSuggestions('tags', (draft as ProjectImportDraft).tags)"
+                :key="`projects-tags-${suggestion}`"
+                :value="suggestion"
+              />
+            </datalist>
           </label>
 
           <label :class="styles.field">
-            <span>Entrega (YYYY-MM-DD)</span>
-            <input
-              v-model="(draft as ProjectImportDraft).deadlineAt"
-              type="date"
-              :data-invalid="fieldErrors.deadlineAt ? 'true' : undefined"
-              @change="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.deadlineAt">{{ fieldErrors.deadlineAt }}</small>
+            <span>Descrição</span>
+            <textarea
+              v-model="(draft as ProjectImportDraft).description"
+              rows="3"
+              placeholder="Resumo objetivo do projeto e escopo."
+              @input="refreshSyncErrors"
+            ></textarea>
           </label>
-        </div>
 
-        <label :class="styles.field">
-          <span>Tags (separadas por vírgula)</span>
-          <input
-            v-model="(draft as ProjectImportDraft).tags"
-            type="text"
-            autocomplete="off"
-            @input="refreshSyncErrors"
-          />
-        </label>
-
-        <label :class="styles.field">
-          <span>Descrição</span>
-          <textarea
-            v-model="(draft as ProjectImportDraft).description"
-            rows="3"
-            @input="refreshSyncErrors"
-          ></textarea>
-        </label>
+          <label :class="styles.field">
+            <span>Notas</span>
+            <textarea
+              v-model="(draft as ProjectImportDraft).notes"
+              rows="3"
+              placeholder="Campos extras não mapeados e observações do import."
+              @input="refreshSyncErrors"
+            ></textarea>
+          </label>
+        </fieldset>
       </template>
 
       <template v-else>
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>E-mail *</span>
-            <input
-              v-model="(draft as UserImportDraft).email"
-              type="email"
-              required
-              autocomplete="email"
-              autocapitalize="none"
-              :data-invalid="fieldErrors.email ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.email">{{ fieldErrors.email }}</small>
-          </label>
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Conta</legend>
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>E-mail *</span>
+              <input
+                v-model="(draft as UserImportDraft).email"
+                :class="[styles.inputWithIcon, inputIconClass('email')]"
+                :list="datalistIdForField('email')"
+                type="email"
+                required
+                placeholder="usuario@empresa.com"
+                autocomplete="email"
+                autocapitalize="none"
+                :data-invalid="fieldErrors.email ? 'true' : undefined"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('email')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('email', (draft as UserImportDraft).email)"
+                  :key="`users-email-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+              <small v-if="fieldErrors.email">{{ fieldErrors.email }}</small>
+            </label>
 
-          <label :class="styles.field">
-            <span>Perfil *</span>
-            <select
-              v-model="(draft as UserImportDraft).roleKey"
-              required
-              :data-invalid="fieldErrors.roleKey ? 'true' : undefined"
-              @change="refreshSyncErrors"
-            >
-              <option v-for="role in roleOptions" :key="role" :value="role">
-                {{ role }}
-              </option>
-            </select>
-            <small v-if="fieldErrors.roleKey">{{ fieldErrors.roleKey }}</small>
-          </label>
-        </div>
+            <label :class="styles.field">
+              <span>Perfil *</span>
+              <select
+                v-model="(draft as UserImportDraft).roleKey"
+                required
+                :data-invalid="fieldErrors.roleKey ? 'true' : undefined"
+                @change="refreshSyncErrors"
+              >
+                <option v-for="role in roleOptions" :key="role" :value="role">
+                  {{ role }}
+                </option>
+              </select>
+              <small v-if="fieldErrors.roleKey">{{ fieldErrors.roleKey }}</small>
+            </label>
+          </div>
+        </fieldset>
 
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>Nome</span>
-            <input
-              v-model="(draft as UserImportDraft).firstName"
-              type="text"
-              autocomplete="given-name"
-              autocapitalize="words"
-              @input="refreshSyncErrors"
-            />
-          </label>
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Perfil profissional</legend>
+          <div :class="styles.gridTwo">
+            <label :class="styles.field">
+              <span>Nome</span>
+              <input
+                v-model="(draft as UserImportDraft).firstName"
+                :class="[styles.inputWithIcon, inputIconClass('firstName')]"
+                :list="datalistIdForField('firstName')"
+                type="text"
+                placeholder="Ex.: Ana"
+                autocomplete="given-name"
+                autocapitalize="words"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('firstName')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('firstName', (draft as UserImportDraft).firstName)"
+                  :key="`users-first-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+            </label>
 
-          <label :class="styles.field">
-            <span>Sobrenome</span>
-            <input
-              v-model="(draft as UserImportDraft).lastName"
-              type="text"
-              autocomplete="family-name"
-              autocapitalize="words"
-              @input="refreshSyncErrors"
-            />
-          </label>
-        </div>
-
-        <div :class="styles.gridTwo">
-          <label :class="styles.field">
-            <span>Telefone</span>
-            <input
-              v-model="(draft as UserImportDraft).phone"
-              type="tel"
-              autocomplete="tel"
-              :data-invalid="fieldErrors.phone ? 'true' : undefined"
-              @input="refreshSyncErrors"
-            />
-            <small v-if="fieldErrors.phone">{{ fieldErrors.phone }}</small>
-          </label>
+            <label :class="styles.field">
+              <span>Sobrenome</span>
+              <input
+                v-model="(draft as UserImportDraft).lastName"
+                :class="[styles.inputWithIcon, inputIconClass('lastName')]"
+                :list="datalistIdForField('lastName')"
+                type="text"
+                placeholder="Ex.: Souza"
+                autocomplete="family-name"
+                autocapitalize="words"
+                @input="refreshSyncErrors"
+              />
+              <datalist :id="datalistIdForField('lastName')">
+                <option
+                  v-for="suggestion in resolveInputSuggestions('lastName', (draft as UserImportDraft).lastName)"
+                  :key="`users-last-${suggestion}`"
+                  :value="suggestion"
+                />
+              </datalist>
+            </label>
+          </div>
 
           <label :class="styles.field">
             <span>Departamento</span>
             <input
               v-model="(draft as UserImportDraft).department"
+              :class="[styles.inputWithIcon, inputIconClass('department')]"
+              :list="datalistIdForField('department')"
               type="text"
+              placeholder="Ex.: Operações"
               autocomplete="organization-title"
               autocapitalize="words"
               @input="refreshSyncErrors"
             />
+            <datalist :id="datalistIdForField('department')">
+              <option
+                v-for="suggestion in resolveInputSuggestions('department', (draft as UserImportDraft).department)"
+                :key="`users-department-${suggestion}`"
+                :value="suggestion"
+              />
+            </datalist>
           </label>
-        </div>
+        </fieldset>
+
+        <fieldset :class="styles.formFieldset">
+          <legend :class="styles.formLegend">Contato e notas</legend>
+          <label :class="styles.field">
+            <span>Telefone</span>
+            <input
+              v-model="(draft as UserImportDraft).phone"
+              :class="[styles.inputWithIcon, inputIconClass('phone')]"
+              :list="datalistIdForField('phone')"
+              type="tel"
+              placeholder="+55 11 99999-9999"
+              autocomplete="tel"
+              :data-invalid="fieldErrors.phone ? 'true' : undefined"
+              @input="refreshSyncErrors"
+            />
+            <datalist :id="datalistIdForField('phone')">
+              <option
+                v-for="suggestion in resolveInputSuggestions('phone', (draft as UserImportDraft).phone)"
+                :key="`users-phone-${suggestion}`"
+                :value="suggestion"
+              />
+            </datalist>
+            <small v-if="fieldErrors.phone">{{ fieldErrors.phone }}</small>
+          </label>
+
+          <label :class="styles.field">
+            <span>Notas</span>
+            <textarea
+              v-model="(draft as UserImportDraft).notes"
+              rows="3"
+              placeholder="Observações de importação e campos extras."
+              @input="refreshSyncErrors"
+            ></textarea>
+          </label>
+        </fieldset>
       </template>
 
       <p v-if="validationHint" :class="styles.formHint">{{ validationHint }}</p>

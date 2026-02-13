@@ -36,6 +36,7 @@ interface CreateUserBody {
   lastName?: string;
   phone?: string;
   department?: string;
+  notes?: string;
   roleKey?: string;
 }
 

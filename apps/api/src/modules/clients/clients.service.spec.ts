@@ -20,6 +20,7 @@ describe('ClientsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRepo.findOne.mockResolvedValue(null);
     service = createService();
   });
 
@@ -72,6 +73,40 @@ describe('ClientsService', () => {
       expect(result.type).toBe('pessoa');
       expect(result.cnpj).toBeUndefined();
       expect(result.cep).toBeUndefined();
+    });
+
+    it('rejects duplicate clients by email', async () => {
+      mockRepo.findOne.mockResolvedValueOnce({
+        _id: fakeOid,
+        id: fakeOid,
+        name: 'Cliente duplicado',
+        email: 'ana@corp.local',
+      });
+
+      await expect(
+        service.create({
+          name: 'Ana Souza',
+          email: 'ana@corp.local',
+        }),
+      ).rejects.toThrow('Client already exists');
+    });
+
+    it('rejects duplicate clients by CNPJ', async () => {
+      mockRepo.findOne.mockResolvedValueOnce({
+        _id: fakeOid,
+        id: fakeOid,
+        name: 'Empresa duplicada',
+        cnpj: '12.345.678/0001-90',
+      });
+
+      await expect(
+        service.create({
+          name: 'Empresa Nova',
+          type: 'empresa',
+          cnpj: '12345678000190',
+          cep: '01310100',
+        }),
+      ).rejects.toThrow('Client already exists');
     });
   });
 

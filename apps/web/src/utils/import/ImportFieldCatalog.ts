@@ -131,6 +131,12 @@ const PROJECT_FIELDS: readonly ImportFieldDefinition[] = [
     required: false,
     aliases: ["description", "descricao", "detalhes"],
   },
+  {
+    key: "notes",
+    label: "Notas",
+    required: false,
+    aliases: ["notes", "notas", "observacao", "observacoes", "comments"],
+  },
 ];
 
 const USER_FIELDS: readonly ImportFieldDefinition[] = [
@@ -169,6 +175,12 @@ const USER_FIELDS: readonly ImportFieldDefinition[] = [
     label: "Departamento",
     required: false,
     aliases: ["department", "departamento", "team", "equipe"],
+  },
+  {
+    key: "notes",
+    label: "Notas",
+    required: false,
+    aliases: ["notes", "notas", "observacao", "observacoes", "comments"],
   },
 ];
 

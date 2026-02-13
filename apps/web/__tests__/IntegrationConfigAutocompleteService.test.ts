@@ -80,4 +80,15 @@ describe("IntegrationConfigAutocompleteService", () => {
     );
     expect(service.listSuggestions("whatsapp", "apiVersion")).toContain("v18.0");
   });
+
+  it("limits visible suggestions to five items", () => {
+    const service = new IntegrationConfigAutocompleteService();
+
+    for (let index = 1; index <= 9; index += 1) {
+      service.persistNow("nextcloud", "defaultFolder", `/folder-${index}`);
+    }
+
+    const suggestions = service.listSuggestions("nextcloud", "defaultFolder", 20);
+    expect(suggestions).toHaveLength(5);
+  });
 });

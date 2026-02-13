@@ -344,11 +344,27 @@ $badge-colors: (
 // ============================================================================
 
 .card {
+  --card-accent-offset-inline: var(--space-2);
+  --card-accent-width: 3px;
+  --card-accent-gap: clamp(0.85rem, 1.45vw, 1.15rem);
+  --card-padding-block: clamp(1.15rem, 2.4vw, 1.55rem);
+  --card-padding-inline-end: clamp(1rem, 2vw, 1.3rem);
+  --card-content-inset-start: calc(
+    var(--card-accent-offset-inline) +
+      var(--card-accent-width) +
+      var(--card-accent-gap)
+  );
   position: relative;
   border-radius: radius(lg);
-  padding: clamp(1.25rem, 3vw, 1.75rem);
+  padding-block: var(--card-padding-block);
+  padding-inline-end: var(--card-padding-inline-end);
+  padding-inline-start: max(
+    var(--card-padding-inline-end),
+    var(--card-content-inset-start)
+  );
   @include surface(var(--surface-1), var(--border-1));
   @include elevation(1);
+  container-type: inline-size;
   // Removed animation to improve FCP - use utility class if needed
   @include card-hover;
 
@@ -358,8 +374,8 @@ $badge-colors: (
     position: absolute;
     top: var(--space-3);
     bottom: var(--space-3);
-    left: var(--space-2);
-    width: 4px;
+    left: var(--card-accent-offset-inline);
+    width: var(--card-accent-width);
     border-radius: radius(full);
     background: linear-gradient(
       180deg,
@@ -372,6 +388,11 @@ $badge-colors: (
 
   &:hover::before {
     opacity: 1;
+  }
+
+  @container (max-width: 640px) {
+    --card-accent-gap: clamp(0.72rem, 3.2vw, 0.95rem);
+    --card-padding-inline-end: clamp(0.82rem, 2.8vw, 1rem);
   }
 }
 
@@ -404,6 +425,8 @@ $badge-colors: (
 
 // Card variants
 .card-flat {
+  --card-accent-width: 0px;
+  --card-accent-gap: 0px;
   box-shadow: none;
   border: 1px solid var(--border-1);
 

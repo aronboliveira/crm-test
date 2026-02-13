@@ -15,6 +15,10 @@ interface Props {
   horizontal?: boolean;
   maxBarWidth?: number;
   showAxisLabels?: boolean;
+  showTrendLine?: boolean;
+  trendLineColor?: string;
+  trendLineWidth?: number;
+  showTrendDots?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,9 +28,23 @@ const props = withDefaults(defineProps<Props>(), {
   horizontal: false,
   maxBarWidth: 80,
   showAxisLabels: true,
+  showTrendLine: false,
+  trendLineColor: "#93c5fd",
+  trendLineWidth: 2,
+  showTrendDots: true,
 });
 
 const maxValue = computed(() => Math.max(...props.bars.map((b) => b.value), 1));
+const normalizedHeight = computed(() =>
+  Math.max(120, Math.trunc(props.height || 0) || 120),
+);
+const normalizedMaxBarWidth = computed(() =>
+  Math.max(12, Math.trunc(props.maxBarWidth || 0) || 12),
+);
+const chartStyle = computed(() => ({
+  "--bar-chart-height": `${normalizedHeight.value}px`,
+  "--bar-column-width": `${normalizedMaxBarWidth.value}px`,
+}));
 
 const barsWithPercentage = computed(() =>
   props.bars.map((b) => ({
@@ -38,19 +56,64 @@ const barsWithPercentage = computed(() =>
 
 const gridLines = computed(() => {
   const lines = [];
-  const step = Math.ceil(maxValue.value / 5);
-  for (let i = 0; i <= 5; i++) {
+  const segments = Math.min(5, Math.max(1, maxValue.value));
+  for (let i = 0; i <= segments; i++) {
+    const ratio = i / segments;
     lines.push({
-      value: i * step,
-      position: i * 20,
+      value: Math.round(maxValue.value * ratio),
+      position: ratio * 100,
     });
   }
   return lines;
 });
+
+const trendPoints = computed(() => {
+  if (
+    props.horizontal ||
+    !props.showTrendLine ||
+    barsWithPercentage.value.length === 0
+  ) {
+    return "";
+  }
+
+  const bars = barsWithPercentage.value;
+  if (bars.length === 1) {
+    const singleY = Math.max(0, 100 - bars[0]!.pct);
+    return `50,${singleY}`;
+  }
+
+  return bars
+    .map((bar, index) => {
+      const x = (index / Math.max(bars.length - 1, 1)) * 100;
+      const y = Math.max(0, 100 - bar.pct);
+      return `${x},${y}`;
+    })
+    .join(" ");
+});
+
+const trendDots = computed(() => {
+  if (!props.showTrendDots || !props.showTrendLine || props.horizontal) {
+    return [];
+  }
+
+  const bars = barsWithPercentage.value;
+  if (bars.length === 0) {
+    return [];
+  }
+
+  if (bars.length === 1) {
+    return [{ x: 50, y: Math.max(0, 100 - bars[0]!.pct) }];
+  }
+
+  return bars.map((bar, index) => ({
+    x: (index / Math.max(bars.length - 1, 1)) * 100,
+    y: Math.max(0, 100 - bar.pct),
+  }));
+});
 </script>
 
 <template>
-  <div class="bar-chart-wrapper">
+  <div class="bar-chart-wrapper" :style="chartStyle">
     <!-- Y-axis labels for vertical charts -->
     <div v-if="!horizontal && showAxisLabels" class="y-axis">
       <div
@@ -74,6 +137,33 @@ const gridLines = computed(() => {
         />
       </div>
 
+      <svg
+        v-if="!horizontal && showTrendLine && trendPoints.length > 0"
+        class="trend-line-overlay"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <polyline
+          class="trend-line-path"
+          vector-effect="non-scaling-stroke"
+          :points="trendPoints"
+          :style="{
+            stroke: trendLineColor,
+            strokeWidth: `${trendLineWidth}`,
+          }"
+        />
+        <circle
+          v-for="(dot, dotIndex) in trendDots"
+          :key="dotIndex"
+          class="trend-line-dot"
+          :cx="dot.x"
+          :cy="dot.y"
+          r="1.8"
+          :style="{ fill: trendLineColor }"
+        />
+      </svg>
+
       <div v-for="(bar, i) in barsWithPercentage" :key="i" class="bar-item">
         <span class="bar-label">{{ bar.label }}</span>
         <div class="bar-container">
@@ -81,9 +171,7 @@ const gridLines = computed(() => {
             class="bar-fill"
             :style="{
               [horizontal ? 'width' : 'height']: `${bar.pct}%`,
-              [horizontal ? 'maxWidth' : 'maxWidth']: horizontal
-                ? '100%'
-                : `${maxBarWidth}px`,
+              maxWidth: horizontal ? '100%' : `${normalizedMaxBarWidth}px`,
               backgroundColor: bar.color,
             }"
           >
@@ -101,12 +189,14 @@ const gridLines = computed(() => {
   display: flex;
   width: 100%;
   gap: 0.5rem;
+  --bar-chart-height: 200px;
+  --bar-column-width: 28px;
 }
 
 .y-axis {
   position: relative;
   width: 40px;
-  min-height: 250px;
+  min-height: var(--bar-chart-height);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -148,6 +238,28 @@ const gridLines = computed(() => {
   background-color: color-mix(in oklab, var(--text-1) 10%, transparent);
 }
 
+.trend-line-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: var(--bar-chart-height);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.trend-line-path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 1;
+}
+
+.trend-line-dot {
+  opacity: 0.95;
+}
+
 .bar-chart--horizontal .bar-item {
   display: flex;
   flex-direction: row;
@@ -174,7 +286,7 @@ const gridLines = computed(() => {
 .bar-chart:not(.bar-chart--horizontal) .bar-item {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.3rem;
   flex: 1;
   align-items: center;
   position: relative;
@@ -182,11 +294,12 @@ const gridLines = computed(() => {
 }
 
 .bar-chart:not(.bar-chart--horizontal) .bar-container {
-  height: 200px;
-  width: 100%;
+  height: var(--bar-chart-height);
+  width: min(100%, var(--bar-column-width));
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  order: 1;
 }
 
 .bar-chart:not(.bar-chart--horizontal) .bar-fill {
@@ -200,6 +313,7 @@ const gridLines = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  order: 2;
 }
 
 .bar-label {

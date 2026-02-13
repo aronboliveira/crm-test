@@ -41,6 +41,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import("../pages/DashboardMyWorkPage.vue"),
       },
       {
+        path: "dashboard/devices",
+        name: "DashboardDevices",
+        component: () => import("../pages/DashboardDevicesPage.vue"),
+        meta: { perm: "tasks.read" } satisfies RouteMetaGuard,
+      },
+      {
         path: "dashboard/clients",
         name: "DashboardClients",
         component: () => import("../pages/DashboardClientsPage.vue"),

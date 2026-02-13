@@ -2,6 +2,7 @@ import type { ImportSourceFileLike } from "../ImportSourceTypes";
 import { CsvImportDocumentParser } from "./CsvImportDocumentParser";
 import type { ImportDocumentParser } from "./ImportDocumentParser";
 import { JsonImportDocumentParser } from "./JsonImportDocumentParser";
+import { MarkdownImportDocumentParser } from "./MarkdownImportDocumentParser";
 import { PdfImportDocumentParser } from "./PdfImportDocumentParser";
 import { XmlImportDocumentParser } from "./XmlImportDocumentParser";
 
@@ -15,6 +16,7 @@ export class ImportDocumentParserRegistry {
         new CsvImportDocumentParser(),
         new JsonImportDocumentParser(),
         new XmlImportDocumentParser(),
+        new MarkdownImportDocumentParser(),
         new PdfImportDocumentParser(),
       ];
   }
@@ -23,7 +25,7 @@ export class ImportDocumentParserRegistry {
     const parser = this.parsers.find((candidate) => candidate.canParse(file));
     if (!parser) {
       throw new Error(
-        "Formato não suportado. Use JSON, CSV, XML ou PDF (modo assistido).",
+        "Formato não suportado. Use JSON, CSV, XML, MD ou PDF (modo assistido).",
       );
     }
     return parser;

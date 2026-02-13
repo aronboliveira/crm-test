@@ -11,6 +11,7 @@ export type UserImportDraft = {
   lastName: string;
   phone: string;
   department: string;
+  notes: string;
 };
 
 export type UserImportPayload = Readonly<{
@@ -20,6 +21,7 @@ export type UserImportPayload = Readonly<{
   lastName?: string;
   phone?: string;
   department?: string;
+  notes?: string;
 }>;
 
 const ROLE_SET = new Set<UserRoleKey>(["admin", "manager", "member", "viewer"]);
@@ -39,6 +41,7 @@ export class UserImportBlueprint extends ImportBlueprint<
       lastName: "",
       phone: "",
       department: "",
+      notes: "",
     };
   }
 
@@ -71,6 +74,7 @@ export class UserImportBlueprint extends ImportBlueprint<
       lastName: ImportFieldRules.normalizeText(draft.lastName) || undefined,
       phone: ImportFieldRules.normalizePhone(draft.phone) || undefined,
       department: ImportFieldRules.normalizeText(draft.department) || undefined,
+      notes: ImportFieldRules.normalizeText(draft.notes) || undefined,
     };
   }
 

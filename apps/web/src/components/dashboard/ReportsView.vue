@@ -6,6 +6,7 @@ import { useTasksStore } from "../../pinia/stores/tasks.store";
 import ModalService from "../../services/ModalService";
 import AlertService from "../../services/AlertService";
 import ReportsMetricsService from "../../services/ReportsMetricsService";
+import TableExportFlowOrchestrator from "../../services/TableExportFlowOrchestrator";
 import {
   REPORTS_EMPTY_VALUE_LABEL,
   REPORTS_EXPORT_PROJECT_TYPE_LABEL,
@@ -291,6 +292,7 @@ const reportsExporter = new SpreadsheetExporter<
     return null;
   },
 });
+const exportFlow = new TableExportFlowOrchestrator("ReportsView");
 
 const reportExportRows = computed<DashboardReportsExportRow[]>(() => [
   ...projectTableRows.value.map((project) => ({
@@ -325,6 +327,7 @@ const openExportDialog =
         title: "Exportar Relatórios",
         size: "md",
         data: {
+          presetKey: "dashboard.reports",
           totalRows: reportExportRows.value.length,
           entityLabel: "linha(s)",
           columnOptions: DASHBOARD_REPORTS_EXPORT_COLUMNS,
@@ -335,33 +338,21 @@ const openExportDialog =
     );
 
 const handleOpenExportModal = async (): Promise<void> => {
-  try {
-    const selection = await openExportDialog();
-    if (!selection) return;
-
-    const records = reportExportRows.value;
-    if (!records.length) {
-      await AlertService.error("Exportação", "Não há dados para exportar.");
-      return;
-    }
-
-    const exportedFormats = await reportsExporter.export(records, {
-      formats: selection.formats,
-      columnKeys: selection.columnKeys as DashboardReportsExportColumnKey[],
-    });
-
-    await AlertService.success(
-      "Exportação concluída",
-      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
-    );
-  } catch (caughtError) {
-    const message = ReportsMetricsService.toErrorMessage(
-      caughtError,
-      "Falha ao exportar relatórios.",
-    );
-    console.error("[ReportsView] Export failed:", message);
-    await AlertService.error("Erro ao exportar", message);
-  }
+  await exportFlow.execute({
+    openDialog: openExportDialog,
+    emptyStateMessage: "Não há dados para exportar.",
+    buildRecords: () => reportExportRows.value,
+    exportRecords: async (records, selection) =>
+      reportsExporter.export(records, {
+        formats: selection.formats,
+        columnKeys: selection.columnKeys as DashboardReportsExportColumnKey[],
+      }),
+    formatError: (caughtError) =>
+      ReportsMetricsService.toErrorMessage(
+        caughtError,
+        "Falha ao exportar relatórios.",
+      ),
+  });
 };
 </script>
 

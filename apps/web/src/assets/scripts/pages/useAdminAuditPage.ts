@@ -36,6 +36,11 @@ export function useAdminAuditPage() {
 
   const loadState = () => {
     try {
+      const hasExplicitRouteFilters =
+        !!String(st.value.q || "").trim() || !!String(st.value.kind || "").trim();
+      if (hasExplicitRouteFilters) {
+        return;
+      }
       const saved = StorageService.session.getJson(KEY, st.value);
       if (saved) {
         st.value = saved as typeof st.value;

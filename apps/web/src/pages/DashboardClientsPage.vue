@@ -13,6 +13,7 @@ import { useClientQuery } from "../composables/useClientQuery";
 import ModalService from "../services/ModalService";
 import ApiClientService from "../services/ApiClientService";
 import AlertService from "../services/AlertService";
+import TableExportFlowOrchestrator from "../services/TableExportFlowOrchestrator";
 import { useProjectsStore } from "../pinia/stores/projects.store";
 import { useLeadsStore } from "../pinia/stores/leads.store";
 import type { ClientRow } from "../pinia/types/clients.types";
@@ -539,6 +540,7 @@ const DEFAULT_EXPORT_COLUMN_KEYS = [
 const DEFAULT_EXPORT_LIFECYCLE_STAGES = [
   ...DASHBOARD_CLIENTS_EXPORT_LIFECYCLE_STAGES,
 ] as ClientLifecycleStage[];
+const exportFlow = new TableExportFlowOrchestrator("DashboardClientsPage");
 
 const EXPORT_COLUMN_WIDTH_BY_KEY = DASHBOARD_CLIENTS_EXPORT_COLUMN_WIDTH_BY_KEY;
 const EXPORT_COLORS = DASHBOARD_CLIENTS_EXPORT_COLORS;
@@ -615,7 +617,7 @@ const getPercentile = (values: number[], percentile: number): number => {
 };
 
 const getExportOutlierThresholds = (
-  records: DashboardClientsExportRow[],
+  records: readonly DashboardClientsExportRow[],
 ): ExportOutlierThresholds => {
   const engagementValues = records.flatMap((record) => [
     record.whatsappEngagement,
@@ -758,14 +760,14 @@ const getFilteredExportRows = (
 
 const buildExportAoa = (
   csvBlueprint: DashboardClientsCsvBlueprint,
-  records: DashboardClientsExportRow[],
+  records: readonly DashboardClientsExportRow[],
 ): Array<Array<string | number | boolean>> =>
   csvBlueprint.toAoa(records);
 
 const applyXlsxExportStyling = (
   xlsx: XlsxModule,
   worksheet: StyledWorksheet,
-  records: DashboardClientsExportRow[],
+  records: readonly DashboardClientsExportRow[],
   columnKeys: readonly DashboardClientsExportColumnKey[],
 ): void => {
   const thresholds = getExportOutlierThresholds(records);
@@ -862,73 +864,68 @@ const openExportDialog =
     );
 
 const handleOpenExportModal = async () => {
-  try {
-    const selection = await openExportDialog();
-    if (!selection) return;
-
-    const formats = normalizeFormats(selection.formats);
-    const columnKeys = normalizeColumnKeys(selection.columnKeys);
-    const lifecycleStages = normalizeLifecycleStages(selection.lifecycleStages);
-    const records = getFilteredExportRows({
-      ...selection,
-      formats,
-      columnKeys,
-      lifecycleStages,
-    });
-
-    if (!records.length) {
-      await AlertService.error(
-        "Exportação",
-        "Não há clientes para exportar com os filtros selecionados.",
-      );
-      return;
-    }
-
-    const csvBlueprint = buildCsvBlueprint(columnKeys);
-    const exportedFormats: DashboardClientsExportFormat[] = [];
-
-    if (formats.includes("csv")) {
-      const csvBuilder = new CsvDocumentBuilder(csvBlueprint);
-      const csv = csvBuilder.build(records);
-      downloadBlob(
-        new Blob([csv], { type: "text/csv;charset=utf-8;" }),
-        `clientes-dashboard-${getExportDateSuffix()}.csv`,
-      );
-      exportedFormats.push("csv");
-    }
-
-    if (formats.includes("xlsx")) {
-      const xlsx = await resolveXlsxModule();
-      const worksheet = xlsx.utils.aoa_to_sheet(
-        buildExportAoa(csvBlueprint, records),
-      ) as StyledWorksheet;
-      applyXlsxExportStyling(xlsx, worksheet, records, csvBlueprint.getColumnKeys());
-
-      const workbook = xlsx.utils.book_new();
-      xlsx.utils.book_append_sheet(workbook, worksheet, "Clientes");
-
-      const content = xlsx.write(workbook, {
-        type: "array",
-        bookType: "xlsx",
-        cellStyles: true,
+  await exportFlow.execute({
+    openDialog: openExportDialog,
+    emptyStateMessage: "Não há clientes para exportar com os filtros selecionados.",
+    buildRecords: (selection) => {
+      const formats = normalizeFormats(selection.formats);
+      const columnKeys = normalizeColumnKeys(selection.columnKeys);
+      const lifecycleStages = normalizeLifecycleStages(selection.lifecycleStages);
+      return getFilteredExportRows({
+        ...selection,
+        formats,
+        columnKeys,
+        lifecycleStages,
       });
-      downloadBlob(
-        new Blob([content], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        }),
-        `clientes-dashboard-${getExportDateSuffix()}.xlsx`,
-      );
-      exportedFormats.push("xlsx");
-    }
+    },
+    exportRecords: async (records, selection) => {
+      const formats = normalizeFormats(selection.formats);
+      const columnKeys = normalizeColumnKeys(selection.columnKeys);
+      const csvBlueprint = buildCsvBlueprint(columnKeys);
+      const exportedFormats: DashboardClientsExportFormat[] = [];
 
-    await AlertService.success(
-      "Exportação concluída",
-      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
-    );
-  } catch (error) {
-    console.error("[DashboardClientsPage] Export failed:", error);
-    await AlertService.error("Erro ao exportar", error);
-  }
+      if (formats.includes("csv")) {
+        const csvBuilder = new CsvDocumentBuilder(csvBlueprint);
+        const csv = csvBuilder.build(records);
+        downloadBlob(
+          new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+          `clientes-dashboard-${getExportDateSuffix()}.csv`,
+        );
+        exportedFormats.push("csv");
+      }
+
+      if (formats.includes("xlsx")) {
+        const xlsx = await resolveXlsxModule();
+        const worksheet = xlsx.utils.aoa_to_sheet(
+          buildExportAoa(csvBlueprint, records),
+        ) as StyledWorksheet;
+        applyXlsxExportStyling(
+          xlsx,
+          worksheet,
+          records,
+          csvBlueprint.getColumnKeys(),
+        );
+
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, worksheet, "Clientes");
+
+        const content = xlsx.write(workbook, {
+          type: "array",
+          bookType: "xlsx",
+          cellStyles: true,
+        });
+        downloadBlob(
+          new Blob([content], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+          `clientes-dashboard-${getExportDateSuffix()}.xlsx`,
+        );
+        exportedFormats.push("xlsx");
+      }
+
+      return exportedFormats;
+    },
+  });
 };
 
 const DashboardClientsExportModal = defineAsyncComponent(

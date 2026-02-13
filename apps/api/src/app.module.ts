@@ -17,6 +17,7 @@ import IntegrationConfigEntity from './entities/IntegrationConfigEntity';
 import IntegrationSyncJobEntity from './entities/IntegrationSyncJobEntity';
 import IntegrationSyncRecordEntity from './entities/IntegrationSyncRecordEntity';
 import ImportTemplateEntity from './entities/ImportTemplateEntity';
+import ImportIngestionRunEntity from './entities/ImportIngestionRunEntity';
 
 import CommentEntity from './entities/CommentEntity';
 import NoteEntity from './entities/NoteEntity';
@@ -32,6 +33,7 @@ import MockSeedModule from './seed/mock-seed.module';
 
 import ProjectEntity from './entities/ProjectEntity';
 import TaskEntity from './entities/TaskEntity';
+import DeviceEntity from './entities/DeviceEntity';
 
 import ProjectsModule from './modules/projects/projects.module';
 import TasksModule from './modules/tasks/tasks.module';
@@ -55,6 +57,7 @@ import MessageEventEntity from './entities/MessageEventEntity';
 import { MessagesModule } from './modules/messages/messages.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { AssistantWsModule } from './modules/assistant/assistant-ws.module';
+import { DevicesModule } from './modules/devices/devices.module';
 
 @Module({
   imports: [
@@ -69,6 +72,7 @@ import { AssistantWsModule } from './modules/assistant/assistant-ws.module';
         LeadEntity,
         ProjectEntity,
         TaskEntity,
+        DeviceEntity,
         MessageEventEntity,
         AuthAuditEventEntity,
         PasswordResetRequestEntity,
@@ -79,6 +83,7 @@ import { AssistantWsModule } from './modules/assistant/assistant-ws.module';
         IntegrationSyncJobEntity,
         IntegrationSyncRecordEntity,
         ImportTemplateEntity,
+        ImportIngestionRunEntity,
         CommentEntity,
         NoteEntity,
         AttachmentEntity,
@@ -109,6 +114,7 @@ import { AssistantWsModule } from './modules/assistant/assistant-ws.module';
     IntegrationsModule,
     NotificationsModule,
     LeadsModule,
+    DevicesModule,
     MessagesModule,
     WebhooksModule,
     AssistantWsModule,

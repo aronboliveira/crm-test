@@ -1,5 +1,11 @@
 import axios, { type AxiosInstance, type AxiosError } from "axios";
 import type { CreateDTO, UpdateDTO } from "../types/api.types";
+import type {
+  DeviceAnalyticsQuery,
+  DeviceAnalyticsResponse,
+  DeviceListQuery,
+  DeviceListResponse,
+} from "../pinia/types/devices.types";
 
 /** Storage key for authentication token, must match auth.store.ts */
 const AUTH_TOKEN_KEY = "_auth_token_v1";
@@ -127,6 +133,16 @@ export type ImportSourceProfile = Readonly<{
   kind: ImportTemplateKind;
   columnMapping: Readonly<Record<string, string>>;
   defaultValues: Readonly<Record<string, string>>;
+}>;
+
+export type ImportFieldSuggestion = Readonly<{
+  value: string;
+  score: number;
+}>;
+
+export type ImportFieldSuggestionsItem = Readonly<{
+  field: string;
+  suggestions: readonly ImportFieldSuggestion[];
 }>;
 
 const api = new ApiClient(
@@ -407,6 +423,95 @@ export default class ApiClientService {
       } catch (error) {
         console.error(
           `[ApiClientService.clients.remove] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+  };
+
+  static devices = {
+    list: async (params?: DeviceListQuery) => {
+      try {
+        const response = await api.raw.get("/devices", { params });
+        return response.data as DeviceListResponse;
+      } catch (error) {
+        console.error("[ApiClientService.devices.list] Request failed:", error);
+        throw error;
+      }
+    },
+
+    analytics: async (params?: DeviceAnalyticsQuery) => {
+      try {
+        const response = await api.raw.get("/devices/analytics", { params });
+        return response.data as DeviceAnalyticsResponse;
+      } catch (error) {
+        console.error(
+          "[ApiClientService.devices.analytics] Request failed:",
+          error,
+        );
+        throw error;
+      }
+    },
+
+    get: async (id: string) => {
+      try {
+        if (!id || typeof id !== "string") {
+          throw new Error("Invalid device ID");
+        }
+        const response = await api.raw.get(`/devices/${encodeURIComponent(id)}`);
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.devices.get] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    create: async (payload: any) => {
+      try {
+        const response = await api.raw.post("/devices", payload);
+        return response.data;
+      } catch (error) {
+        console.error(
+          "[ApiClientService.devices.create] Request failed:",
+          error,
+        );
+        throw error;
+      }
+    },
+
+    update: async (id: string, payload: any) => {
+      try {
+        if (!id || typeof id !== "string") {
+          throw new Error("Invalid device ID");
+        }
+        const response = await api.raw.patch(
+          `/devices/${encodeURIComponent(id)}`,
+          payload,
+        );
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.devices.update] Failed for ID ${id}:`,
+          error,
+        );
+        throw error;
+      }
+    },
+
+    remove: async (id: string) => {
+      try {
+        if (!id || typeof id !== "string") {
+          throw new Error("Invalid device ID");
+        }
+        const response = await api.raw.delete(`/devices/${encodeURIComponent(id)}`);
+        return response.data;
+      } catch (error) {
+        console.error(
+          `[ApiClientService.devices.remove] Failed for ID ${id}:`,
           error,
         );
         throw error;
@@ -761,9 +866,17 @@ export default class ApiClientService {
   /* ── Import ───────────────────────────────────────────────── */
 
   static import = {
-    upload: async (file: File) => {
+    upload: async (
+      file: File,
+      options?: Readonly<{
+        duplicateStrategy?: "skip-duplicates" | "update-on-match" | "strict-fail";
+      }>,
+    ) => {
       const fd = new FormData();
       fd.append("file", file);
+      if (options?.duplicateStrategy) {
+        fd.append("duplicateStrategy", options.duplicateStrategy);
+      }
       const r = await api.raw.post("/import", fd, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 60_000,
@@ -849,6 +962,23 @@ export default class ApiClientService {
         params: { kind },
       });
       return (r.data ?? { items: [] }) as { items: ImportSourceProfile[] };
+    },
+    listFieldSuggestions: async (
+      kind: ImportTemplateKind,
+      params?: Readonly<{ field?: string; query?: string; limit?: number }>,
+    ) => {
+      const r = await api.raw.get("/import/suggestions", {
+        params: {
+          kind,
+          ...(params?.field ? { field: params.field } : {}),
+          ...(params?.query ? { query: params.query } : {}),
+          ...(params?.limit ? { limit: params.limit } : {}),
+        },
+      });
+      return (r.data ?? { kind, items: [] }) as {
+        kind: ImportTemplateKind;
+        items: ImportFieldSuggestionsItem[];
+      };
     },
   };
 }

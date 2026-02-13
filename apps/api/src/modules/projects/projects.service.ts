@@ -18,6 +18,7 @@ type CreateProjectDto = Readonly<{
   name: string;
   code?: string;
   description?: string;
+  notes?: string;
   status?: ProjectStatus;
   ownerEmail?: string;
   dueAt?: string;
@@ -128,6 +129,10 @@ export default class ProjectsService {
           typeof dto.description === 'string' && dto.description.trim()
             ? dto.description.trim()
             : undefined,
+        notes:
+          typeof dto.notes === 'string' && dto.notes.trim()
+            ? dto.notes.trim()
+            : undefined,
         status,
         ownerEmail,
         dueAt,
@@ -177,6 +182,13 @@ export default class ProjectsService {
         patch.description =
           typeof dto.description === 'string' && dto.description.trim()
             ? dto.description.trim()
+            : undefined;
+      }
+
+      if (isRec(dto) && 'notes' in dto) {
+        patch.notes =
+          typeof dto.notes === 'string' && dto.notes.trim()
+            ? dto.notes.trim()
             : undefined;
       }
 

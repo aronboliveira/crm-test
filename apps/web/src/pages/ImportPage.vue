@@ -74,10 +74,10 @@ async function submitLegacyFile() {
   if (!file.value) return;
 
   const ext = file.value.name.split(".").pop()?.toLowerCase();
-  if (!["csv", "yml", "yaml", "xml"].includes(ext || "")) {
+  if (!["csv", "yml", "yaml", "xml", "json", "md", "markdown"].includes(ext || "")) {
     await AlertService.error(
       "Formato inválido",
-      "Somente arquivos .csv, .yml, .yaml e .xml são suportados.",
+      "Somente arquivos .csv, .yml, .yaml, .xml, .json e .md são suportados.",
     );
     return;
   }
@@ -106,7 +106,7 @@ async function submitLegacyFile() {
       <h1 class="import-title">Importar</h1>
       <p class="import-subtitle">
         Use formulários guiados com validação estrita, prévia e aprovação interativa
-        antes de gravar no sistema.
+        antes de gravar no sistema. Também aceitamos JSON/CSV/XML/MD no fluxo assistido.
       </p>
     </header>
 
@@ -137,7 +137,7 @@ async function submitLegacyFile() {
         <div>
           <h2 class="legacy-title">Importação por arquivo (legado)</h2>
           <p class="legacy-subtitle">
-            Mantido para compatibilidade com o endpoint `/import`.
+            Mantido para compatibilidade com o endpoint `/import` (CSV, YAML, XML, JSON e MD).
           </p>
         </div>
         <button
@@ -161,7 +161,7 @@ async function submitLegacyFile() {
           <input
             ref="fileInput"
             type="file"
-            accept=".csv,.yml,.yaml,.xml"
+            accept=".csv,.yml,.yaml,.xml,.json,.md,.markdown"
             @change="onFileChange"
           />
         </label>

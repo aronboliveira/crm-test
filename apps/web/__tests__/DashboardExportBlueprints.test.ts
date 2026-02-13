@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DashboardDevicesCsvBlueprint,
   DashboardProjectsCsvBlueprint,
   DashboardReportsCsvBlueprint,
   DashboardTasksCsvBlueprint,
@@ -102,5 +103,36 @@ describe("Dashboard export blueprints", () => {
     expect(aoa[0]).toEqual(["Tipo", "Item", "Tarefas", "Progresso"]);
     expect(aoa[1]).toEqual(["Projeto", "Implantação", 12, "67%"]);
     expect(aoa[2]).toEqual(["Tarefa", "Revisar contrato", "", "—"]);
+  });
+
+  it("DashboardDevicesCsvBlueprint should preserve selected columns and value order", () => {
+    const blueprint = new DashboardDevicesCsvBlueprint({
+      columns: ["nome", "status", "host", "ip"],
+    });
+
+    const aoa = blueprint.toAoa([
+      {
+        nome: "Dell Latitude 7440",
+        tipo: "Físico",
+        status: "Online",
+        fabricante: "Dell",
+        modelo: "Latitude 7440",
+        sistemaOperacional: "Windows 11 Pro",
+        host: "ws-001",
+        ip: "10.21.1.10",
+        serial: "SN-A1B2C3",
+        tags: "workstation, suporte",
+        ultimaAtividade: "13/02/2026 09:11:00",
+      },
+    ]);
+
+    expect(blueprint.getColumnKeys()).toEqual(["nome", "status", "host", "ip"]);
+    expect(aoa[0]).toEqual(["Nome", "Status", "Host", "IP"]);
+    expect(aoa[1]).toEqual([
+      "Dell Latitude 7440",
+      "Online",
+      "ws-001",
+      "10.21.1.10",
+    ]);
   });
 });

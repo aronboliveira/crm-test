@@ -10,6 +10,10 @@ export {
 export { ImportFieldCatalog } from "./ImportFieldCatalog";
 export type { ImportFieldDefinition } from "./ImportFieldCatalog";
 export {
+  default as ImportInputSuggestionService,
+  type WeightedInputSuggestion,
+} from "./ImportInputSuggestionService";
+export {
   ImportPersonalizationService,
   type ImportMappingTemplate,
 } from "./ImportPersonalizationService";

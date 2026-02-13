@@ -1,101 +1,157 @@
+import IdleTaskScheduler from "./IdleTaskScheduler";
+import InputSuggestionListService from "./InputSuggestionListService";
+import SafeJsonService from "./SafeJsonService";
+import type { StorageKeyValueStore } from "./StorageService";
+
 /**
  * SmartAutocompleteService
  *
- * Provides intelligent autocomplete suggestions sourced from:
- *  1. localStorage history (per-field, last 50 entries)
- *  2. 3-second persistence rule: new entries only stick if the user
- *     has NOT typed anything else for 3 seconds.
- *
- * Usage:
- *   const svc = new SmartAutocompleteService('task-title');
- *   svc.suggest('bui')  // => ['Build offline sync', 'Build dashboards']
- *   svc.commit('Build deployment script');  // saves after 3s idle
+ * Keeps local suggestion history for a single input key.
+ * Persistence criteria:
+ *  1. 5-second idle typing (`commit`)
+ *  2. explicit submit (`commitSubmitted`)
  */
 
-const MAX_ENTRIES = 50;
-const PERSIST_DELAY_MS = 3_000;
+const DEFAULT_MAX_ENTRIES = 50;
+const DEFAULT_MAX_SUGGESTIONS = 5;
+const DEFAULT_PERSIST_DELAY_MS = 5_000;
+const DEFAULT_MIN_LENGTH = 2;
+const DEFAULT_STORAGE_PREFIX = "_ac_";
 
-function storageKey(field: string): string {
-  return `_ac_${field}`;
+interface SmartAutocompleteConfig {
+  maxEntries?: number;
+  maxSuggestions?: number;
+  minLength?: number;
+  persistDelayMs?: number;
+  storagePrefix?: string;
+  storage?: StorageKeyValueStore | null;
 }
 
-function loadEntries(field: string): string[] {
-  try {
-    const raw = localStorage.getItem(storageKey(field));
-    const parsed = SafeJsonService.parse<unknown[]>(raw, []);
-    return parsed.filter((entry): entry is string => typeof entry === "string");
-  } catch {
-    return [];
+const toPositiveInt = (value: unknown, fallback: number): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
   }
-}
+  const normalized = Math.trunc(parsed);
+  return normalized > 0 ? normalized : fallback;
+};
 
-function saveEntries(field: string, entries: string[]): void {
+const resolveStorage = (
+  candidate: StorageKeyValueStore | null | undefined,
+): StorageKeyValueStore | null => {
+  if (candidate) {
+    return candidate;
+  }
   try {
-    const serialized = SafeJsonService.tryStringify(
-      entries.slice(0, MAX_ENTRIES),
-    );
-    if (!serialized) {
-      return;
+    if (typeof localStorage !== "undefined") {
+      return localStorage;
     }
-    localStorage.setItem(storageKey(field), serialized);
   } catch {
-    /* quota exceeded — silently ignore */
+    void 0;
   }
-}
+  return null;
+};
 
 export default class SmartAutocompleteService {
   #field: string;
-  #timer: ReturnType<typeof setTimeout> | null = null;
+  #storage: StorageKeyValueStore | null;
+  #storagePrefix: string;
+  #persistDelayMs: number;
+  #policy: InputSuggestionListService;
+  #scheduler = new IdleTaskScheduler();
 
-  constructor(field: string) {
-    this.#field = field;
+  constructor(field: string, config: SmartAutocompleteConfig = {}) {
+    this.#field = String(field || "").trim();
+    this.#storagePrefix = config.storagePrefix ?? DEFAULT_STORAGE_PREFIX;
+    this.#persistDelayMs = toPositiveInt(
+      config.persistDelayMs,
+      DEFAULT_PERSIST_DELAY_MS,
+    );
+    this.#storage = resolveStorage(config.storage);
+    this.#policy = new InputSuggestionListService({
+      minLength: config.minLength ?? DEFAULT_MIN_LENGTH,
+      maxEntries: config.maxEntries ?? DEFAULT_MAX_ENTRIES,
+      maxSuggestions: config.maxSuggestions ?? DEFAULT_MAX_SUGGESTIONS,
+    });
   }
 
-  /** Return suggestions matching the prefix (case-insensitive). */
-  suggest(prefix: string, limit = 8): string[] {
-    if (!prefix || prefix.length < 2) return [];
-    const lc = prefix.toLowerCase();
-    return loadEntries(this.#field)
-      .filter((e) => e.toLowerCase().includes(lc))
-      .slice(0, limit);
+  suggest(prefix: string, limit = this.#policy.maxSuggestions): string[] {
+    const entries = this.#readEntries();
+    return this.#policy.query(entries, prefix, limit);
   }
 
-  /**
-   * Schedule an entry to be saved after 3 s of inactivity.
-   * If the user types again within 3 s, the timer resets.
-   */
   commit(value: string): void {
-    if (!value || value.trim().length < 2) return;
-    if (this.#timer) clearTimeout(this.#timer);
-
-    this.#timer = setTimeout(() => {
-      const entries = loadEntries(this.#field);
-      const trimmed = value.trim();
-      // Deduplicate
-      const idx = entries.indexOf(trimmed);
-      if (idx >= 0) entries.splice(idx, 1);
-      entries.unshift(trimmed);
-      saveEntries(this.#field, entries);
-      this.#timer = null;
-    }, PERSIST_DELAY_MS);
-  }
-
-  /** Cancel any pending commit. */
-  cancel(): void {
-    if (this.#timer) {
-      clearTimeout(this.#timer);
-      this.#timer = null;
+    const sanitized = this.#policy.sanitize(value);
+    if (!this.#policy.accepts(sanitized)) {
+      this.cancel();
+      return;
     }
+
+    this.#scheduler.schedule(this.#field, this.#persistDelayMs, () => {
+      this.#persistNow(sanitized);
+    });
   }
 
-  /** Clear all stored suggestions for this field. */
+  commitSubmitted(value: string): void {
+    this.#persistNow(value);
+  }
+
+  cancel(): void {
+    this.#scheduler.cancel(this.#field);
+  }
+
   clear(): void {
     this.cancel();
     try {
-      localStorage.removeItem(storageKey(this.#field));
+      this.#storage?.removeItem(this.#storageKey());
     } catch {
-      /* noop */
+      void 0;
+    }
+  }
+
+  #storageKey(): string {
+    return `${this.#storagePrefix}${this.#field}`;
+  }
+
+  #readEntries(): string[] {
+    if (!this.#storage || !this.#field) {
+      return [];
+    }
+    try {
+      const raw = this.#storage.getItem(this.#storageKey());
+      const parsed = SafeJsonService.parseArray<unknown>(raw, []);
+      return this.#policy.normalizeEntries(parsed);
+    } catch {
+      return [];
+    }
+  }
+
+  #persistNow(value: string): void {
+    const sanitized = this.#policy.sanitize(value);
+    if (!this.#policy.accepts(sanitized)) {
+      return;
+    }
+
+    const nextEntries = this.#policy.mergeUnique([
+      sanitized,
+      ...this.#readEntries(),
+    ]);
+    this.#writeEntries(nextEntries);
+  }
+
+  #writeEntries(entries: readonly string[]): void {
+    if (!this.#storage || !this.#field) {
+      return;
+    }
+    try {
+      const payload = this.#policy.mergeUnique(entries, this.#policy.maxEntries);
+      const serialized = SafeJsonService.tryStringify(payload);
+      if (!serialized) {
+        return;
+      }
+      this.#storage.setItem(this.#storageKey(), serialized);
+    } catch {
+      void 0;
     }
   }
 }
-import SafeJsonService from "./SafeJsonService";

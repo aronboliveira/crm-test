@@ -24,6 +24,9 @@ export default class ProjectEntity {
   @Column()
   description?: string;
 
+  @Column()
+  notes?: string;
+
   @Index()
   @Column()
   status!: ProjectStatus;

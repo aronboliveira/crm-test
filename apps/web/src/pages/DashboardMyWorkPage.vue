@@ -4,7 +4,7 @@ import { useRouter } from "vue-router";
 import { useDashboardMyWorkPage } from "../assets/scripts/pages/useDashboardMyWorkPage";
 import type { TaskRow } from "../pinia/types/tasks.types";
 import ModalService from "../services/ModalService";
-import AlertService from "../services/AlertService";
+import TableExportFlowOrchestrator from "../services/TableExportFlowOrchestrator";
 import {
   DASHBOARD_TASKS_EXPORT_CENTERED_COLUMNS,
   DASHBOARD_TASKS_EXPORT_COLUMNS,
@@ -118,6 +118,7 @@ const myWorkExporter = new SpreadsheetExporter<
     return null;
   },
 });
+const exportFlow = new TableExportFlowOrchestrator("DashboardMyWorkPage");
 
 const openTask = (task: TaskRow): void => {
   router.push({
@@ -283,6 +284,7 @@ const openExportDialog =
         title: "Exportar Meu Trabalho",
         size: "md",
         data: {
+          presetKey: "dashboard.my-work",
           totalRows: filteredTaskRows.value.length,
           entityLabel: "tarefa(s)",
           columnOptions: DASHBOARD_TASKS_EXPORT_COLUMNS,
@@ -293,32 +295,16 @@ const openExportDialog =
     );
 
 const handleOpenExportModal = async (): Promise<void> => {
-  try {
-    const selection = await openExportDialog();
-    if (!selection) return;
-
-    const records = buildMyWorkExportRows();
-    if (!records.length) {
-      await AlertService.error(
-        "Exportação",
-        "Não há tarefas para exportar com os filtros selecionados.",
-      );
-      return;
-    }
-
-    const exportedFormats = await myWorkExporter.export(records, {
-      formats: selection.formats,
-      columnKeys: selection.columnKeys as DashboardTasksExportColumnKey[],
-    });
-
-    await AlertService.success(
-      "Exportação concluída",
-      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
-    );
-  } catch (caughtError) {
-    console.error("[DashboardMyWorkPage] Export failed:", caughtError);
-    await AlertService.error("Erro ao exportar", caughtError);
-  }
+  await exportFlow.execute({
+    openDialog: openExportDialog,
+    emptyStateMessage: "Não há tarefas para exportar com os filtros selecionados.",
+    buildRecords: () => buildMyWorkExportRows(),
+    exportRecords: async (records, selection) =>
+      myWorkExporter.export(records, {
+        formats: selection.formats,
+        columnKeys: selection.columnKeys as DashboardTasksExportColumnKey[],
+      }),
+  });
 };
 
 const focusedTaskRows = computed(() => filteredTaskRows.value.slice(0, 5));

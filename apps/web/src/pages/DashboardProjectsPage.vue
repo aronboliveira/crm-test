@@ -4,6 +4,7 @@ import { useDashboardProjectsPage } from "../assets/scripts/pages/useDashboardPr
 import ModalService from "../services/ModalService";
 import ApiClientService from "../services/ApiClientService";
 import AlertService from "../services/AlertService";
+import TableExportFlowOrchestrator from "../services/TableExportFlowOrchestrator";
 import type { ProjectRow } from "../pinia/types/projects.types";
 import type { FilterState } from "../components/ui/AdvancedFilter.vue";
 import {
@@ -152,6 +153,7 @@ const projectsExporter = new SpreadsheetExporter<
     return null;
   },
 });
+const exportFlow = new TableExportFlowOrchestrator("DashboardProjectsPage");
 
 const mapProjectStatusLabel = (status: string): string =>
   (PROJECT_STATUS_LABEL_BY_ID[status] ?? status) || PROJECTS_EMPTY_VALUE_LABEL;
@@ -181,6 +183,7 @@ const openExportDialog =
         title: "Exportar Projetos",
         size: "md",
         data: {
+          presetKey: "dashboard.projects",
           totalRows: filteredRows.value.length,
           entityLabel: "projeto(s)",
           columnOptions: DASHBOARD_PROJECTS_EXPORT_COLUMNS,
@@ -191,32 +194,16 @@ const openExportDialog =
     );
 
 const handleOpenExportModal = async (): Promise<void> => {
-  try {
-    const selection = await openExportDialog();
-    if (!selection) return;
-
-    const records = projectExportRows.value;
-    if (!records.length) {
-      await AlertService.error(
-        "Exportação",
-        "Não há projetos para exportar com os filtros selecionados.",
-      );
-      return;
-    }
-
-    const exportedFormats = await projectsExporter.export(records, {
-      formats: selection.formats,
-      columnKeys: selection.columnKeys as DashboardProjectsExportColumnKey[],
-    });
-
-    await AlertService.success(
-      "Exportação concluída",
-      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
-    );
-  } catch (caughtError) {
-    console.error("[DashboardProjectsPage] Export failed:", caughtError);
-    await AlertService.error("Erro ao exportar", caughtError);
-  }
+  await exportFlow.execute({
+    openDialog: openExportDialog,
+    emptyStateMessage: "Não há projetos para exportar com os filtros selecionados.",
+    buildRecords: () => projectExportRows.value,
+    exportRecords: async (records, selection) =>
+      projectsExporter.export(records, {
+        formats: selection.formats,
+        columnKeys: selection.columnKeys as DashboardProjectsExportColumnKey[],
+      }),
+  });
 };
 
 const openCreateProject = async () => {

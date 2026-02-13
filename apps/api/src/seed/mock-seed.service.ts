@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MongoRepository } from 'typeorm';
+import { ObjectId } from 'mongodb';
 import { createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { faker } from '@faker-js/faker';
@@ -24,6 +25,7 @@ import ClientEntity from '../entities/ClientEntity';
 import AuthAuditEventEntity, {
   type AuditKind,
 } from '../entities/AuthAuditEventEntity';
+import DeviceEntity from '../entities/DeviceEntity';
 
 type MockUser = Readonly<{
   email: string;
@@ -59,12 +61,15 @@ export default class MockSeedService {
     private readonly clientsRepo: MongoRepository<ClientEntity>,
     @InjectRepository(AuthAuditEventEntity)
     private readonly auditRepo: MongoRepository<AuthAuditEventEntity>,
+    @InjectRepository(DeviceEntity)
+    private readonly devicesRepo: MongoRepository<DeviceEntity>,
   ) {}
 
   async run(): Promise<void> {
     await this.#seedPermissions();
     await this.#seedRoles();
     const allEmails = await this.#seedUsers();
+    await this.#seedDevices(allEmails);
     const clients = await this.#seedClients();
     const projects = await this.#seedProjectsAndTasks(allEmails, clients);
     const myWorkProjects = await this.#seedAdminMyWorkPortfolio(
@@ -80,13 +85,80 @@ export default class MockSeedService {
   }
 
   async #seedClients(): Promise<ClientEntity[]> {
-    const clients: ClientEntity[] = [];
-    const count = await this.clientsRepo.count();
-    if (count > 0) {
-      return this.clientsRepo.find();
+    const targetClientCount = 54;
+    const existingClients = await this.clientsRepo.find();
+    if (existingClients.length >= targetClientCount) {
+      return existingClients;
     }
 
-    const now = new Date().toISOString();
+    const clients: ClientEntity[] = [...existingClients];
+    const clientsToCreate = targetClientCount - existingClients.length;
+    const now = new Date();
+
+    // Upward trend with occasional pullbacks to look realistic over time.
+    const monthlyGrowthWeights = [
+      1,
+      1.2,
+      1.4,
+      1.7,
+      2.1,
+      2.5,
+      2.3,
+      2.9,
+      3.3,
+      3.7,
+      3.4,
+      4.1,
+      4.5,
+      4.9,
+    ];
+    const monthWindowSize = monthlyGrowthWeights.length;
+    const seededCountByMonth = Array.from(
+      { length: monthWindowSize },
+      () => (clientsToCreate >= monthWindowSize ? 1 : 0),
+    );
+
+    let remainingClients =
+      clientsToCreate - seededCountByMonth.reduce((sum, value) => sum + value, 0);
+    const pickMonthIndex = (): number => {
+      const totalWeight = monthlyGrowthWeights.reduce(
+        (sum, weight) => sum + weight,
+        0,
+      );
+      const target = Math.random() * totalWeight;
+      let cumulative = 0;
+      for (let monthIndex = 0; monthIndex < monthlyGrowthWeights.length; monthIndex++) {
+        cumulative += monthlyGrowthWeights[monthIndex];
+        if (target <= cumulative) {
+          return monthIndex;
+        }
+      }
+      return monthlyGrowthWeights.length - 1;
+    };
+
+    while (remainingClients > 0) {
+      seededCountByMonth[pickMonthIndex()] += 1;
+      remainingClients -= 1;
+    }
+
+    const buildMonthRange = (monthsAgo: number): { from: Date; to: Date } => {
+      const from = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsAgo, 1),
+      );
+      const monthEnd = new Date(
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth() - monthsAgo + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+      const to = monthEnd.getTime() > now.getTime() ? now : monthEnd;
+      return { from, to };
+    };
 
     // Define engagement profiles for realistic variation
     const engagementProfiles = [
@@ -162,126 +234,136 @@ export default class MockSeedService {
     const toMaskedCep = (digits: string): string =>
       digits.slice(0, 8).padEnd(8, '0').replace(/^(\d{5})(\d{3})$/, '$1-$2');
 
-    for (let i = 0; i < 15; i++) {
-      const profile = selectProfile();
-      const name = faker.company.name();
-      const email = faker.internet.email();
-      const type: 'pessoa' | 'empresa' = faker.datatype.boolean(0.6)
-        ? 'empresa'
-        : 'pessoa';
-      const cnpj =
-        type === 'empresa'
-          ? toMaskedCnpj(
-              `${faker.number.int({ min: 10, max: 99 })}${faker.number.int({ min: 100, max: 999 })}${faker.number.int({ min: 100, max: 999 })}${faker.number.int({ min: 1000, max: 9999 })}${faker.number.int({ min: 10, max: 99 })}`,
-            )
-          : undefined;
-      const cep =
-        type === 'empresa'
-          ? toMaskedCep(
-              `${faker.number.int({ min: 10000, max: 99999 })}${faker.number.int({ min: 100, max: 999 })}`,
-            )
-          : undefined;
-      const cellPhone = faker.phone.number();
-      const hasWhatsapp =
-        profile.name !== 'inactive'
-          ? faker.datatype.boolean(0.8)
-          : faker.datatype.boolean(0.3); // inactive clients less likely to have WhatsApp
+    for (let monthIndex = 0; monthIndex < seededCountByMonth.length; monthIndex++) {
+      const monthsAgo = monthWindowSize - 1 - monthIndex;
+      const { from, to } = buildMonthRange(monthsAgo);
 
-      // WhatsApp metrics with realistic progression
-      const whatsappSent = faker.number.int(profile.whatsappRange);
-      const deliveryRate = faker.number.float({
-        min: profile.deliveryRate.min,
-        max: profile.deliveryRate.max,
-        fractionDigits: 2,
-      });
-      const readRateOfDelivered = faker.number.float({
-        min: profile.readRate.min,
-        max: profile.readRate.max,
-        fractionDigits: 2,
-      });
-      const replyRateOfRead = faker.number.float({
-        min: profile.replyRate.min,
-        max: profile.replyRate.max,
-        fractionDigits: 2,
-      });
+      for (let clientIndex = 0; clientIndex < seededCountByMonth[monthIndex]; clientIndex++) {
+        const profile = selectProfile();
+        const name = faker.company.name();
+        const email = faker.internet.email();
+        const type: 'pessoa' | 'empresa' = faker.datatype.boolean(0.6)
+          ? 'empresa'
+          : 'pessoa';
+        const cnpj =
+          type === 'empresa'
+            ? toMaskedCnpj(
+                `${faker.number.int({ min: 10, max: 99 })}${faker.number.int({ min: 100, max: 999 })}${faker.number.int({ min: 100, max: 999 })}${faker.number.int({ min: 1000, max: 9999 })}${faker.number.int({ min: 10, max: 99 })}`,
+              )
+            : undefined;
+        const cep =
+          type === 'empresa'
+            ? toMaskedCep(
+                `${faker.number.int({ min: 10000, max: 99999 })}${faker.number.int({ min: 100, max: 999 })}`,
+              )
+            : undefined;
+        const cellPhone = faker.phone.number();
+        const hasWhatsapp =
+          profile.name !== 'inactive'
+            ? faker.datatype.boolean(0.8)
+            : faker.datatype.boolean(0.3);
 
-      const whatsappDelivered = Math.floor(whatsappSent * deliveryRate);
-      const whatsappRead = Math.floor(whatsappDelivered * readRateOfDelivered);
-      const whatsappReplied = Math.floor(whatsappRead * replyRateOfRead);
+        // WhatsApp metrics with realistic progression
+        const whatsappSent = faker.number.int(profile.whatsappRange);
+        const deliveryRate = faker.number.float({
+          min: profile.deliveryRate.min,
+          max: profile.deliveryRate.max,
+          fractionDigits: 2,
+        });
+        const readRateOfDelivered = faker.number.float({
+          min: profile.readRate.min,
+          max: profile.readRate.max,
+          fractionDigits: 2,
+        });
+        const replyRateOfRead = faker.number.float({
+          min: profile.replyRate.min,
+          max: profile.replyRate.max,
+          fractionDigits: 2,
+        });
 
-      // Email metrics with realistic progression
-      const emailSent = faker.number.int(profile.emailRange);
-      const openRate = faker.number.float({
-        min: profile.openRate.min,
-        max: profile.openRate.max,
-        fractionDigits: 2,
-      });
-      const clickRateOfOpened = faker.number.float({
-        min: profile.clickRate.min,
-        max: profile.clickRate.max,
-        fractionDigits: 2,
-      });
-      const replyRateOfOpened = faker.number.float({
-        min: profile.emailReplyRate.min,
-        max: profile.emailReplyRate.max,
-        fractionDigits: 2,
-      });
+        const whatsappDelivered = Math.floor(whatsappSent * deliveryRate);
+        const whatsappRead = Math.floor(whatsappDelivered * readRateOfDelivered);
+        const whatsappReplied = Math.floor(whatsappRead * replyRateOfRead);
 
-      const emailOpened = Math.floor(emailSent * openRate);
-      const emailClicked = Math.floor(emailOpened * clickRateOfOpened);
-      const emailReplied = Math.floor(emailOpened * replyRateOfOpened);
+        // Email metrics with realistic progression
+        const emailSent = faker.number.int(profile.emailRange);
+        const openRate = faker.number.float({
+          min: profile.openRate.min,
+          max: profile.openRate.max,
+          fractionDigits: 2,
+        });
+        const clickRateOfOpened = faker.number.float({
+          min: profile.clickRate.min,
+          max: profile.clickRate.max,
+          fractionDigits: 2,
+        });
+        const replyRateOfOpened = faker.number.float({
+          min: profile.emailReplyRate.min,
+          max: profile.emailReplyRate.max,
+          fractionDigits: 2,
+        });
 
-      // Determine preferred contact based on engagement
-      let preferredContact: (typeof preferredContacts)[number];
-      if (profile.name === 'inactive') {
-        preferredContact = 'email';
-      } else if (whatsappSent > emailSent && hasWhatsapp) {
-        preferredContact = 'whatsapp';
-      } else {
-        preferredContact =
-          preferredContacts[faker.number.int({ min: 0, max: 3 })];
+        const emailOpened = Math.floor(emailSent * openRate);
+        const emailClicked = Math.floor(emailOpened * clickRateOfOpened);
+        const emailReplied = Math.floor(emailOpened * replyRateOfOpened);
+
+        // Determine preferred contact based on engagement
+        let preferredContact: (typeof preferredContacts)[number];
+        if (profile.name === 'inactive') {
+          preferredContact = 'email';
+        } else if (whatsappSent > emailSent && hasWhatsapp) {
+          preferredContact = 'whatsapp';
+        } else {
+          preferredContact =
+            preferredContacts[faker.number.int({ min: 0, max: 3 })];
+        }
+
+        const createdAt = faker.date.between({ from, to });
+        const updatedAt = faker.date.between({ from: createdAt, to: now });
+        const lastMessageAt =
+          whatsappSent > 0
+            ? faker.date.between({ from: createdAt, to: now }).toISOString()
+            : undefined;
+        const lastEmailAt =
+          emailSent > 0
+            ? faker.date.between({ from: createdAt, to: now }).toISOString()
+            : undefined;
+
+        const client = this.clientsRepo.create({
+          id: crypto.randomUUID(),
+          name,
+          type,
+          email,
+          phone: faker.phone.number(),
+          cellPhone,
+          whatsappNumber: hasWhatsapp ? cellPhone : undefined,
+          hasWhatsapp,
+          preferredContact,
+          whatsappAnalytics: {
+            sent: whatsappSent,
+            delivered: whatsappDelivered,
+            read: whatsappRead,
+            replied: whatsappReplied,
+            lastMessageAt,
+          },
+          emailAnalytics: {
+            sent: emailSent,
+            opened: emailOpened,
+            clicked: emailClicked,
+            replied: emailReplied,
+            lastEmailAt,
+          },
+          company: name,
+          cnpj,
+          cep,
+          notes: faker.lorem.sentence(),
+          createdAt: createdAt.toISOString(),
+          updatedAt: updatedAt.toISOString(),
+        } as any);
+        clients.push(
+          (await this.clientsRepo.save(client)) as unknown as ClientEntity,
+        );
       }
-
-      const client = this.clientsRepo.create({
-        id: crypto.randomUUID(),
-        name,
-        type,
-        email,
-        phone: faker.phone.number(),
-        cellPhone,
-        whatsappNumber: hasWhatsapp ? cellPhone : undefined,
-        hasWhatsapp,
-        preferredContact,
-        whatsappAnalytics: {
-          sent: whatsappSent,
-          delivered: whatsappDelivered,
-          read: whatsappRead,
-          replied: whatsappReplied,
-          lastMessageAt:
-            whatsappSent > 0
-              ? faker.date.recent({ days: 30 }).toISOString()
-              : undefined,
-        },
-        emailAnalytics: {
-          sent: emailSent,
-          opened: emailOpened,
-          clicked: emailClicked,
-          replied: emailReplied,
-          lastEmailAt:
-            emailSent > 0
-              ? faker.date.recent({ days: 45 }).toISOString()
-              : undefined,
-        },
-        company: name,
-        cnpj,
-        cep,
-        notes: faker.lorem.sentence(),
-        createdAt: now,
-        updatedAt: now,
-      } as any);
-      clients.push(
-        (await this.clientsRepo.save(client)) as unknown as ClientEntity,
-      );
     }
     return clients;
   }
@@ -397,6 +479,22 @@ export default class MockSeedService {
       });
 
       const passwordHash = await bcrypt.hash(u.password, 12);
+      const [localPart = 'user'] = email.split('@');
+      const [fallbackFirstName, fallbackLastName] = localPart
+        .replace(/[^a-zA-Z0-9._-]/g, '')
+        .split(/[._-]/);
+      const firstName =
+        fallbackFirstName?.trim() || faker.person.firstName();
+      const lastName = fallbackLastName?.trim() || faker.person.lastName();
+      const department = faker.helpers.arrayElement([
+        'Operações',
+        'Produto',
+        'Comercial',
+        'Financeiro',
+        'Suporte',
+      ]);
+      const phone = faker.phone.number();
+      const notes = faker.lorem.sentence({ min: 6, max: 12 });
 
       if (exists) {
         await this.usersRepo.update(
@@ -405,6 +503,11 @@ export default class MockSeedService {
             username: u.username,
             passwordHash,
             roles: [...u.roles],
+            firstName,
+            lastName,
+            department,
+            phone,
+            notes,
             tokenVersion: 1,
             disabled: false,
             updatedAt: now,
@@ -421,6 +524,11 @@ export default class MockSeedService {
           username: u.username,
           passwordHash,
           roles: [...u.roles],
+          firstName,
+          lastName,
+          department,
+          phone,
+          notes,
           tokenVersion: 1,
           disabled: false,
           createdAt,
@@ -430,6 +538,181 @@ export default class MockSeedService {
     }
 
     return allEmails;
+  }
+
+  async #seedDevices(allEmails: readonly string[]): Promise<void> {
+    const adminEmail = 'admin@corp.local';
+    const targetDevices = 72;
+    const targetAdminDevices = 18;
+
+    const [existingCount, existingAdminCount] = await Promise.all([
+      this.devicesRepo.count(),
+      this.devicesRepo.count({ where: { ownerEmail: adminEmail } as any }),
+    ]);
+
+    const baselineToCreate = Math.max(0, targetDevices - existingCount);
+    const adminTopUpToCreate = Math.max(
+      0,
+      targetAdminDevices - existingAdminCount,
+    );
+    const toCreate = Math.max(baselineToCreate, adminTopUpToCreate);
+
+    if (toCreate <= 0) {
+      return;
+    }
+
+    const owners = [adminEmail, ...allEmails]
+      .map((email) => String(email || '').trim().toLowerCase())
+      .filter((email, index, source) => !!email && source.indexOf(email) === index)
+      .slice(0, 18);
+
+    const vendors = ['Dell', 'Lenovo', 'Apple', 'HP', 'Asus', 'Acer', 'VMware', 'Cisco'];
+    const models = [
+      'Latitude 7440',
+      'ThinkPad T14',
+      'MacBook Pro M3',
+      'EliteBook 850',
+      'ZenBook 14',
+      'Aspire 5',
+      'ESXi VM Node',
+      'Catalyst VM Host',
+    ];
+    const adminVendorWeight = [
+      'Dell',
+      'Dell',
+      'Dell',
+      'Lenovo',
+      'Lenovo',
+      'HP',
+      'HP',
+      'Apple',
+      'Asus',
+      'VMware',
+      'Cisco',
+      'Acer',
+    ];
+    const adminModelWeight = [
+      'Latitude 7440',
+      'Latitude 5440',
+      'ThinkPad T14',
+      'EliteBook 850',
+      'MacBook Pro M3',
+      'Precision 5680',
+      'ESXi VM Node',
+      'Catalyst VM Host',
+    ];
+    const operatingSystems = [
+      'Windows 11 Pro',
+      'Ubuntu 24.04',
+      'macOS Sequoia',
+      'Debian 12',
+      'Windows Server 2022',
+      'VMware ESXi 8',
+    ];
+    const statuses: ReadonlyArray<'online' | 'offline' | 'maintenance'> = [
+      'online',
+      'offline',
+      'maintenance',
+    ];
+    const kinds: ReadonlyArray<'physical' | 'virtual'> = ['physical', 'virtual'];
+    const adminKinds: ReadonlyArray<'physical' | 'virtual'> = [
+      'physical',
+      'physical',
+      'virtual',
+      'physical',
+      'virtual',
+      'physical',
+      'virtual',
+      'physical',
+    ];
+    const adminStatuses: ReadonlyArray<'online' | 'offline' | 'maintenance'> = [
+      'online',
+      'offline',
+      'online',
+      'maintenance',
+      'online',
+      'offline',
+      'maintenance',
+      'online',
+    ];
+
+    const baseMs = Date.now();
+    const docs: DeviceEntity[] = [];
+
+    for (let index = 0; index < toCreate; index++) {
+      const forceAdmin = index < adminTopUpToCreate;
+      const ownerEmail = forceAdmin
+        ? adminEmail
+        : owners[(existingCount + index) % owners.length] ?? adminEmail;
+      const ownerSequence = existingCount + index;
+      const isAdminOwner = ownerEmail === adminEmail;
+
+      const kindPool = isAdminOwner ? adminKinds : kinds;
+      const statusPool = isAdminOwner ? adminStatuses : statuses;
+      const vendorPool = isAdminOwner ? adminVendorWeight : vendors;
+      const modelPool = isAdminOwner ? adminModelWeight : models;
+
+      const kind = kindPool[ownerSequence % kindPool.length];
+      const status =
+        statusPool[
+          (ownerSequence * 3 + (isAdminOwner ? 1 : 0)) % statusPool.length
+        ];
+      const vendor =
+        vendorPool[
+          (ownerSequence * 5 + (isAdminOwner ? 2 : 0)) % vendorPool.length
+        ];
+      const model =
+        modelPool[
+          (ownerSequence * 7 + (isAdminOwner ? 1 : 0)) % modelPool.length
+        ];
+      const operatingSystem =
+        operatingSystems[
+          (ownerSequence + (kind === 'virtual' ? 2 : 0)) % operatingSystems.length
+        ];
+      const deviceNumber = existingCount + index + 1;
+      const hostPrefix = kind === 'virtual' ? 'vm' : 'ws';
+      const host = `${hostPrefix}-${String(deviceNumber).padStart(3, '0')}`;
+      const ipAddress = `10.${isAdminOwner ? 21 : 30}.${(deviceNumber % 24) + 1}.${(deviceNumber % 200) + 10}`;
+      const serialNumber = `SN-${(200000 + deviceNumber).toString(16).toUpperCase()}`;
+      const dayOffset = isAdminOwner ? ownerSequence % 14 : ownerSequence % 28;
+      const hourOffset = (ownerSequence % 7) * 3;
+      const updatedMs =
+        baseMs - dayOffset * 24 * 3600 * 1000 - hourOffset * 3600 * 1000;
+      const createdMs = updatedMs - (2 + (ownerSequence % 12)) * 24 * 3600 * 1000;
+      const updatedAt = new Date(updatedMs).toISOString();
+      const createdAt = new Date(createdMs).toISOString();
+      const lastSeenAt =
+        status === 'offline'
+          ? undefined
+          : new Date(updatedMs - (ownerSequence % 4) * 15 * 60 * 1000).toISOString();
+
+      docs.push({
+        id: new ObjectId().toHexString(),
+        ownerEmail,
+        name: `${vendor} ${model}`,
+        kind,
+        vendor,
+        model,
+        operatingSystem,
+        host,
+        ipAddress,
+        serialNumber,
+        status,
+        tags:
+          status === 'maintenance'
+            ? ['maintenance', kind === 'virtual' ? 'hypervisor' : 'field']
+            : kind === 'virtual'
+              ? ['datacenter', 'vm', isAdminOwner ? 'critical' : 'shared']
+              : ['workstation', isAdminOwner ? 'support' : 'office'],
+        lastSeenAt,
+        createdAt,
+        updatedAt,
+      } as any);
+    }
+
+    if (docs.length > 0) {
+      await this.devicesRepo.save(docs as any);
+    }
   }
 
   async #seedAuditEvents(allEmails: readonly string[]): Promise<void> {
@@ -483,21 +766,23 @@ export default class MockSeedService {
         now - (index + 1) * 45 * 60 * 1000,
       ).toISOString();
 
-      const auditEvent = this.auditRepo.create({
-        kind,
-        createdAt,
-        actorEmail,
-        actorEmailMasked: this.#maskEmail(actorEmail),
-        actorEmailHash: this.#sha256(actorEmail),
-        targetEmail,
-        targetEmailMasked: targetEmail
-          ? this.#maskEmail(targetEmail)
-          : undefined,
-        targetEmailHash: targetEmail ? this.#sha256(targetEmail) : undefined,
-        ipHash: this.#sha256(`seed-ip-${index % 7}`),
-        userAgent: index % 2 === 0 ? 'seed/web-client' : 'seed/mobile-client',
-        meta: this.#buildAuditMeta(kind, index, actorEmail, targetEmail),
-      } as any) as AuthAuditEventEntity;
+      const [auditEvent] = this.auditRepo.create([
+        {
+          kind,
+          createdAt,
+          actorEmail,
+          actorEmailMasked: this.#maskEmail(actorEmail),
+          actorEmailHash: this.#sha256(actorEmail),
+          targetEmail,
+          targetEmailMasked: targetEmail
+            ? this.#maskEmail(targetEmail)
+            : undefined,
+          targetEmailHash: targetEmail ? this.#sha256(targetEmail) : undefined,
+          ipHash: this.#sha256(`seed-ip-${index % 7}`),
+          userAgent: index % 2 === 0 ? 'seed/web-client' : 'seed/mobile-client',
+          meta: this.#buildAuditMeta(kind, index, actorEmail, targetEmail),
+        } as any,
+      ]);
 
       docs.push(auditEvent);
     }
@@ -716,6 +1001,8 @@ export default class MockSeedService {
             {
               ownerEmail: pick(),
               clientId: clientId,
+              notes:
+                (exists as any).notes || faker.lorem.sentence({ min: 4, max: 9 }),
               updatedAt: now,
             } as any,
           );
@@ -733,6 +1020,7 @@ export default class MockSeedService {
             faker.number.int({ min: 100, max: 999 }),
           status: config.status,
           description: config.description,
+          notes: faker.lorem.sentence({ min: 6, max: 12 }),
           ownerEmail: pick(),
           createdAt: now,
           updatedAt: now,
@@ -1108,6 +1396,7 @@ export default class MockSeedService {
         code: seed.code,
         status: seed.status,
         description: seed.description,
+        notes: faker.lorem.sentence({ min: 8, max: 14 }),
         ownerEmail: adminEmail,
         tags: seed.tags,
         templateKey: seed.templateKey,

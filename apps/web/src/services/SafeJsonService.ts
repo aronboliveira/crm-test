@@ -1,6 +1,10 @@
 type JsonRecord = Record<string, unknown>;
 
 export default class SafeJsonService {
+  static isObject(value: unknown): value is JsonRecord {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+  }
+
   static parse<T>(raw: string | null | undefined, fallback: T): T {
     if (typeof raw !== "string" || raw.trim().length === 0) {
       return fallback;
@@ -17,14 +21,23 @@ export default class SafeJsonService {
     fallback: JsonRecord = {},
   ): JsonRecord {
     const parsed = SafeJsonService.parse<unknown>(raw, fallback);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      !Array.isArray(parsed)
-    ) {
-      return parsed as JsonRecord;
-    }
-    return fallback;
+    return SafeJsonService.asObject(parsed, fallback);
+  }
+
+  static parseArray<T>(
+    raw: string | null | undefined,
+    fallback: T[] = [],
+  ): T[] {
+    const parsed = SafeJsonService.parse<unknown>(raw, fallback);
+    return SafeJsonService.asArray<T>(parsed, fallback);
+  }
+
+  static asObject(value: unknown, fallback: JsonRecord = {}): JsonRecord {
+    return SafeJsonService.isObject(value) ? value : fallback;
+  }
+
+  static asArray<T>(value: unknown, fallback: T[] = []): T[] {
+    return Array.isArray(value) ? (value as T[]) : fallback;
   }
 
   static tryStringify(value: unknown, space?: number): string | null {

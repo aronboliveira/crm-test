@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, ref } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
+import { useRoute, useRouter } from "vue-router";
 import BarChart from "../components/charts/BarChart.vue";
 import { useAdminAuditPage } from "../assets/scripts/pages/useAdminAuditPage";
+import AdminApiService from "../services/AdminApiService";
 import SafeJsonService from "../services/SafeJsonService";
 import ModalService from "../services/ModalService";
-import AlertService from "../services/AlertService";
+import SmartAutocompleteService from "../services/SmartAutocompleteService";
+import AdminAuditQueryStateService from "../services/AdminAuditQueryStateService";
+import TableExportFlowOrchestrator from "../services/TableExportFlowOrchestrator";
 import {
   ADMIN_AUDIT_EXPORT_CENTERED_COLUMNS,
   ADMIN_AUDIT_EXPORT_COLUMNS,
@@ -19,9 +30,14 @@ import {
 import type { AdminAuditSliceRow } from "../types/admin.types";
 
 const { can, st, rows, busy, nextCursor, load } = useAdminAuditPage();
+const route = useRoute();
+const router = useRouter();
 const DashboardTableExportModal = defineAsyncComponent(
   () => import("../components/dashboard/DashboardTableExportModal.vue"),
 );
+let hydratingFromRoute = false;
+const EXPORT_FETCH_LIMIT = 200;
+const EXPORT_MAX_PAGES = 100;
 
 // Local state for UI toggles and filters
 const showCharts = ref(true);
@@ -29,6 +45,48 @@ const showFilters = ref(true);
 const localSearch = ref("");
 const sortColumn = ref<string | null>(null);
 const sortDirection = ref<"asc" | "desc">("desc");
+const localSearchSuggestions = ref<string[]>([]);
+const emailSearchSuggestions = ref<string[]>([]);
+
+const localSearchDatalistId = "audit-local-search-suggestions";
+const emailSearchDatalistId = "audit-email-search-suggestions";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const localSearchAutocomplete = new SmartAutocompleteService(
+  "admin-audit-local-search",
+);
+const emailSearchAutocomplete = new SmartAutocompleteService(
+  "admin-audit-email-search",
+);
+
+const handleLocalSearchInput = (): void => {
+  const inputValue = localSearch.value.trim();
+  localSearchAutocomplete.commit(localSearch.value);
+  localSearchSuggestions.value = localSearchAutocomplete.suggest(inputValue);
+};
+
+const handleEmailSearchInput = (): void => {
+  const query = typeof st.value.q === "string" ? st.value.q : "";
+  const inputValue = query.trim();
+  if (EMAIL_PATTERN.test(inputValue)) {
+    emailSearchAutocomplete.commit(inputValue);
+  }
+  emailSearchSuggestions.value = emailSearchAutocomplete
+    .suggest(inputValue)
+    .filter((candidate) => EMAIL_PATTERN.test(candidate));
+};
+
+const handleClearFilters = (): void => {
+  localSearch.value = "";
+  st.value.q = "";
+  st.value.kind = "";
+  localSearchSuggestions.value = [];
+  emailSearchSuggestions.value = [];
+};
+
+onBeforeUnmount(() => {
+  localSearchAutocomplete.cancel();
+  emailSearchAutocomplete.cancel();
+});
 
 const stringifyAuditMeta = (meta: unknown): string =>
   SafeJsonService.stringify(meta, "");
@@ -36,11 +94,11 @@ const stringifyAuditMeta = (meta: unknown): string =>
 const stringifyAuditMetaPretty = (meta: unknown): string =>
   SafeJsonService.stringify(meta, "-", 2);
 
-// Computed: Filter rows by local search
-const filteredRows = computed(() => {
-  let result = [...rows.value];
+const applyLocalFiltersAndSort = (
+  sourceRows: readonly AdminAuditSliceRow[],
+): AdminAuditSliceRow[] => {
+  let result = [...sourceRows];
 
-  // Local search filter
   if (localSearch.value.trim()) {
     const search = localSearch.value.toLowerCase();
     result = result.filter((row) => {
@@ -56,7 +114,6 @@ const filteredRows = computed(() => {
     });
   }
 
-  // Sort if column selected
   if (sortColumn.value) {
     result.sort((a: any, b: any) => {
       const aVal = a[sortColumn.value!] || "";
@@ -67,7 +124,10 @@ const filteredRows = computed(() => {
   }
 
   return result;
-});
+};
+
+// Computed: Filter rows by local search
+const filteredRows = computed(() => applyLocalFiltersAndSort(rows.value));
 
 // Toggle sort
 const toggleSort = (column: string) => {
@@ -210,9 +270,12 @@ const auditExporter = new SpreadsheetExporter<
     return null;
   },
 });
+const exportFlow = new TableExportFlowOrchestrator("AdminAuditPage");
 
-const buildAuditExportRows = (): AdminAuditExportRow[] =>
-  filteredRows.value
+const buildAuditExportRows = (
+  sourceRows: readonly AdminAuditSliceRow[] = filteredRows.value,
+): AdminAuditExportRow[] =>
+  sourceRows
     .filter((row): row is AdminAuditSliceRow => !!row)
     .map((row) => ({
       data: row.createdAt || "—",
@@ -222,6 +285,42 @@ const buildAuditExportRows = (): AdminAuditExportRow[] =>
       meta: stringifyAuditMetaPretty(row.meta || {}),
     }));
 
+const fetchAllFilteredRowsForExport = async (): Promise<AdminAuditSliceRow[]> => {
+  const deduped = new Map<string, AdminAuditSliceRow>();
+  let cursor: string | undefined;
+
+  for (let page = 0; page < EXPORT_MAX_PAGES; page += 1) {
+    const response = await AdminApiService.auditList({
+      q: st.value.q.trim() || undefined,
+      kind: st.value.kind.trim() || undefined,
+      cursor,
+      limit: EXPORT_FETCH_LIMIT,
+    });
+
+    const pageRows = (Array.isArray(response?.items) ? response.items : []).map(
+      (item) => {
+        const row = item as any;
+        return {
+          ...row,
+          id: String(row?.id ?? row?._id ?? ""),
+        } as AdminAuditSliceRow;
+      },
+    );
+    if (!pageRows.length) break;
+
+    pageRows.forEach((row, rowIndex) => {
+      const id = String(row.id || row._id || `${row.createdAt || ""}-${rowIndex}`);
+      deduped.set(id, row);
+    });
+
+    const next = String(response?.nextCursor || "").trim();
+    if (!next) break;
+    cursor = next;
+  }
+
+  return [...deduped.values()];
+};
+
 const openExportDialog =
   async (): Promise<DashboardTableExportDialogResult | null> =>
     ModalService.open<DashboardTableExportDialogResult>(
@@ -230,6 +329,7 @@ const openExportDialog =
         title: "Exportar Auditoria",
         size: "md",
         data: {
+          presetKey: "admin.audit",
           totalRows: filteredRows.value.length,
           entityLabel: "evento(s)",
           columnOptions: ADMIN_AUDIT_EXPORT_COLUMNS,
@@ -240,33 +340,76 @@ const openExportDialog =
     );
 
 const handleOpenExportModal = async (): Promise<void> => {
-  try {
-    const selection = await openExportDialog();
-    if (!selection) return;
-
-    const records = buildAuditExportRows();
-    if (!records.length) {
-      await AlertService.error(
-        "Exportação",
-        "Não há eventos de auditoria para exportar.",
-      );
-      return;
-    }
-
-    const exportedFormats = await auditExporter.export(records, {
-      formats: selection.formats,
-      columnKeys: selection.columnKeys as AdminAuditExportColumnKey[],
-    });
-
-    await AlertService.success(
-      "Exportação concluída",
-      `${exportedFormats.map((format) => format.toUpperCase()).join(" e ")} gerado(s) com sucesso.`,
-    );
-  } catch (caughtError) {
-    console.error("[AdminAuditPage] Export failed:", caughtError);
-    await AlertService.error("Erro ao exportar", caughtError);
-  }
+  await exportFlow.execute({
+    openDialog: openExportDialog,
+    emptyStateMessage: "Não há eventos de auditoria para exportar.",
+    buildRecords: async () =>
+      buildAuditExportRows(
+        applyLocalFiltersAndSort(await fetchAllFilteredRowsForExport()),
+      ),
+    exportRecords: async (records, selection) =>
+      auditExporter.export(records, {
+        formats: selection.formats,
+        columnKeys: selection.columnKeys as AdminAuditExportColumnKey[],
+      }),
+  });
 };
+
+const buildRouteState = () => ({
+  q: String(st.value.q || "").trim(),
+  kind: String(st.value.kind || "").trim(),
+});
+
+const applyRouteState = (query: typeof route.query): boolean => {
+  const parsed = AdminAuditQueryStateService.fromQuery(query);
+  const hasChanges =
+    parsed.q !== String(st.value.q || "").trim() ||
+    parsed.kind !== String(st.value.kind || "").trim();
+
+  if (!hasChanges) return false;
+
+  hydratingFromRoute = true;
+  st.value.q = parsed.q;
+  st.value.kind = parsed.kind;
+  hydratingFromRoute = false;
+  return true;
+};
+
+const syncRouteQuery = (): void => {
+  if (hydratingFromRoute) return;
+  const nextState = buildRouteState();
+  if (AdminAuditQueryStateService.isSameState(route.query, nextState)) {
+    return;
+  }
+  void router
+    .replace({ query: AdminAuditQueryStateService.toQuery(nextState) })
+    .catch((caughtError) => {
+      console.error("[AdminAuditPage] route sync failed:", caughtError);
+    });
+};
+
+applyRouteState(route.query);
+
+watch(
+  [() => st.value.q, () => st.value.kind],
+  () => {
+    syncRouteQuery();
+  },
+);
+
+watch(
+  () => route.query,
+  (query) => {
+    const changed = applyRouteState(query);
+    if (changed) {
+      void load(true);
+    }
+  },
+);
+
+onMounted(() => {
+  syncRouteQuery();
+});
 </script>
 
 <template>
@@ -310,33 +453,33 @@ const handleOpenExportModal = async (): Promise<void> => {
         <h2 class="text-lg font-bold">Estatísticas</h2>
 
         <div class="audit-summary-grid">
-          <article class="card p-4">
+          <article class="card audit-stat-card">
             <div class="text-sm opacity-70">Total de Eventos</div>
             <div class="text-2xl font-bold">{{ rows.length }}</div>
           </article>
 
-          <article class="card p-4">
+          <article class="card audit-stat-card">
             <div class="text-sm opacity-70">Sucessos</div>
             <div class="text-2xl font-bold text-green-500">
               {{ successFailureStats.success }}
             </div>
           </article>
 
-          <article class="card p-4">
+          <article class="card audit-stat-card">
             <div class="text-sm opacity-70">Falhas</div>
             <div class="text-2xl font-bold text-red-500">
               {{ successFailureStats.failure }}
             </div>
           </article>
 
-          <article class="card p-4">
+          <article class="card audit-stat-card">
             <div class="text-sm opacity-70">Tipos Únicos</div>
             <div class="text-2xl font-bold">{{ eventTypeStats.length }}</div>
           </article>
         </div>
 
         <div v-if="hasAuditData" class="audit-charts-grid">
-          <article class="card p-4 audit-chart-card">
+          <article class="card audit-chart-card">
             <h3 class="font-semibold mb-3">Distribuição por Tipo</h3>
             <BarChart
               v-if="eventTypeBars.length"
@@ -351,7 +494,7 @@ const handleOpenExportModal = async (): Promise<void> => {
             </p>
           </article>
 
-          <article class="card p-4 audit-chart-card">
+          <article class="card audit-chart-card">
             <h3 class="font-semibold mb-3">Usuários Mais Ativos</h3>
             <BarChart
               v-if="topActorsBars.length"
@@ -367,7 +510,7 @@ const handleOpenExportModal = async (): Promise<void> => {
             </p>
           </article>
 
-          <article class="card p-4 audit-chart-card audit-chart-card--wide">
+          <article class="card audit-chart-card audit-chart-card--wide">
             <h3 class="font-semibold mb-3">Eventos por Data</h3>
             <BarChart
               v-if="eventsByDateBars.length"
@@ -391,31 +534,51 @@ const handleOpenExportModal = async (): Promise<void> => {
     </section>
 
     <!-- Filters Section -->
-    <section v-if="showFilters" class="card p-4 grid gap-3">
+    <section v-if="showFilters" class="card audit-filters-card">
       <h2 class="text-lg font-bold">Filtros</h2>
 
       <div class="grid gap-3 md:grid-cols-3">
         <label class="grid gap-1">
           <span class="font-semibold">Busca Global (Local)</span>
           <input
-            class="table-search-input"
+            class="table-search-input audit-filter-input audit-filter-input--search"
             v-model="localSearch"
+            :list="localSearchDatalistId"
             placeholder="Buscar em qualquer coluna..."
-            autocomplete="off"
+            autocomplete="section-audit search"
+            @input="handleLocalSearchInput"
           />
+          <datalist :id="localSearchDatalistId">
+            <option
+              v-for="option in localSearchSuggestions"
+              :key="`audit-local-search-${option}`"
+              :value="option"
+            />
+          </datalist>
         </label>
 
         <label class="grid gap-1">
           <span class="font-semibold">Buscar por E-mail (Servidor)</span>
           <input
-            class="table-search-input"
+            class="table-search-input audit-filter-input audit-filter-input--email"
             v-model="st.q"
+            :list="emailSearchDatalistId"
+            type="email"
             name="q"
-            autocomplete="off"
+            autocomplete="section-audit email"
+            inputmode="email"
             aria-label="Buscar por e-mail"
-            placeholder="e-mail completo ou fragmento mascarado"
+            placeholder="nome@dominio.com"
+            @input="handleEmailSearchInput"
             @keyup.enter="load(true)"
           />
+          <datalist :id="emailSearchDatalistId">
+            <option
+              v-for="option in emailSearchSuggestions"
+              :key="`audit-email-search-${option}`"
+              :value="option"
+            />
+          </datalist>
         </label>
 
         <label class="grid gap-1">
@@ -451,11 +614,7 @@ const handleOpenExportModal = async (): Promise<void> => {
         <button
           class="btn btn-ghost"
           type="button"
-          @click="
-            localSearch = '';
-            st.q = '';
-            st.kind = '';
-          "
+          @click="handleClearFilters"
         >
           Limpar Filtros
         </button>
@@ -472,11 +631,7 @@ const handleOpenExportModal = async (): Promise<void> => {
     </section>
 
     <!-- Data Table Section -->
-    <div
-      class="card p-3 overflow-auto"
-      role="region"
-      aria-label="Tabela de auditoria"
-    >
+    <div class="card audit-table-card overflow-auto" role="region" aria-label="Tabela de auditoria">
       <div class="mb-2 flex justify-between items-center">
         <span class="text-sm opacity-70">
           Mostrando {{ filteredRows.length }} de {{ rows.length }} eventos
@@ -657,14 +812,22 @@ const handleOpenExportModal = async (): Promise<void> => {
   width: min(100%, 1500px);
   margin-inline: auto;
   display: grid;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 1.2rem;
+  padding: clamp(0.7rem, 0.9vw, 1.05rem);
+}
+
+.audit-page .card::before {
+  display: none;
+}
+
+.audit-page .card {
+  border-color: color-mix(in oklab, var(--border-1), transparent 8%);
 }
 
 .audit-overview {
   display: grid;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 1.15rem;
+  padding: clamp(0.9rem, 1.2vw, 1.2rem);
 }
 
 .audit-overview__header {
@@ -690,28 +853,87 @@ const handleOpenExportModal = async (): Promise<void> => {
 
 .audit-overview__content {
   display: grid;
-  gap: 0.9rem;
+  gap: 1.15rem;
+}
+
+.audit-stat-card {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  align-content: center;
+  text-align: center;
+  min-height: 5.5rem;
+  padding: 1.2rem 1.35rem;
 }
 
 .audit-summary-grid {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.95rem;
   grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
 }
 
 .audit-charts-grid {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.95rem;
   grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
   align-items: start;
 }
 
 .audit-chart-card {
   min-height: 20rem;
+  padding: 1.2rem 1.3rem 1.35rem;
 }
 
 .audit-chart-card--wide {
   grid-column: 1 / -1;
+}
+
+.audit-chart-card h3 {
+  margin-bottom: 0.75rem;
+}
+
+.audit-filters-card {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0.95rem 1rem 1rem;
+
+  --audit-filter-icon-size: 0.96rem;
+  --audit-filter-icon-x: 0.64rem;
+  --audit-filter-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3E%3C/svg%3E");
+  --audit-filter-email: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M2 2a2 2 0 0 0-2 2v8.01A2 2 0 0 0 2 14h5.5a.5.5 0 0 0 0-1H2a1 1 0 0 1-.966-.741l5.64-3.471L8 9.583l7-4.2V8.5a.5.5 0 0 0 1 0V4a2 2 0 0 0-2-2zm3.708 6.208L1 11.105V5.383zM1 4.217V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v.217l-7 4.2z'/%3E%3Cpath d='M14.247 14.269c1.01 0 1.587-.857 1.587-2.025v-.21C15.834 10.43 14.64 9 12.52 9h-.035C10.42 9 9 10.36 9 12.432v.214C9 14.82 10.438 16 12.358 16h.044c.594 0 1.018-.074 1.237-.175v-.73c-.245.11-.673.18-1.18.18h-.044c-1.334 0-2.571-.788-2.571-2.655v-.157c0-1.657 1.058-2.724 2.64-2.724h.04c1.535 0 2.484 1.05 2.484 2.326v.118c0 .975-.324 1.39-.639 1.39-.232 0-.41-.148-.41-.42v-2.19h-.906v.569h-.03c-.084-.298-.368-.63-.954-.63-.778 0-1.259.555-1.259 1.4v.528c0 .892.49 1.434 1.26 1.434.471 0 .896-.227 1.014-.643h.043c.118.42.617.648 1.12.648m-2.453-1.588v-.227c0-.546.227-.791.573-.791.297 0 .572.192.572.708v.367c0 .573-.253.744-.564.744-.354 0-.581-.215-.581-.8Z'/%3E%3C/svg%3E");
+}
+
+.audit-filter-input {
+  padding-inline-start: calc(
+    var(--audit-filter-icon-x) + var(--audit-filter-icon-size) + 0.52rem
+  );
+  background-repeat: no-repeat;
+  background-position: var(--audit-filter-icon-x) center;
+  background-size: var(--audit-filter-icon-size) var(--audit-filter-icon-size);
+}
+
+.audit-filter-input--search {
+  background-image: var(--audit-filter-search);
+}
+
+.audit-filter-input--email {
+  background-image: var(--audit-filter-email);
+}
+
+.audit-filter-input[type="email"]:not(:placeholder-shown):valid {
+  border-color: color-mix(in oklab, var(--success) 60%, var(--border-1));
+  color: color-mix(in oklab, var(--success) 34%, var(--text-1));
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--success) 22%, transparent);
+  outline: none;
+}
+
+.audit-filter-input[type="email"]:not(:placeholder-shown):invalid {
+  border-color: color-mix(in oklab, var(--danger) 58%, var(--border-1));
+  color: color-mix(in oklab, var(--danger) 28%, var(--text-1));
+}
+
+.audit-table-card {
+  padding: 0.95rem 1rem 1rem;
 }
 
 .audit-empty-state {
@@ -722,11 +944,11 @@ const handleOpenExportModal = async (): Promise<void> => {
 
 @media (max-width: 768px) {
   .audit-page {
-    padding: 0.75rem;
+    padding: 0.56rem;
   }
 
   .audit-overview {
-    padding: 0.85rem;
+    padding: 0.78rem;
   }
 
   .audit-overview__actions {
@@ -737,6 +959,13 @@ const handleOpenExportModal = async (): Promise<void> => {
   .audit-summary-grid,
   .audit-charts-grid {
     grid-template-columns: 1fr;
+  }
+
+  .audit-chart-card,
+  .audit-table-card,
+  .audit-filters-card,
+  .audit-stat-card {
+    padding: 0.95rem;
   }
 }
 </style>

@@ -13,6 +13,7 @@ import CommentEntity from '../entities/CommentEntity';
 import ProjectTemplateEntity from '../entities/ProjectTemplateEntity';
 import ClientEntity from '../entities/ClientEntity';
 import AuthAuditEventEntity from '../entities/AuthAuditEventEntity';
+import DeviceEntity from '../entities/DeviceEntity';
 
 import MockSeedService from './mock-seed.service';
 
@@ -31,6 +32,7 @@ import MockSeedService from './mock-seed.service';
       ProjectTemplateEntity,
       ClientEntity,
       AuthAuditEventEntity,
+      DeviceEntity,
     ]),
   ],
   providers: [MockSeedService],

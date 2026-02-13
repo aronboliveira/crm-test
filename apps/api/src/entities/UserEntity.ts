@@ -16,6 +16,21 @@ export default class UserEntity {
   username!: string;
 
   @Column()
+  firstName?: string;
+
+  @Column()
+  lastName?: string;
+
+  @Column()
+  phone?: string;
+
+  @Column()
+  department?: string;
+
+  @Column()
+  notes?: string;
+
+  @Column()
   passwordHash!: string;
 
   @Column()

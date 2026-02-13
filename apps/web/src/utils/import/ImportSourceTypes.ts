@@ -1,4 +1,4 @@
-export type ImportSourceFormat = "csv" | "json" | "xml" | "pdf";
+export type ImportSourceFormat = "csv" | "json" | "xml" | "pdf" | "md";
 
 export type ImportRawRecord = Readonly<Record<string, string>>;
 

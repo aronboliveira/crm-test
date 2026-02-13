@@ -1,6 +1,9 @@
 import type { ImportBlueprint } from "./ImportBlueprint";
 import type { ImportColumnMapping } from "./ImportColumnMappingResolver";
-import { ImportDraftMapperRegistry } from "./ImportDraftMappers";
+import {
+  ImportDraftMapperRegistry,
+  type ImportUnmappedEntry,
+} from "./ImportDraftMappers";
 import type {
   ImportRawRecord,
   ImportSourceFileLike,
@@ -89,6 +92,10 @@ export class ImportSourceIngestionService {
         options.defaultValues,
       );
       const mapping = mapper.map(completedRecord);
+      const draftWithNotes = this.appendUnmappedEntriesToNotes(
+        mapping.draft as Record<string, unknown>,
+        mapping.unmappedEntries,
+      );
 
       if (mapping.matchedFieldCount === 0) {
         rejected.push({
@@ -101,7 +108,7 @@ export class ImportSourceIngestionService {
       }
 
       const validation = await blueprint.validateDraft(
-        mapping.draft as Record<string, unknown>,
+        draftWithNotes,
       );
       const fieldErrors = this.normalizeFieldErrors(validation.errors);
       if (!validation.valid) {
@@ -114,7 +121,7 @@ export class ImportSourceIngestionService {
         continue;
       }
 
-      const payload = blueprint.toPayload(mapping.draft as Record<string, unknown>);
+      const payload = blueprint.toPayload(draftWithNotes);
       accepted.push({
         rowNumber,
         payload,
@@ -222,5 +229,37 @@ export class ImportSourceIngestionService {
       }
     });
     return completed;
+  }
+
+  private appendUnmappedEntriesToNotes(
+    draft: Readonly<Record<string, unknown>>,
+    unmappedEntries: readonly ImportUnmappedEntry[],
+  ): Record<string, unknown> {
+    if (!Object.prototype.hasOwnProperty.call(draft, "notes")) {
+      return { ...draft };
+    }
+    const normalizedEntries = unmappedEntries
+      .map((entry) => ({
+        key: String(entry.key ?? "").trim(),
+        value: String(entry.value ?? "").trim(),
+      }))
+      .filter((entry) => entry.key && entry.value)
+      .slice(0, 8);
+    if (normalizedEntries.length === 0) {
+      return { ...draft };
+    }
+
+    const extras = normalizedEntries
+      .map((entry) => `${entry.key}: ${entry.value}`)
+      .join(" | ");
+    const currentNotes = String(draft.notes ?? "").trim();
+    const appended = currentNotes
+      ? `${currentNotes}\nCampos extras: ${extras}`
+      : `Campos extras: ${extras}`;
+
+    return {
+      ...draft,
+      notes: appended.slice(0, 1200),
+    };
   }
 }

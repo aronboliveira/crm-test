@@ -43,6 +43,7 @@ export default class ProjectsController {
         code: (p as any).code || null,
         name: p.name,
         description: p.description,
+        notes: (p as any).notes || null,
         status: p.status,
         clientId: (p as any).clientId || null,
         ownerEmail: (p as any).ownerEmail || null,
