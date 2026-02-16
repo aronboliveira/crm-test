@@ -314,9 +314,11 @@ describe('AssistantWsService', () => {
     const socket = createUpgradeSocket();
     const client = new FakeWsClient();
     const wss = {
-      handleUpgrade: jest.fn((_req: unknown, _socket: unknown, _head: unknown, cb: Function) => {
-        cb(client);
-      }),
+      handleUpgrade: jest.fn(
+        (_req: unknown, _socket: unknown, _head: unknown, cb: Function) => {
+          cb(client);
+        },
+      ),
       emit: jest.fn(),
     };
     const request = {
@@ -327,7 +329,11 @@ describe('AssistantWsService', () => {
     };
     (service as any).wss = wss;
 
-    await (service as any).onUpgrade(request as any, socket as any, Buffer.alloc(0));
+    await (service as any).onUpgrade(
+      request as any,
+      socket as any,
+      Buffer.alloc(0),
+    );
 
     expect(auth.authenticate).toHaveBeenCalledWith('Bearer token-from-header');
     expect(wss.handleUpgrade).toHaveBeenCalledTimes(1);
@@ -344,9 +350,11 @@ describe('AssistantWsService', () => {
     const socket = createUpgradeSocket();
     const client = new FakeWsClient();
     const wss = {
-      handleUpgrade: jest.fn((_req: unknown, _socket: unknown, _head: unknown, cb: Function) => {
-        cb(client);
-      }),
+      handleUpgrade: jest.fn(
+        (_req: unknown, _socket: unknown, _head: unknown, cb: Function) => {
+          cb(client);
+        },
+      ),
       emit: jest.fn(),
     };
     const request = {
@@ -355,7 +363,11 @@ describe('AssistantWsService', () => {
     };
     (service as any).wss = wss;
 
-    await (service as any).onUpgrade(request as any, socket as any, Buffer.alloc(0));
+    await (service as any).onUpgrade(
+      request as any,
+      socket as any,
+      Buffer.alloc(0),
+    );
 
     expect(auth.authenticate).toHaveBeenCalledWith('query-token');
     expect(wss.handleUpgrade).toHaveBeenCalledTimes(1);

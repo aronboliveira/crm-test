@@ -50,12 +50,15 @@ async function submit() {
     await load();
   } catch (e) {
     console.error("[NotesPanel] create failed:", e);
-    await AlertService.error("Error", "Failed to save note.");
+    await AlertService.error("Erro", "Falha ao salvar nota.");
   }
 }
 
 async function remove(id: string) {
-  const ok = await AlertService.confirm("Delete Note", "Delete this note?");
+  const ok = await AlertService.confirm(
+    "Excluir nota",
+    "Deseja excluir esta nota?",
+  );
   if (!ok) return;
   try {
     await ApiClientService.notes.remove(id);
@@ -69,12 +72,12 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="notes-panel" aria-label="Notes">
+  <section class="notes-panel" aria-label="Notas">
     <h3 class="text-sm font-bold mb-2 opacity-80">
-      📝 Notes ({{ items.length }})
+      📝 Notas ({{ items.length }})
     </h3>
 
-    <div v-if="loading" class="text-xs opacity-50 mb-2">Loading…</div>
+    <div v-if="loading" class="text-xs opacity-50 mb-2">Carregando…</div>
 
     <ul class="notes-list" v-if="items.length">
       <li v-for="n in items" :key="n.id" class="note-item">
@@ -100,22 +103,22 @@ onMounted(load);
       <input
         v-model="newTitle"
         class="text-sm px-2 py-1 rounded border border-white/10 bg-transparent"
-        placeholder="Note title (optional)"
-        aria-label="Note title"
+        placeholder="Título da nota (opcional)"
+        aria-label="Título da nota"
       />
       <textarea
         v-model="newBody"
         class="text-sm px-2 py-1 rounded border border-white/10 bg-transparent resize-y"
         rows="2"
-        placeholder="Write a note…"
-        aria-label="Note body"
+        placeholder="Escreva uma nota…"
+        aria-label="Corpo da nota"
       />
       <button
         type="submit"
         class="btn btn-primary btn-sm justify-self-end"
         :disabled="!newBody.trim()"
       >
-        Save Note
+        Salvar nota
       </button>
     </form>
   </section>

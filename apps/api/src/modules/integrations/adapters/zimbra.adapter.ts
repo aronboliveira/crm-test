@@ -131,15 +131,15 @@ export class ZimbraAdapter implements IntegrationAdapter {
       smtpHost: IntegrationValueSanitizer.normalizeString(merged.smtpHost),
       smtpPort: IntegrationValueSanitizer.normalizePort(merged.smtpPort),
       smtpSecure:
-        IntegrationValueSanitizer.normalizeBoolean(merged.smtpSecure)
-        ?? undefined,
+        IntegrationValueSanitizer.normalizeBoolean(merged.smtpSecure) ??
+        undefined,
       smtpUser: IntegrationValueSanitizer.normalizeString(merged.smtpUser),
       smtpPass: IntegrationValueSanitizer.normalizeString(merged.smtpPass),
       smtpFrom: IntegrationValueSanitizer.normalizeString(merged.smtpFrom),
       smtpProfile: merged.smtpProfile,
       mockNotifications:
-        IntegrationValueSanitizer.normalizeBoolean(merged.mockNotifications)
-        ?? false,
+        IntegrationValueSanitizer.normalizeBoolean(merged.mockNotifications) ??
+        false,
     };
 
     this.authToken = undefined;
@@ -158,9 +158,9 @@ export class ZimbraAdapter implements IntegrationAdapter {
 
   isConfigured(): boolean {
     return Boolean(
-      IntegrationValueSanitizer.hasString(this.config.baseUrl)
-      && IntegrationValueSanitizer.hasString(this.config.username)
-      && IntegrationValueSanitizer.hasString(this.config.password),
+      IntegrationValueSanitizer.hasString(this.config.baseUrl) &&
+      IntegrationValueSanitizer.hasString(this.config.username) &&
+      IntegrationValueSanitizer.hasString(this.config.password),
     );
   }
 
@@ -188,12 +188,16 @@ export class ZimbraAdapter implements IntegrationAdapter {
       return [
         {
           recordType: MAIL_DATASET_TYPES.unreadEmails,
-          records: emails.map((item) => item as unknown as Record<string, unknown>),
+          records: emails.map(
+            (item) => item as unknown as Record<string, unknown>,
+          ),
           externalIdField: 'id',
         },
         {
           recordType: MAIL_DATASET_TYPES.upcomingCalls,
-          records: calls.map((item) => item as unknown as Record<string, unknown>),
+          records: calls.map(
+            (item) => item as unknown as Record<string, unknown>,
+          ),
           externalIdField: 'id',
         },
       ];
@@ -269,7 +273,9 @@ export class ZimbraAdapter implements IntegrationAdapter {
     }
   }
 
-  async getUpcomingCalls(withinMinutes = MAIL_DEFAULTS.zimbraSyncWindowMinutes): Promise<
+  async getUpcomingCalls(
+    withinMinutes = MAIL_DEFAULTS.zimbraSyncWindowMinutes,
+  ): Promise<
     Array<{
       id: string;
       title: string;
@@ -322,7 +328,8 @@ export class ZimbraAdapter implements IntegrationAdapter {
       return appointments.map((appointment) => {
         const raw = this.asObject(appointment);
         const instance = this.firstObject(this.readArray(raw, 'inst'));
-        const baseStart = this.readString(instance, 's') ?? this.readString(raw, 'd');
+        const baseStart =
+          this.readString(instance, 's') ?? this.readString(raw, 'd');
         const startMs = this.readEpochMillis(baseStart);
         const durationMs = this.readEpochMillis(this.readString(raw, 'dur'));
 
@@ -361,7 +368,11 @@ export class ZimbraAdapter implements IntegrationAdapter {
       return;
     }
 
-    if (!this.config.baseUrl || !this.config.username || !this.config.password) {
+    if (
+      !this.config.baseUrl ||
+      !this.config.username ||
+      !this.config.password
+    ) {
       throw new Error('Zimbra credentials not configured');
     }
 
@@ -387,7 +398,9 @@ export class ZimbraAdapter implements IntegrationAdapter {
       const data = SafeJsonCodec.parseObject(response.data);
       const body = this.readObject(data, 'Body');
       const authResponse = this.readObject(body, 'AuthResponse');
-      const tokenEntry = this.firstObject(this.readArray(authResponse, 'authToken'));
+      const tokenEntry = this.firstObject(
+        this.readArray(authResponse, 'authToken'),
+      );
       this.authToken = this.readString(tokenEntry, '_content');
 
       if (!this.authToken) {
@@ -446,13 +459,17 @@ export class ZimbraAdapter implements IntegrationAdapter {
     return `${year}/${month}/${day}`;
   }
 
-  private extractEmail(emailObject: Record<string, unknown> | undefined): string {
+  private extractEmail(
+    emailObject: Record<string, unknown> | undefined,
+  ): string {
     if (!emailObject) {
       return 'unknown@example.com';
     }
-    return this.readString(emailObject, 'a')
-      ?? this.readString(emailObject, 'd')
-      ?? 'unknown@example.com';
+    return (
+      this.readString(emailObject, 'a') ??
+      this.readString(emailObject, 'd') ??
+      'unknown@example.com'
+    );
   }
 
   private readEpochMillisAsIso(value: string | undefined): string {
@@ -475,10 +492,7 @@ export class ZimbraAdapter implements IntegrationAdapter {
     return this.asObject(input[key]);
   }
 
-  private readArray(
-    input: Record<string, unknown>,
-    key: string,
-  ): unknown[] {
+  private readArray(input: Record<string, unknown>, key: string): unknown[] {
     const value = input[key];
     return Array.isArray(value) ? value : [];
   }

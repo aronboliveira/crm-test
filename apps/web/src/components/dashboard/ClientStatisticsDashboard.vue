@@ -509,9 +509,15 @@ const conversionBars = computed(() =>
 
 /* Filters */
 .dashboard-filters {
+  border: none;
+  box-shadow: none;
   padding: clamp(0.78rem, 1.5vw, 0.98rem);
   padding-inline-start: clamp(1.2rem, 2.3vw, 1.7rem);
   padding-inline-end: clamp(0.78rem, 1.45vw, 1.05rem);
+  margin-left: 1rem;
+  &:hover {
+    transform: none;
+  }
 }
 
 .filters-header {

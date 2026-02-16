@@ -53,7 +53,11 @@ type DiffResult = Readonly<{
   changed: readonly DiffEntry[];
 }>;
 
-const VALID_KINDS = new Set<ImportTemplateKind>(['clients', 'projects', 'users']);
+const VALID_KINDS = new Set<ImportTemplateKind>([
+  'clients',
+  'projects',
+  'users',
+]);
 
 const normalizeText = (value: unknown): string =>
   typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
@@ -83,8 +87,12 @@ const recordsEqual = (
   left: Readonly<Record<string, string>>,
   right: Readonly<Record<string, string>>,
 ): boolean => {
-  const leftEntries = Object.entries(left).sort(([a], [b]) => a.localeCompare(b));
-  const rightEntries = Object.entries(right).sort(([a], [b]) => a.localeCompare(b));
+  const leftEntries = Object.entries(left).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  const rightEntries = Object.entries(right).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
   if (leftEntries.length !== rightEntries.length) return false;
   return leftEntries.every(([key, value], index) => {
     const rightEntry = rightEntries[index];
@@ -102,7 +110,9 @@ export default class ImportTemplatesService {
   ) {}
 
   async list(kind?: ImportTemplateKind): Promise<ImportTemplateEntity[]> {
-    const where = kind ? ({ kind } as Partial<ImportTemplateEntity>) : undefined;
+    const where = kind
+      ? ({ kind } as Partial<ImportTemplateEntity>)
+      : undefined;
     return this.repo.find({
       where: where as any,
       order: { updatedAt: 'DESC' } as any,
@@ -112,7 +122,8 @@ export default class ImportTemplatesService {
   async findById(id: string): Promise<ImportTemplateEntity> {
     const oid = this.toObjectId(id);
     const row = await this.repo.findOne({ where: { _id: oid } as any });
-    if (!row) throw new NotFoundException('Template de importação não encontrado.');
+    if (!row)
+      throw new NotFoundException('Template de importação não encontrado.');
     return row;
   }
 
@@ -185,7 +196,8 @@ export default class ImportTemplatesService {
     const nowIso = new Date().toISOString();
     const safeActor = normalizeText(actorEmail) || 'unknown';
 
-    const nextName = dto.name !== undefined ? normalizeText(dto.name) : row.name;
+    const nextName =
+      dto.name !== undefined ? normalizeText(dto.name) : row.name;
     if (!nextName) throw new BadRequestException('Nome do template inválido.');
     const nextNameNormalized = normalizeName(nextName);
 
@@ -228,7 +240,8 @@ export default class ImportTemplatesService {
     const defaultsChanged = !recordsEqual(nextDefaultValues, row.defaultValues);
     const profileChanged = (nextProfileKey ?? '') !== (row.profileKey ?? '');
     const shouldBumpVersion =
-      dto.bumpVersion !== false && (mappingChanged || defaultsChanged || profileChanged);
+      dto.bumpVersion !== false &&
+      (mappingChanged || defaultsChanged || profileChanged);
 
     row.name = nextName;
     row.nameNormalized = nextNameNormalized;
@@ -329,7 +342,9 @@ export default class ImportTemplatesService {
 
   private ensureKind(kind: string): asserts kind is ImportTemplateKind {
     if (!VALID_KINDS.has(kind as ImportTemplateKind)) {
-      throw new BadRequestException('Kind inválido. Use clients, projects ou users.');
+      throw new BadRequestException(
+        'Kind inválido. Use clients, projects ou users.',
+      );
     }
   }
 
@@ -345,7 +360,9 @@ export default class ImportTemplatesService {
     const version = Number.isFinite(targetVersion)
       ? Math.floor(targetVersion)
       : row.latestVersion;
-    const snapshot = (row.versions ?? []).find((entry) => entry.version === version);
+    const snapshot = (row.versions ?? []).find(
+      (entry) => entry.version === version,
+    );
     if (!snapshot) {
       this.logger.warn(
         `Template ${String(row._id)} does not contain version ${String(targetVersion)}`,

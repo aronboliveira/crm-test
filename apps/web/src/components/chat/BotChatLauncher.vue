@@ -23,7 +23,7 @@ const buttonClass = computed(() =>
 );
 
 const ariaLabel = computed(() =>
-  props.open ? "Close assistant chat" : "Open assistant chat",
+  props.open ? "Fechar chat do assistente" : "Abrir chat do assistente",
 );
 
 const handleToggle = (): void => {

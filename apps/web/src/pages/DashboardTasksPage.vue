@@ -36,6 +36,10 @@ const TaskFormModal = defineAsyncComponent(
   () => import("../components/forms/TaskFormModal.vue"),
 );
 
+const GenericImportModal = defineAsyncComponent(
+  () => import("../components/import/GenericImportModal.vue"),
+);
+
 const AdvancedFilter = defineAsyncComponent(
   () => import("../components/ui/AdvancedFilter.vue"),
 );
@@ -79,7 +83,9 @@ const viewMode = ref<TaskViewMode>(
   ) as TaskViewMode) || TASKS_DEFAULT_VIEW_MODE,
 );
 
-watch(viewMode, (v) => StorageService.local.setStr(TASKS_VIEW_MODE_STORAGE_KEY, v));
+watch(viewMode, (v) =>
+  StorageService.local.setStr(TASKS_VIEW_MODE_STORAGE_KEY, v),
+);
 
 /* ── Query param taskId → detail panel ──────────────── */
 
@@ -89,13 +95,17 @@ const hasTaskDetail = computed(
 
 /* ── Filtering ──────────────────────────────────────── */
 
-const createDefaultTaskFilter = (): FilterState => ({ ...TASK_FILTER_DEFAULTS });
+const createDefaultTaskFilter = (): FilterState => ({
+  ...TASK_FILTER_DEFAULTS,
+});
 
 const filter = ref<FilterState>(createDefaultTaskFilter());
 
 const selectedTask = ref<TaskRow | null>(null);
 
-const safeRows = computed(() => (rows.value || []).filter(Boolean) as TaskRow[]);
+const safeRows = computed(
+  () => (rows.value || []).filter(Boolean) as TaskRow[],
+);
 
 const normalizedFilter = computed<FilterState>(() => {
   const current = filter.value;
@@ -160,7 +170,10 @@ const tasksExporter = new SpreadsheetExporter<
         align: "center",
       };
     }
-    if (columnKey === "prioridade" && ["P1", "P2"].includes(record.prioridade)) {
+    if (
+      columnKey === "prioridade" &&
+      ["P1", "P2"].includes(record.prioridade)
+    ) {
       return {
         fillColor: "FFFFF7ED",
         fontColor: "FF9A3412",
@@ -214,7 +227,8 @@ const openExportDialog =
 const handleOpenExportModal = async (): Promise<void> => {
   await exportFlow.execute({
     openDialog: openExportDialog,
-    emptyStateMessage: "Não há tarefas para exportar com os filtros selecionados.",
+    emptyStateMessage:
+      "Não há tarefas para exportar com os filtros selecionados.",
     buildRecords: () => taskExportRows.value,
     exportRecords: async (records, selection) =>
       tasksExporter.export(records, {
@@ -222,6 +236,59 @@ const handleOpenExportModal = async (): Promise<void> => {
         columnKeys: selection.columnKeys as DashboardTasksExportColumnKey[],
       }),
   });
+};
+
+/* ── Import actions ───────────────────────────────────── */
+
+const openMassImportModal = async () => {
+  const TaskImportService = (await import("../services/TaskImportService"))
+    .default;
+  const result = await ModalService.open<{
+    shouldRefresh: boolean;
+    draft?: Record<string, unknown>;
+  }>(GenericImportModal, {
+    title: "Importar Tarefas em Massa",
+    size: "lg",
+    data: {
+      mode: "mass",
+      service: new TaskImportService(),
+      entityLabel: "Tarefas",
+      displayField: "title",
+      singleParseMethod: "parseForSingleTask",
+    },
+  });
+
+  if (result?.shouldRefresh) {
+    await load(true);
+  }
+};
+
+const openSingleImportModal = async () => {
+  const TaskImportService = (await import("../services/TaskImportService"))
+    .default;
+  const result = await ModalService.open<{
+    shouldRefresh: boolean;
+    draft?: Record<string, unknown>;
+  }>(GenericImportModal, {
+    title: "Importar Tarefa de Arquivo",
+    size: "md",
+    data: {
+      mode: "single",
+      service: new TaskImportService(),
+      entityLabel: "Tarefas",
+      displayField: "title",
+      singleParseMethod: "parseForSingleTask",
+    },
+  });
+
+  if (result?.draft) {
+    // Open task form modal with prefilled data
+    await ModalService.open(TaskFormModal, {
+      title: "Nova Tarefa (Importada)",
+      size: "md",
+      data: { draft: result.draft },
+    });
+  }
 };
 
 /* ── CRUD actions ───────────────────────────────────── */
@@ -274,7 +341,9 @@ const getTaskRowKey = (task: TaskRow, index: number): string =>
   task.id || `task-row-${index}`;
 
 const taskStatusOptions = TASK_STATUS_OPTIONS.map((option) => ({ ...option }));
-const taskPriorityOptions = TASK_PRIORITY_OPTIONS.map((option) => ({ ...option }));
+const taskPriorityOptions = TASK_PRIORITY_OPTIONS.map((option) => ({
+  ...option,
+}));
 </script>
 
 <template>
@@ -348,12 +417,37 @@ const taskPriorityOptions = TASK_PRIORITY_OPTIONS.map((option) => ({ ...option }
           </button>
         </div>
 
+        <!-- Import Buttons -->
+        <div class="btn-group" role="group" aria-label="Opções de importação">
+          <button
+            class="btn btn-sm btn-ghost"
+            title="Importar tarefas em massa de arquivo CSV, JSON ou XML"
+            data-testid="dashboard-tasks-mass-import-btn"
+            data-cy="mass-import-tasks-button"
+            @click="openMassImportModal"
+          >
+            <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+            Importar em Massa
+          </button>
+          <button
+            class="btn btn-sm btn-ghost"
+            title="Carregar dados de tarefa de arquivo para formulário"
+            data-testid="dashboard-tasks-single-import-btn"
+            data-cy="single-import-task-button"
+            @click="openSingleImportModal"
+          >
+            <i class="bi bi-upload" aria-hidden="true"></i>
+            Importar para Formulário
+          </button>
+        </div>
+
         <button
           class="btn btn-ghost"
           type="button"
           title="Exportar tarefas da visão atual"
           @click="handleOpenExportModal"
         >
+          <i class="bi bi-download" aria-hidden="true"></i>
           Exportar...
         </button>
         <button class="btn btn-primary" type="button" @click="openCreateTask">

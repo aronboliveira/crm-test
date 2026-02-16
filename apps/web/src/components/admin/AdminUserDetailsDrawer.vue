@@ -90,7 +90,7 @@ const formatAuditMeta = (meta: unknown): string =>
       class="admin-drawer"
       role="dialog"
       aria-modal="true"
-      aria-label="User details drawer"
+      aria-label="Painel de detalhes do usuário"
       @click.self="close"
     >
       <aside class="admin-drawer__panel card" @click.stop>
@@ -470,7 +470,6 @@ const formatAuditMeta = (meta: unknown): string =>
     transform: translateX(12px);
   }
 }
-
 
 /* Drawer expanded sections */
 .drawer-info-grid {

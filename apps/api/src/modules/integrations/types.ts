@@ -63,6 +63,18 @@ export interface IntegrationConfig {
   phoneNumberId?: string;
   /** WhatsApp API version */
   apiVersion?: string;
+  /** LLM provider identifier (openai, anthropic, etc.) */
+  provider?: string;
+  /** OpenAI/LLM model name */
+  model?: string;
+  /** LLM temperature (0-2) */
+  temperature?: number;
+  /** LLM max output tokens */
+  maxTokens?: number;
+  /** LLM system prompt */
+  systemPrompt?: string;
+  /** Optional API base URL override for LLM providers */
+  apiBaseUrl?: string;
   /** SMTP host */
   smtpHost?: string;
   /** SMTP port */

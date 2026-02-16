@@ -14,8 +14,7 @@ export class AssistantChatController {
 
   @Get('history')
   async history(@Req() req: any, @Query() query: HistoryQuery) {
-    const userId =
-      typeof req?.user?.id === 'string' ? req.user.id.trim() : '';
+    const userId = typeof req?.user?.id === 'string' ? req.user.id.trim() : '';
 
     const page = await this.logService.listPageByUser(userId, {
       limit: query.limit,

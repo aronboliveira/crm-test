@@ -64,7 +64,9 @@ export class AssistantChatLogService {
     userId: string,
     limit = 30,
   ): Promise<AssistantChatMessageEntity[]> {
-    const nextLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 30;
+    const nextLimit = Number.isFinite(limit)
+      ? Math.max(1, Math.floor(limit))
+      : 30;
     const safeLimit = Math.min(nextLimit, 100);
     const safeUserId = String(userId ?? '').trim();
     if (!safeUserId) {

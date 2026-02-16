@@ -36,7 +36,9 @@ type DashboardGrowthMetricPayload = Readonly<{
 export type DashboardGrowthResponse = Readonly<{
   windowMonths: DashboardGrowthWindow;
   buckets: readonly DashboardGrowthBucket[];
-  metrics: Readonly<Partial<Record<DashboardGrowthMetric, DashboardGrowthMetricPayload>>>;
+  metrics: Readonly<
+    Partial<Record<DashboardGrowthMetric, DashboardGrowthMetricPayload>>
+  >;
   generatedAt: string;
 }>;
 
@@ -129,7 +131,9 @@ export default class DashboardService {
           rangeEndExclusive,
           normalizedFilters,
         );
-        const counts = buckets.map((bucket) => countsByMonth.get(bucket.key) ?? 0);
+        const counts = buckets.map(
+          (bucket) => countsByMonth.get(bucket.key) ?? 0,
+        );
         return [metric, this.buildMetricPayload(counts)] as const;
       }),
     );
@@ -160,7 +164,9 @@ export default class DashboardService {
     return response;
   }
 
-  private buildMetricPayload(counts: readonly number[]): DashboardGrowthMetricPayload {
+  private buildMetricPayload(
+    counts: readonly number[],
+  ): DashboardGrowthMetricPayload {
     const currentMonth = counts[counts.length - 1] ?? 0;
     const previousMonth = counts[counts.length - 2] ?? 0;
     const totalInWindow = counts.reduce((sum, value) => sum + value, 0);
@@ -223,48 +229,46 @@ export default class DashboardService {
   ): Promise<ReadonlyMap<string, number>> {
     const repo = this.repoByMetric(metric);
     const metricMatch = this.buildMetricMatch(metric, filters);
-    const cursor = repo.aggregate(
-      [
-        {
-          $addFields: {
-            _createdAtDate: {
-              $cond: [
-                { $eq: [{ $type: '$createdAt' }, 'date'] },
-                '$createdAt',
-                {
-                  $dateFromString: {
-                    dateString: '$createdAt',
-                    onError: null,
-                    onNull: null,
-                  },
+    const cursor = repo.aggregate([
+      {
+        $addFields: {
+          _createdAtDate: {
+            $cond: [
+              { $eq: [{ $type: '$createdAt' }, 'date'] },
+              '$createdAt',
+              {
+                $dateFromString: {
+                  dateString: '$createdAt',
+                  onError: null,
+                  onNull: null,
                 },
-              ],
-            },
-          },
-        },
-        {
-          $match: {
-            _createdAtDate: {
-              $gte: rangeStart,
-              $lt: rangeEndExclusive,
-            },
-            ...metricMatch,
-          },
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: {
-                format: '%Y-%m',
-                date: '$_createdAtDate',
               },
-            },
-            count: { $sum: 1 },
+            ],
           },
         },
-        { $sort: { _id: 1 } },
-      ] as any,
-    );
+      },
+      {
+        $match: {
+          _createdAtDate: {
+            $gte: rangeStart,
+            $lt: rangeEndExclusive,
+          },
+          ...metricMatch,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: '%Y-%m',
+              date: '$_createdAtDate',
+            },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ] as any);
 
     const rows = (await cursor.toArray()) as MonthAggregateRow[];
     const counts = new Map<string, number>();
@@ -278,9 +282,7 @@ export default class DashboardService {
     return counts;
   }
 
-  private repoByMetric(
-    metric: DashboardGrowthMetric,
-  ): MongoRepository<any> {
+  private repoByMetric(metric: DashboardGrowthMetric): MongoRepository<any> {
     switch (metric) {
       case 'projects':
         return this.projectsRepo;
@@ -304,10 +306,13 @@ export default class DashboardService {
   private normalizeFilters(
     filters?: DashboardGrowthFilters,
   ): Readonly<{ owner?: string; statuses: readonly string[] }> {
-    const ownerRaw = typeof filters?.owner === 'string' ? filters.owner.trim() : '';
+    const ownerRaw =
+      typeof filters?.owner === 'string' ? filters.owner.trim() : '';
     const owner = ownerRaw ? ownerRaw : undefined;
 
-    const statusTokens = Array.isArray(filters?.statuses) ? filters.statuses : [];
+    const statusTokens = Array.isArray(filters?.statuses)
+      ? filters.statuses
+      : [];
     const statuses = Array.from(
       new Set(
         statusTokens

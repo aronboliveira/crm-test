@@ -2,6 +2,15 @@ import { UnauthorizedException } from '@nestjs/common';
 import AuthService from './auth.service';
 import bcrypt from 'bcryptjs';
 
+jest.mock('otplib', () => ({
+  authenticator: {
+    generateSecret: jest.fn(),
+    verify: jest.fn(),
+  },
+}));
+
+const mockAuthenticator = jest.requireMock('otplib').authenticator;
+
 /* ─── helpers ──────────────────────────────────────────── */
 
 const fakeOid = '507f1f77bcf86cd799439011';
@@ -26,6 +35,7 @@ const mockUsersService = {
 
 const mockJwtService = {
   sign: jest.fn().mockReturnValue('signed-jwt-token'),
+  verify: jest.fn(),
 };
 
 const mockRbacService = {
@@ -55,6 +65,8 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuthenticator.generateSecret.mockReturnValue('OTP_SECRET_123');
+    mockAuthenticator.verify.mockReturnValue(false);
     service = createService();
   });
 
@@ -132,6 +144,20 @@ describe('AuthService', () => {
       const result = await service.login(user);
       expect(result.user).not.toHaveProperty('passwordHash');
       expect(result.user.email).toBe('doc@corp.local');
+    });
+
+    it('should strip 2FA-sensitive fields from login response user', async () => {
+      const user = mockUser({
+        twoFactorSecret: 'SECRET',
+        twoFactorTempSecret: 'TEMP',
+        twoFactorRecoveryCodes: ['ABCD1234'],
+      });
+
+      const result = await service.login(user);
+
+      expect(result.user).not.toHaveProperty('twoFactorSecret');
+      expect(result.user).not.toHaveProperty('twoFactorTempSecret');
+      expect(result.user).not.toHaveProperty('twoFactorRecoveryCodes');
     });
 
     it('should default to viewer role when user has no roles', async () => {
@@ -272,6 +298,266 @@ describe('AuthService', () => {
       await expect(
         service.requestEmailChange(fakeOid, 'new@b.com', 'WrongPass'),
       ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  /* ── two-factor auth ── */
+  describe('two-factor', () => {
+    describe('isTwoFactorEnabled', () => {
+      it('returns false for invalid user id', async () => {
+        await expect(service.isTwoFactorEnabled('bad-id')).resolves.toBe(false);
+      });
+
+      it('returns true when user has twoFactorEnabled flag', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({ twoFactorEnabled: true }),
+        );
+
+        await expect(service.isTwoFactorEnabled(fakeOid)).resolves.toBe(true);
+      });
+    });
+
+    describe('setupTwoFactor', () => {
+      it('stores temp secret and returns otpauth url', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(mockUser());
+
+        const result = await service.setupTwoFactor(fakeOid);
+
+        expect(mockAuthenticator.generateSecret).toHaveBeenCalled();
+        expect(mockUsersRepo.update).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            twoFactorTempSecret: 'OTP_SECRET_123',
+          }),
+        );
+        expect(result.secret).toBe('OTP_SECRET_123');
+        expect(result.otpauthUrl).toContain('otpauth://totp/');
+      });
+    });
+
+    describe('enableTwoFactor', () => {
+      it('throws when setup has not been started', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({ twoFactorTempSecret: '' }),
+        );
+
+        await expect(
+          service.enableTwoFactor(fakeOid, '123456'),
+        ).rejects.toThrow(UnauthorizedException);
+      });
+
+      it('throws when provided code is invalid', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({ twoFactorTempSecret: 'OTP_SECRET_123' }),
+        );
+        mockAuthenticator.verify.mockReturnValue(false);
+
+        await expect(
+          service.enableTwoFactor(fakeOid, '000000'),
+        ).rejects.toThrow(UnauthorizedException);
+      });
+
+      it('enables two-factor and persists recovery codes on valid code', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({ twoFactorTempSecret: 'OTP_SECRET_123', tokenVersion: 3 }),
+        );
+        mockAuthenticator.verify.mockReturnValue(true);
+
+        const result = await service.enableTwoFactor(fakeOid, '123456');
+
+        expect(result.ok).toBe(true);
+        expect(result.recoveryCodes).toHaveLength(8);
+        expect(mockUsersRepo.update).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            twoFactorEnabled: true,
+            twoFactorSecret: 'OTP_SECRET_123',
+            tokenVersion: 4,
+          }),
+        );
+      });
+    });
+
+    describe('disableTwoFactor', () => {
+      it('returns ok when 2FA is already disabled', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({ twoFactorEnabled: false, twoFactorSecret: undefined }),
+        );
+
+        await expect(
+          service.disableTwoFactor(fakeOid, '123456'),
+        ).resolves.toEqual({
+          ok: true,
+        });
+      });
+
+      it('disables 2FA when valid recovery code is provided', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({
+            twoFactorEnabled: true,
+            twoFactorSecret: 'OTP_SECRET_123',
+            twoFactorRecoveryCodes: ['ABCD1234', 'WXYZ9999'],
+            tokenVersion: 2,
+          }),
+        );
+        mockAuthenticator.verify.mockReturnValue(false);
+
+        const result = await service.disableTwoFactor(fakeOid, 'abcd1234');
+
+        expect(result).toEqual({ ok: true });
+        expect(mockUsersRepo.update).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            twoFactorEnabled: false,
+            tokenVersion: 3,
+          }),
+        );
+      });
+    });
+
+    describe('verifyTwoFactorForLogin', () => {
+      it('does nothing when user has no 2FA enabled', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({ twoFactorEnabled: false }),
+        );
+
+        await expect(
+          service.verifyTwoFactorForLogin(fakeOid, undefined),
+        ).resolves.toBeUndefined();
+      });
+
+      it('throws when 2FA is enabled and no code is provided', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({
+            twoFactorEnabled: true,
+            twoFactorSecret: 'OTP_SECRET_123',
+          }),
+        );
+
+        await expect(service.verifyTwoFactorForLogin(fakeOid)).rejects.toThrow(
+          UnauthorizedException,
+        );
+      });
+
+      it('consumes recovery code when used at login', async () => {
+        mockUsersRepo.findOne.mockResolvedValue(
+          mockUser({
+            twoFactorEnabled: true,
+            twoFactorSecret: 'OTP_SECRET_123',
+            twoFactorRecoveryCodes: ['CODE1111', 'CODE2222'],
+          }),
+        );
+        mockAuthenticator.verify.mockReturnValue(false);
+
+        await expect(
+          service.verifyTwoFactorForLogin(fakeOid, 'code1111'),
+        ).resolves.toBeUndefined();
+
+        expect(mockUsersRepo.update).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            twoFactorRecoveryCodes: ['CODE2222'],
+          }),
+        );
+      });
+    });
+
+    /* ── generateTwoFactorToken ── */
+    describe('generateTwoFactorToken', () => {
+      it('should generate a JWT for 2FA challenge', async () => {
+        const token = await service.generateTwoFactorToken(fakeOid);
+
+        expect(mockJwtService.sign).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sub: fakeOid,
+            type: '2fa-challenge',
+            exp: expect.any(Number),
+          }),
+        );
+        expect(token).toBe('signed-jwt-token');
+      });
+
+      it('should throw for invalid ObjectId', async () => {
+        await expect(
+          service.generateTwoFactorToken('invalid-oid'),
+        ).rejects.toThrow(UnauthorizedException);
+      });
+    });
+
+    /* ── verifyTwoFactorToken ── */
+    describe('verifyTwoFactorToken', () => {
+      beforeEach(() => {
+        mockJwtService.verify = jest.fn().mockReturnValue({
+          sub: fakeOid,
+          type: '2fa-challenge',
+          exp: Math.floor(Date.now() / 1000) + 300,
+        });
+      });
+
+      it('should verify token and code, returning user', async () => {
+        const user = mockUser({
+          twoFactorEnabled: true,
+          twoFactorSecret: 'OTP_SECRET_123',
+        });
+        mockUsersRepo.findOne.mockResolvedValue(user);
+        mockAuthenticator.verify.mockReturnValue(true);
+
+        const result = await service.verifyTwoFactorToken(
+          'valid-2fa-token',
+          '123456',
+        );
+
+        expect(result).toBe(user);
+        expect(mockAuthenticator.verify).toHaveBeenCalledWith({
+          token: '123456',
+          secret: 'OTP_SECRET_123',
+        });
+      });
+
+      it('should throw on invalid token type', async () => {
+        mockJwtService.verify = jest.fn().mockReturnValue({
+          sub: fakeOid,
+          type: 'access-token',
+        });
+
+        await expect(
+          service.verifyTwoFactorToken('token', '123456'),
+        ).rejects.toThrow('Invalid token type');
+      });
+
+      it('should throw on invalid code', async () => {
+        const user = mockUser({
+          twoFactorEnabled: true,
+          twoFactorSecret: 'OTP_SECRET_123',
+          twoFactorRecoveryCodes: [],
+        });
+        mockUsersRepo.findOne.mockResolvedValue(user);
+        mockAuthenticator.verify.mockReturnValue(false);
+
+        await expect(
+          service.verifyTwoFactorToken('token', 'wrong-code'),
+        ).rejects.toThrow('Invalid two-factor code');
+      });
+
+      it('should accept recovery code and remove it', async () => {
+        const user = mockUser({
+          twoFactorEnabled: true,
+          twoFactorSecret: 'OTP_SECRET_123',
+          twoFactorRecoveryCodes: ['RECOVER1', 'RECOVER2'],
+        });
+        mockUsersRepo.findOne.mockResolvedValue(user);
+        mockAuthenticator.verify.mockReturnValue(false);
+
+        const result = await service.verifyTwoFactorToken('token', 'RECOVER1');
+
+        expect(result).toBe(user);
+        expect(mockUsersRepo.update).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            twoFactorRecoveryCodes: ['RECOVER2'],
+          }),
+        );
+      });
     });
   });
 });

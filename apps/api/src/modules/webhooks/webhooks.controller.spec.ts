@@ -47,7 +47,7 @@ describe('WebhooksController', () => {
     it('should process valid Nextcloud webhook', async () => {
       const result = await controller.handleNextcloudWebhook(
         payload,
-        undefined,
+        '',
         userId,
       );
 
@@ -67,7 +67,7 @@ describe('WebhooksController', () => {
 
     it('should throw BadRequestException when userId is missing', async () => {
       await expect(
-        controller.handleNextcloudWebhook(payload, undefined, undefined),
+        controller.handleNextcloudWebhook(payload, '', ''),
       ).rejects.toThrow(BadRequestException);
 
       expect(webhooksService.handleNextcloudWebhook).not.toHaveBeenCalled();
@@ -99,7 +99,11 @@ describe('WebhooksController', () => {
       circular.self = circular;
 
       await expect(
-        controller.handleNextcloudWebhook(circular, 'valid-signature-hash', userId),
+        controller.handleNextcloudWebhook(
+          circular,
+          'valid-signature-hash',
+          userId,
+        ),
       ).rejects.toThrow(BadRequestException);
 
       expect(webhooksService.verifySignature).not.toHaveBeenCalled();
@@ -122,7 +126,7 @@ describe('WebhooksController', () => {
       process.env.NEXTCLOUD_WEBHOOK_SECRET = 'test-secret';
 
       await expect(
-        controller.handleNextcloudWebhook(payload, undefined, userId),
+        controller.handleNextcloudWebhook(payload, '', userId),
       ).rejects.toThrow(UnauthorizedException);
 
       expect(webhooksService.verifySignature).not.toHaveBeenCalled();
@@ -132,7 +136,7 @@ describe('WebhooksController', () => {
     it('should allow requests without signature when no secret configured', async () => {
       const result = await controller.handleNextcloudWebhook(
         payload,
-        undefined,
+        '',
         userId,
       );
 
@@ -144,7 +148,7 @@ describe('WebhooksController', () => {
     it('should extract event type from payload.event', async () => {
       const customPayload = { event: 'file_shared', data: {} };
 
-      await controller.handleNextcloudWebhook(customPayload, undefined, userId);
+      await controller.handleNextcloudWebhook(customPayload, '', userId);
 
       expect(webhooksService.handleNextcloudWebhook).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -157,7 +161,7 @@ describe('WebhooksController', () => {
     it('should extract event type from payload.type as fallback', async () => {
       const customPayload = { type: 'file_deleted', data: {} };
 
-      await controller.handleNextcloudWebhook(customPayload, undefined, userId);
+      await controller.handleNextcloudWebhook(customPayload, '', userId);
 
       expect(webhooksService.handleNextcloudWebhook).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -170,7 +174,7 @@ describe('WebhooksController', () => {
     it('should default to "unknown" event type when neither event nor type present', async () => {
       const customPayload = { data: { some: 'data' } };
 
-      await controller.handleNextcloudWebhook(customPayload, undefined, userId);
+      await controller.handleNextcloudWebhook(customPayload, '', userId);
 
       expect(webhooksService.handleNextcloudWebhook).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -194,7 +198,7 @@ describe('WebhooksController', () => {
     });
 
     it('should set correct source as nextcloud', async () => {
-      await controller.handleNextcloudWebhook(payload, undefined, userId);
+      await controller.handleNextcloudWebhook(payload, '', userId);
 
       expect(webhooksService.handleNextcloudWebhook).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -217,11 +221,7 @@ describe('WebhooksController', () => {
         },
       };
 
-      await controller.handleNextcloudWebhook(
-        complexPayload,
-        undefined,
-        userId,
-      );
+      await controller.handleNextcloudWebhook(complexPayload, '', userId);
 
       expect(webhooksService.handleNextcloudWebhook).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -241,11 +241,7 @@ describe('WebhooksController', () => {
     };
 
     it('should process valid Zimbra webhook', async () => {
-      const result = await controller.handleZimbraWebhook(
-        payload,
-        undefined,
-        userId,
-      );
+      const result = await controller.handleZimbraWebhook(payload, '', userId);
 
       expect(webhooksService.handleZimbraWebhook).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -289,7 +285,7 @@ describe('WebhooksController', () => {
 
     it('should throw BadRequestException when userId missing', async () => {
       await expect(
-        controller.handleZimbraWebhook(payload, undefined, undefined),
+        controller.handleZimbraWebhook(payload, '', ''),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -311,7 +307,7 @@ describe('WebhooksController', () => {
     };
 
     it('should process Outlook webhook notifications', async () => {
-      const result = await controller.handleOutlookWebhook(payload, undefined);
+      const result = await controller.handleOutlookWebhook(payload, '');
 
       expect(webhooksService.handleOutlookWebhook).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -336,7 +332,7 @@ describe('WebhooksController', () => {
     it('should extract userId from resource string', async () => {
       delete process.env.OUTLOOK_WEBHOOK_CLIENT_STATE;
 
-      await controller.handleOutlookWebhook(payload, undefined);
+      await controller.handleOutlookWebhook(payload, '');
 
       expect(webhooksService.handleOutlookWebhook).toHaveBeenCalledWith(
         expect.anything(),
@@ -355,7 +351,7 @@ describe('WebhooksController', () => {
     });
 
     it('should return status ok when no validation token', () => {
-      const result = controller.handleOutlookValidation(undefined);
+      const result = controller.handleOutlookValidation('');
 
       expect(result).toEqual({
         status: 'ok',

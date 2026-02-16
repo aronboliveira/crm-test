@@ -97,29 +97,16 @@ export default class MockSeedService {
 
     // Upward trend with occasional pullbacks to look realistic over time.
     const monthlyGrowthWeights = [
-      1,
-      1.2,
-      1.4,
-      1.7,
-      2.1,
-      2.5,
-      2.3,
-      2.9,
-      3.3,
-      3.7,
-      3.4,
-      4.1,
-      4.5,
-      4.9,
+      1, 1.2, 1.4, 1.7, 2.1, 2.5, 2.3, 2.9, 3.3, 3.7, 3.4, 4.1, 4.5, 4.9,
     ];
     const monthWindowSize = monthlyGrowthWeights.length;
-    const seededCountByMonth = Array.from(
-      { length: monthWindowSize },
-      () => (clientsToCreate >= monthWindowSize ? 1 : 0),
+    const seededCountByMonth = Array.from({ length: monthWindowSize }, () =>
+      clientsToCreate >= monthWindowSize ? 1 : 0,
     );
 
     let remainingClients =
-      clientsToCreate - seededCountByMonth.reduce((sum, value) => sum + value, 0);
+      clientsToCreate -
+      seededCountByMonth.reduce((sum, value) => sum + value, 0);
     const pickMonthIndex = (): number => {
       const totalWeight = monthlyGrowthWeights.reduce(
         (sum, weight) => sum + weight,
@@ -127,7 +114,11 @@ export default class MockSeedService {
       );
       const target = Math.random() * totalWeight;
       let cumulative = 0;
-      for (let monthIndex = 0; monthIndex < monthlyGrowthWeights.length; monthIndex++) {
+      for (
+        let monthIndex = 0;
+        monthIndex < monthlyGrowthWeights.length;
+        monthIndex++
+      ) {
         cumulative += monthlyGrowthWeights[monthIndex];
         if (target <= cumulative) {
           return monthIndex;
@@ -232,13 +223,24 @@ export default class MockSeedService {
         .padEnd(14, '0')
         .replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
     const toMaskedCep = (digits: string): string =>
-      digits.slice(0, 8).padEnd(8, '0').replace(/^(\d{5})(\d{3})$/, '$1-$2');
+      digits
+        .slice(0, 8)
+        .padEnd(8, '0')
+        .replace(/^(\d{5})(\d{3})$/, '$1-$2');
 
-    for (let monthIndex = 0; monthIndex < seededCountByMonth.length; monthIndex++) {
+    for (
+      let monthIndex = 0;
+      monthIndex < seededCountByMonth.length;
+      monthIndex++
+    ) {
       const monthsAgo = monthWindowSize - 1 - monthIndex;
       const { from, to } = buildMonthRange(monthsAgo);
 
-      for (let clientIndex = 0; clientIndex < seededCountByMonth[monthIndex]; clientIndex++) {
+      for (
+        let clientIndex = 0;
+        clientIndex < seededCountByMonth[monthIndex];
+        clientIndex++
+      ) {
         const profile = selectProfile();
         const name = faker.company.name();
         const email = faker.internet.email();
@@ -282,7 +284,9 @@ export default class MockSeedService {
         });
 
         const whatsappDelivered = Math.floor(whatsappSent * deliveryRate);
-        const whatsappRead = Math.floor(whatsappDelivered * readRateOfDelivered);
+        const whatsappRead = Math.floor(
+          whatsappDelivered * readRateOfDelivered,
+        );
         const whatsappReplied = Math.floor(whatsappRead * replyRateOfRead);
 
         // Email metrics with realistic progression
@@ -483,8 +487,7 @@ export default class MockSeedService {
       const [fallbackFirstName, fallbackLastName] = localPart
         .replace(/[^a-zA-Z0-9._-]/g, '')
         .split(/[._-]/);
-      const firstName =
-        fallbackFirstName?.trim() || faker.person.firstName();
+      const firstName = fallbackFirstName?.trim() || faker.person.firstName();
       const lastName = fallbackLastName?.trim() || faker.person.lastName();
       const department = faker.helpers.arrayElement([
         'Operações',
@@ -562,11 +565,26 @@ export default class MockSeedService {
     }
 
     const owners = [adminEmail, ...allEmails]
-      .map((email) => String(email || '').trim().toLowerCase())
-      .filter((email, index, source) => !!email && source.indexOf(email) === index)
+      .map((email) =>
+        String(email || '')
+          .trim()
+          .toLowerCase(),
+      )
+      .filter(
+        (email, index, source) => !!email && source.indexOf(email) === index,
+      )
       .slice(0, 18);
 
-    const vendors = ['Dell', 'Lenovo', 'Apple', 'HP', 'Asus', 'Acer', 'VMware', 'Cisco'];
+    const vendors = [
+      'Dell',
+      'Lenovo',
+      'Apple',
+      'HP',
+      'Asus',
+      'Acer',
+      'VMware',
+      'Cisco',
+    ];
     const models = [
       'Latitude 7440',
       'ThinkPad T14',
@@ -614,7 +632,10 @@ export default class MockSeedService {
       'offline',
       'maintenance',
     ];
-    const kinds: ReadonlyArray<'physical' | 'virtual'> = ['physical', 'virtual'];
+    const kinds: ReadonlyArray<'physical' | 'virtual'> = [
+      'physical',
+      'virtual',
+    ];
     const adminKinds: ReadonlyArray<'physical' | 'virtual'> = [
       'physical',
       'physical',
@@ -643,7 +664,7 @@ export default class MockSeedService {
       const forceAdmin = index < adminTopUpToCreate;
       const ownerEmail = forceAdmin
         ? adminEmail
-        : owners[(existingCount + index) % owners.length] ?? adminEmail;
+        : (owners[(existingCount + index) % owners.length] ?? adminEmail);
       const ownerSequence = existingCount + index;
       const isAdminOwner = ownerEmail === adminEmail;
 
@@ -667,7 +688,8 @@ export default class MockSeedService {
         ];
       const operatingSystem =
         operatingSystems[
-          (ownerSequence + (kind === 'virtual' ? 2 : 0)) % operatingSystems.length
+          (ownerSequence + (kind === 'virtual' ? 2 : 0)) %
+            operatingSystems.length
         ];
       const deviceNumber = existingCount + index + 1;
       const hostPrefix = kind === 'virtual' ? 'vm' : 'ws';
@@ -678,13 +700,16 @@ export default class MockSeedService {
       const hourOffset = (ownerSequence % 7) * 3;
       const updatedMs =
         baseMs - dayOffset * 24 * 3600 * 1000 - hourOffset * 3600 * 1000;
-      const createdMs = updatedMs - (2 + (ownerSequence % 12)) * 24 * 3600 * 1000;
+      const createdMs =
+        updatedMs - (2 + (ownerSequence % 12)) * 24 * 3600 * 1000;
       const updatedAt = new Date(updatedMs).toISOString();
       const createdAt = new Date(createdMs).toISOString();
       const lastSeenAt =
         status === 'offline'
           ? undefined
-          : new Date(updatedMs - (ownerSequence % 4) * 15 * 60 * 1000).toISOString();
+          : new Date(
+              updatedMs - (ownerSequence % 4) * 15 * 60 * 1000,
+            ).toISOString();
 
       docs.push({
         id: new ObjectId().toHexString(),
@@ -1002,7 +1027,8 @@ export default class MockSeedService {
               ownerEmail: pick(),
               clientId: clientId,
               notes:
-                (exists as any).notes || faker.lorem.sentence({ min: 4, max: 9 }),
+                (exists as any).notes ||
+                faker.lorem.sentence({ min: 4, max: 9 }),
               updatedAt: now,
             } as any,
           );
@@ -1617,7 +1643,8 @@ export default class MockSeedService {
         },
         {
           title: 'Implement access attestations',
-          description: 'Collect quarterly privilege attestations automatically.',
+          description:
+            'Collect quarterly privilege attestations automatically.',
           status: 'todo',
           priority: 2,
           dueInDays: 15,
@@ -1692,7 +1719,8 @@ export default class MockSeedService {
         },
         {
           title: 'Define regional SLA matrix',
-          description: 'Capture contractual windows by region and customer tier.',
+          description:
+            'Capture contractual windows by region and customer tier.',
           status: 'todo',
           priority: 3,
           dueInDays: 9,
@@ -1789,7 +1817,10 @@ export default class MockSeedService {
         const subtasks = task.subtasks.map((text, order) => ({
           id: `${taskSlug}-${order + 1}`,
           text,
-          done: task.status === 'done' ? true : order === 0 && task.status === 'doing',
+          done:
+            task.status === 'done'
+              ? true
+              : order === 0 && task.status === 'doing',
           order,
         }));
 
@@ -1930,7 +1961,7 @@ export default class MockSeedService {
     if (existing > 0) return;
 
     const pick = () =>
-      allEmails[faker.number.int({ min: 0, max: allEmails.length - 1 })]!;
+      allEmails[faker.number.int({ min: 0, max: allEmails.length - 1 })];
     const now = new Date().toISOString();
     let count = 0;
 

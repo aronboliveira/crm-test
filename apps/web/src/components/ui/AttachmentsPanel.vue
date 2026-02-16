@@ -70,8 +70,8 @@ function download(att: Attachment) {
 
 async function remove(id: string) {
   const ok = await AlertService.confirm(
-    "Delete Attachment",
-    "Delete this file?",
+    "Excluir anexo",
+    "Deseja excluir este arquivo?",
   );
   if (!ok) return;
   try {
@@ -92,12 +92,12 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="attachments-panel" aria-label="Attachments">
+  <section class="attachments-panel" aria-label="Anexos">
     <h3 class="text-sm font-bold mb-2 opacity-80">
-      📎 Attachments ({{ items.length }})
+      📎 Anexos ({{ items.length }})
     </h3>
 
-    <div v-if="loading" class="text-xs opacity-50 mb-2">Loading…</div>
+    <div v-if="loading" class="text-xs opacity-50 mb-2">Carregando…</div>
 
     <ul class="att-list" v-if="items.length">
       <li v-for="a in items" :key="a.id" class="att-item">
@@ -133,7 +133,7 @@ onMounted(load);
       <label
         class="btn btn-ghost btn-sm cursor-pointer inline-flex items-center gap-1"
       >
-        {{ uploading ? "Uploading…" : "Upload file" }}
+        {{ uploading ? "Enviando…" : "Enviar arquivo" }}
         <input
           ref="fileInput"
           type="file"

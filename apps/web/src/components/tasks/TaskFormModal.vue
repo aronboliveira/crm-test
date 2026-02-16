@@ -26,11 +26,11 @@ const { formId, form, canSave, close, submit } = useTaskFormModal(props, emit);
       tabindex="-1"
     >
       <div class="modal-head">
-        <h3 :id="`${formId}-title`" class="modal-title">New task</h3>
+        <h3 :id="`${formId}-title`" class="modal-title">Nova tarefa</h3>
         <button
           class="btn btn-ghost"
           type="button"
-          aria-label="Close"
+          aria-label="Fechar"
           @click="close"
         >
           ×
@@ -41,10 +41,10 @@ const { formId, form, canSave, close, submit } = useTaskFormModal(props, emit);
         :id="formId"
         class="modal-body"
         @submit.prevent="submit"
-        aria-label="Create task form"
+        aria-label="Formulário de criação de tarefa"
       >
         <label class="field">
-          <span class="field-label">Title</span>
+          <span class="field-label">Título</span>
           <input
             class="field-input"
             name="title"
@@ -58,7 +58,7 @@ const { formId, form, canSave, close, submit } = useTaskFormModal(props, emit);
         </label>
 
         <label class="field">
-          <span class="field-label">Description</span>
+          <span class="field-label">Descrição</span>
           <textarea
             class="field-input"
             name="description"
@@ -68,7 +68,7 @@ const { formId, form, canSave, close, submit } = useTaskFormModal(props, emit);
         </label>
 
         <label class="field">
-          <span class="field-label">Priority</span>
+          <span class="field-label">Prioridade</span>
           <input
             class="field-input"
             name="priority"
@@ -81,7 +81,7 @@ const { formId, form, canSave, close, submit } = useTaskFormModal(props, emit);
 
         <div class="modal-actions">
           <button class="btn btn-ghost" type="button" @click="close">
-            Cancel
+            Cancelar
           </button>
           <button
             class="btn btn-primary"
@@ -89,7 +89,7 @@ const { formId, form, canSave, close, submit } = useTaskFormModal(props, emit);
             :disabled="!canSave"
             :aria-disabled="!canSave"
           >
-            Save
+            Salvar
           </button>
         </div>
       </form>

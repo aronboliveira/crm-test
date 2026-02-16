@@ -58,13 +58,21 @@ export const useAuthStore = defineStore("auth", {
     },
 
     async login(
-      payload: Readonly<{ email: string; password: string }>,
-    ): Promise<void> {
+      payload: Readonly<{
+        email: string;
+        password: string;
+        twoFactorCode?: string;
+      }>,
+    ): Promise<
+      | LoginResponse
+      | { requiresTwoFactor: boolean; twoFactorToken: string; email: string }
+    > {
       try {
         const email = String(payload?.email || "")
           .trim()
           .toLowerCase();
         const password = String(payload?.password || "");
+        const twoFactorCode = String(payload?.twoFactorCode || "").trim();
 
         if (!email || !password) {
           throw new Error("Email and password are required");
@@ -73,8 +81,15 @@ export const useAuthStore = defineStore("auth", {
         const response = await ApiClientService.raw.post("/auth/login", {
           email,
           password,
+          twoFactorCode: twoFactorCode || undefined,
         });
-        const data = response.data as LoginResponse;
+        const data = response.data as LoginResponse | any;
+
+        // Check if 2FA is required
+        if ((data as any)?.requiresTwoFactor) {
+          return data as any;
+        }
+
         const tok = data?.accessToken;
 
         if (!tok) {
@@ -97,6 +112,8 @@ export const useAuthStore = defineStore("auth", {
         this.token = tok;
         this.me = (data.user || null) as any; // ? compiler bug, so we force here
         this.ready = true;
+
+        return data;
       } catch (error) {
         console.error("[AuthStore] Login failed:", error);
         throw error;

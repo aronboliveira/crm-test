@@ -18,6 +18,8 @@ import AuthAuditService from '../audit/auth-audit.service';
 interface LoginDto {
   email: string;
   password: string;
+  twoFactorCode?: string;
+  twoFactorToken?: string; // Session token for 2FA challenge
 }
 
 interface ChangePasswordDto {
@@ -64,6 +66,24 @@ export default class AuthController {
         throw new UnauthorizedException('Authentication failed');
       }
 
+      const userId = String(req.user?._id || req.user?.id || '').trim();
+      const twoFactorEnabled = await this.auth.isTwoFactorEnabled(userId);
+
+      // If 2FA is enabled but no code provided, return a challenge response
+      if (twoFactorEnabled && !dto?.twoFactorCode) {
+        const twoFactorToken = await this.auth.generateTwoFactorToken(userId);
+        return {
+          requiresTwoFactor: true,
+          twoFactorToken,
+          email: req.user.email,
+        };
+      }
+
+      // Verify 2FA code if provided
+      if (twoFactorEnabled) {
+        await this.auth.verifyTwoFactorForLogin(userId, dto?.twoFactorCode);
+      }
+
       const r = await this.auth.login(req.user);
 
       await this.audit.record(
@@ -105,13 +125,83 @@ export default class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('/me')
-  async me(@Req() req: any) {
+  me(@Req() req: any) {
     try {
       return req.user || null;
     } catch (error) {
       this.logger.error('Error fetching user info:', error);
       throw error;
     }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('/2fa/status')
+  async twoFactorStatus(@Req() req: any) {
+    const userId = String(req?.user?.id || '').trim();
+    const enabled = await this.auth.isTwoFactorEnabled(userId);
+    return { enabled };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('/2fa/setup')
+  async twoFactorSetup(@Req() req: any) {
+    const userId = String(req?.user?.id || '').trim();
+    return await this.auth.setupTwoFactor(userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('/2fa/enable')
+  async twoFactorEnable(@Req() req: any, @Body() dto: { code: string }) {
+    const userId = String(req?.user?.id || '').trim();
+    const code = String(dto?.code || '').trim();
+    if (!code) throw new BadRequestException('Two-factor code is required');
+    return await this.auth.enableTwoFactor(userId, code);
+  }
+
+  @Post('/verify-2fa')
+  async verifyTwoFactor(@Body() dto: { twoFactorToken: string; code: string }) {
+    const token = String(dto?.twoFactorToken || '').trim();
+    const code = String(dto?.code || '').trim();
+
+    if (!token) {
+      throw new BadRequestException('Two-factor token is required');
+    }
+    if (!code) {
+      throw new BadRequestException('Two-factor code is required');
+    }
+
+    try {
+      const user = await this.auth.verifyTwoFactorToken(token, code);
+      const r = await this.auth.login(user);
+
+      await this.audit.record(
+        'auth.login.success',
+        {
+          userId: r?.user?._id ? String(r.user._id) : null,
+          email: r?.user?.email ? String(r.user.email) : null,
+        },
+        null,
+        {},
+        { via: '2fa' },
+      );
+
+      return r;
+    } catch (e: any) {
+      this.logger.error('2FA verification error:', e);
+      throw e instanceof UnauthorizedException ||
+        e instanceof BadRequestException
+        ? e
+        : new UnauthorizedException('Invalid two-factor code');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('/2fa/disable')
+  async twoFactorDisable(@Req() req: any, @Body() dto: { code: string }) {
+    const userId = String(req?.user?.id || '').trim();
+    const code = String(dto?.code || '').trim();
+    if (!code) throw new BadRequestException('Two-factor code is required');
+    return await this.auth.disableTwoFactor(userId, code);
   }
 
   @UseGuards(JwtAuthGuard)

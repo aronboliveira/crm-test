@@ -14,7 +14,35 @@ export interface SessionUser {
 export interface UserProfile {
   id: string;
   email: string;
+  username?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  department?: string;
+  jobTitle?: string;
+  timezone?: string;
+  locale?: string;
+  bio?: string;
+  avatarUrl?: string;
+  emailVerified?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  lastLoginAt?: string;
+  twoFactorEnabled?: boolean;
+}
+
+export interface ProfilePreferences {
+  theme: "light" | "dark" | "system";
+  notifications: {
+    email: boolean;
+    browser: boolean;
+    taskDue: boolean;
+    mentions: boolean;
+    security: boolean;
+    product: boolean;
+  };
+  updatedAt?: string;
 }
 
 /**
@@ -30,4 +58,21 @@ export interface LoginResponse {
  */
 export interface ResetResponse {
   devResetToken?: string;
+}
+
+/* ─── OAuth / SSO ─── */
+
+export type OAuthProvider = "google" | "microsoft" | "nextcloud";
+
+export interface OAuthLinkedProvider {
+  provider: OAuthProvider;
+  email?: string;
+  linkedAt: string;
+  lastUsedAt?: string;
+}
+
+export interface OAuthProviderAvailability {
+  provider: OAuthProvider;
+  enabled: boolean;
+  reason?: string;
 }

@@ -97,7 +97,12 @@ class ApiClient {
   }
 }
 
-export type ImportTemplateKind = "clients" | "projects" | "users";
+export type ImportTemplateKind =
+  | "clients"
+  | "projects"
+  | "users"
+  | "tasks"
+  | "leads";
 
 export type ImportTemplateVersionSnapshot = Readonly<{
   version: number;
@@ -459,7 +464,9 @@ export default class ApiClientService {
         if (!id || typeof id !== "string") {
           throw new Error("Invalid device ID");
         }
-        const response = await api.raw.get(`/devices/${encodeURIComponent(id)}`);
+        const response = await api.raw.get(
+          `/devices/${encodeURIComponent(id)}`,
+        );
         return response.data;
       } catch (error) {
         console.error(
@@ -507,7 +514,9 @@ export default class ApiClientService {
         if (!id || typeof id !== "string") {
           throw new Error("Invalid device ID");
         }
-        const response = await api.raw.delete(`/devices/${encodeURIComponent(id)}`);
+        const response = await api.raw.delete(
+          `/devices/${encodeURIComponent(id)}`,
+        );
         return response.data;
       } catch (error) {
         console.error(
@@ -550,7 +559,10 @@ export default class ApiClientService {
         });
         return response.data;
       } catch (error) {
-        console.error("[ApiClientService.dashboard.growth] Request failed:", error);
+        console.error(
+          "[ApiClientService.dashboard.growth] Request failed:",
+          error,
+        );
         throw error;
       }
     },
@@ -861,6 +873,10 @@ export default class ApiClientService {
       );
       return r.data;
     },
+    create: async (payload: Readonly<Record<string, unknown>>) => {
+      const r = await api.raw.post("/project-templates", payload);
+      return r.data;
+    },
   };
 
   /* ── Import ───────────────────────────────────────────────── */
@@ -869,7 +885,10 @@ export default class ApiClientService {
     upload: async (
       file: File,
       options?: Readonly<{
-        duplicateStrategy?: "skip-duplicates" | "update-on-match" | "strict-fail";
+        duplicateStrategy?:
+          | "skip-duplicates"
+          | "update-on-match"
+          | "strict-fail";
       }>,
     ) => {
       const fd = new FormData();
@@ -890,7 +909,9 @@ export default class ApiClientService {
       return (r.data ?? { items: [] }) as { items: ImportTemplateRecord[] };
     },
     getTemplate: async (id: string) => {
-      const r = await api.raw.get(`/import/templates/${encodeURIComponent(id)}`);
+      const r = await api.raw.get(
+        `/import/templates/${encodeURIComponent(id)}`,
+      );
       return r.data as ImportTemplateRecord;
     },
     createTemplate: async (payload: Readonly<Record<string, unknown>>) => {
@@ -913,7 +934,9 @@ export default class ApiClientService {
       };
     },
     deleteTemplate: async (id: string) => {
-      const r = await api.raw.delete(`/import/templates/${encodeURIComponent(id)}`);
+      const r = await api.raw.delete(
+        `/import/templates/${encodeURIComponent(id)}`,
+      );
       return r.data as { ok: boolean };
     },
     markTemplateUsed: async (id: string) => {

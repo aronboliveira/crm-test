@@ -300,7 +300,9 @@ const sortedRows = computed(() => {
     if (key === "lifecycle") {
       const stageA = resolveClientMetrics(a).lifecycleStage;
       const stageB = resolveClientMetrics(b).lifecycleStage;
-      return (LIFECYCLE_SORT_ORDER[stageA] - LIFECYCLE_SORT_ORDER[stageB]) * dir;
+      return (
+        (LIFECYCLE_SORT_ORDER[stageA] - LIFECYCLE_SORT_ORDER[stageB]) * dir
+      );
     }
 
     // Special handling for whatsapp sorting
@@ -310,7 +312,10 @@ const sortedRows = computed(() => {
       return av.localeCompare(bv) * dir;
     }
 
-    const safeKey = key as Exclude<typeof sortKey.value, "lifecycle" | "whatsapp">;
+    const safeKey = key as Exclude<
+      typeof sortKey.value,
+      "lifecycle" | "whatsapp"
+    >;
     const av = getClientSortValue(a, safeKey).toLowerCase();
     const bv = getClientSortValue(b, safeKey).toLowerCase();
     return av.localeCompare(bv) * dir;
@@ -351,11 +356,14 @@ const setTablePage = (nextPage: number): void => {
 };
 
 const setTablePageSize = (nextSize: number): void => {
-  if (!TABLE_PAGE_SIZE_OPTIONS.includes(nextSize as (typeof TABLE_PAGE_SIZE_OPTIONS)[number])) {
+  if (
+    !TABLE_PAGE_SIZE_OPTIONS.includes(
+      nextSize as (typeof TABLE_PAGE_SIZE_OPTIONS)[number],
+    )
+  ) {
     return;
   }
-  tablePageSize.value =
-    nextSize as (typeof TABLE_PAGE_SIZE_OPTIONS)[number];
+  tablePageSize.value = nextSize as (typeof TABLE_PAGE_SIZE_OPTIONS)[number];
   tablePage.value = 1;
 };
 
@@ -500,7 +508,9 @@ const shouldSkipXlsxPrefetch = (): boolean => {
 
   if (!connection) return false;
   if (connection.saveData) return true;
-  return connection.effectiveType === "2g" || connection.effectiveType === "slow-2g";
+  return (
+    connection.effectiveType === "2g" || connection.effectiveType === "slow-2g"
+  );
 };
 
 const prefetchXlsxOnIdle = (): void => {
@@ -521,7 +531,10 @@ const prefetchXlsxOnIdle = (): void => {
 
   const requestIdleCallback = (
     window as Window & {
-      requestIdleCallback?: (cb: () => void, options?: { timeout: number }) => number;
+      requestIdleCallback?: (
+        cb: () => void,
+        options?: { timeout: number },
+      ) => number;
     }
   ).requestIdleCallback;
 
@@ -714,7 +727,9 @@ const normalizeFormats = (
   return ordered.length ? [...ordered] : ["csv", "xlsx"];
 };
 
-const isCenteredExportColumn = (key: DashboardClientsExportColumnKey): boolean =>
+const isCenteredExportColumn = (
+  key: DashboardClientsExportColumnKey,
+): boolean =>
   key === "tipo" ||
   key === "lifecycle" ||
   key === "whatsappEngagement" ||
@@ -724,7 +739,9 @@ const isCenteredExportColumn = (key: DashboardClientsExportColumnKey): boolean =
 const buildCsvBlueprint = (
   columnKeys: readonly DashboardClientsExportColumnKey[],
 ): DashboardClientsCsvBlueprint =>
-  new DashboardClientsCsvBlueprint({ columns: normalizeColumnKeys(columnKeys) });
+  new DashboardClientsCsvBlueprint({
+    columns: normalizeColumnKeys(columnKeys),
+  });
 
 const buildExportRows = (): DashboardClientsExportRow[] =>
   sortedRows.value.map((client) => ({
@@ -761,8 +778,7 @@ const getFilteredExportRows = (
 const buildExportAoa = (
   csvBlueprint: DashboardClientsCsvBlueprint,
   records: readonly DashboardClientsExportRow[],
-): Array<Array<string | number | boolean>> =>
-  csvBlueprint.toAoa(records);
+): Array<Array<string | number | boolean>> => csvBlueprint.toAoa(records);
 
 const applyXlsxExportStyling = (
   xlsx: XlsxModule,
@@ -830,9 +846,12 @@ const applyXlsxExportStyling = (
           styleOptions.fontColor = scoreStyle.fontColor;
           styleOptions.bold = scoreStyle.bold;
         }
-        cell.z = "0\"%\"";
+        cell.z = '0"%"';
       } else if (key === "projetos") {
-        const projectStyle = getProjectOutlierStyle(record.projetos, thresholds);
+        const projectStyle = getProjectOutlierStyle(
+          record.projetos,
+          thresholds,
+        );
         styleOptions.align = "center";
         if (projectStyle) {
           styleOptions.fillColor = projectStyle.fillColor;
@@ -866,11 +885,14 @@ const openExportDialog =
 const handleOpenExportModal = async () => {
   await exportFlow.execute({
     openDialog: openExportDialog,
-    emptyStateMessage: "Não há clientes para exportar com os filtros selecionados.",
+    emptyStateMessage:
+      "Não há clientes para exportar com os filtros selecionados.",
     buildRecords: (selection) => {
       const formats = normalizeFormats(selection.formats);
       const columnKeys = normalizeColumnKeys(selection.columnKeys);
-      const lifecycleStages = normalizeLifecycleStages(selection.lifecycleStages);
+      const lifecycleStages = normalizeLifecycleStages(
+        selection.lifecycleStages,
+      );
       return getFilteredExportRows({
         ...selection,
         formats,
@@ -947,6 +969,58 @@ const ProjectsTableModal = defineAsyncComponent(
 const ClientFormModal = defineAsyncComponent(
   () => import("../components/forms/ClientFormModal.vue"),
 );
+
+const ClientImportModal = defineAsyncComponent(
+  () => import("../components/import/ClientImportModal.vue"),
+);
+
+/* -------------------------------------------------------------------------- */
+/*  Import Handlers                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Opens mass import modal for bulk client import from CSV/JSON/XML.
+ * Reloads the client list if any rows were imported successfully.
+ */
+const openMassImportModal = async () => {
+  const result = await ModalService.open<{
+    imported: number;
+    shouldRefresh: boolean;
+  }>(ClientImportModal, {
+    title: "Importar Clientes em Massa",
+    size: "lg",
+    data: { mode: "mass" },
+  });
+
+  if (result?.shouldRefresh) {
+    await load();
+  }
+};
+
+/**
+ * Opens single import modal to prefill the client form with data from file.
+ * After import, opens the ClientFormModal with prefilled data.
+ */
+const openSingleImportModal = async () => {
+  const result = await ModalService.open<{
+    imported: number;
+    shouldRefresh: boolean;
+    draft?: Record<string, unknown>;
+  }>(ClientImportModal, {
+    title: "Importar Dados de Cliente",
+    size: "md",
+    data: { mode: "single" },
+  });
+
+  if (result?.draft) {
+    const created = await ModalService.open(ClientFormModal, {
+      title: "Novo Cliente (Importado)",
+      size: "sm",
+      data: { draft: result.draft },
+    });
+    if (created) await load();
+  }
+};
 
 const openCreateClient = async () => {
   const result = await ModalService.open(ClientFormModal, {
@@ -1073,6 +1147,31 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
         <p class="page-subtitle">Gerenciamento de clientes e conexões.</p>
       </div>
       <div class="page-header__actions">
+        <!-- Import Buttons -->
+        <div class="btn-group" role="group" aria-label="Opções de importação">
+          <button
+            class="btn btn-sm btn-ghost"
+            title="Importar clientes em massa de arquivo CSV, JSON ou XML"
+            data-testid="dashboard-clients-mass-import-btn"
+            data-cy="mass-import-button"
+            @click="openMassImportModal"
+          >
+            <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+            Importar em Massa
+          </button>
+          <button
+            class="btn btn-sm btn-ghost"
+            title="Carregar dados de cliente de arquivo para formulário"
+            data-testid="dashboard-clients-single-import-btn"
+            data-cy="single-import-button"
+            @click="openSingleImportModal"
+          >
+            <i class="bi bi-upload" aria-hidden="true"></i>
+            Importar para Formulário
+          </button>
+        </div>
+
+        <!-- Export Button -->
         <button
           class="btn btn-sm btn-ghost"
           title="Configurar exportação da visão atual"
@@ -1080,17 +1179,13 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
           @focus="prefetchXlsxOnIdle"
           @click="handleOpenExportModal"
         >
+          <i class="bi bi-download" aria-hidden="true"></i>
           Exportar...
         </button>
       </div>
     </header>
 
-    <div
-      v-if="syncing"
-      class="page-syncing"
-      role="status"
-      aria-live="polite"
-    >
+    <div v-if="syncing" class="page-syncing" role="status" aria-live="polite">
       <span class="page-syncing__spinner" aria-hidden="true"></span>
       <span>Atualizando lista de clientes em segundo plano…</span>
     </div>
@@ -1108,7 +1203,10 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
       </template>
       <template #fallback>
         <div class="dashboard-async-fallback" role="status" aria-live="polite">
-          <span class="dashboard-async-fallback__spinner" aria-hidden="true"></span>
+          <span
+            class="dashboard-async-fallback__spinner"
+            aria-hidden="true"
+          ></span>
           <span>Carregando estatísticas dos clientes…</span>
         </div>
       </template>
@@ -1124,11 +1222,7 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
       {{ error }}
     </div>
 
-    <div
-      v-else
-      ref="tableContainerRef"
-      class="table-container card"
-    >
+    <div v-else ref="tableContainerRef" class="table-container card">
       <div
         v-if="error && rows && rows.length"
         class="mb-4 p-3 text-amber-700 bg-amber-50 rounded"
@@ -1661,12 +1755,14 @@ const handleShowEmailEngagement = async (client: ClientRow) => {
           class="table-pagination__select"
           :value="tablePageSize"
           @change="
-            setTablePageSize(
-              Number(($event.target as HTMLSelectElement).value),
-            )
+            setTablePageSize(Number(($event.target as HTMLSelectElement).value))
           "
         >
-          <option v-for="size in TABLE_PAGE_SIZE_OPTIONS" :key="size" :value="size">
+          <option
+            v-for="size in TABLE_PAGE_SIZE_OPTIONS"
+            :key="size"
+            :value="size"
+          >
             {{ size }}
           </option>
         </select>

@@ -18,6 +18,14 @@ import PasswordRecoveryService from './recovery/password-recovery.service';
 import { resetDeliveryFactory } from './recovery/adapters/reset-delivery.factory';
 import AuditModule from '../audit/audit.module';
 
+/* ─── OAuth / SSO ─── */
+import OAuthController from './oauth/oauth.controller';
+import OAuthService from './oauth/oauth.service';
+import GoogleOAuthStrategy from './oauth/strategies/google.strategy';
+import MicrosoftOAuthStrategy from './oauth/strategies/microsoft.strategy';
+import NextcloudOAuthStrategy from './oauth/strategies/nextcloud.strategy';
+import TokenIssuer from './token/token-issuer.service';
+
 @Module({
   imports: [
     UsersModule,
@@ -32,14 +40,20 @@ import AuditModule from '../audit/audit.module';
     TypeOrmModule.forFeature([UserEntity, PasswordResetRequestEntity]),
     AuditModule,
   ],
-  controllers: [AuthController, PasswordRecoveryController],
+  controllers: [AuthController, PasswordRecoveryController, OAuthController],
   providers: [
     AuthService,
     JwtStrategy,
     LocalStrategy,
     PasswordRecoveryService,
     { provide: RESET_DELIVERY_PORT, useClass: resetDeliveryFactory() },
+    /* OAuth */
+    OAuthService,
+    TokenIssuer,
+    GoogleOAuthStrategy,
+    MicrosoftOAuthStrategy,
+    NextcloudOAuthStrategy,
   ],
-  exports: [AuthService],
+  exports: [AuthService, OAuthService],
 })
 export default class AuthModule {}

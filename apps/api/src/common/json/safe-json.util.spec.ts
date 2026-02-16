@@ -2,7 +2,9 @@ import SafeJsonUtil from './safe-json.util';
 
 describe('SafeJsonUtil', () => {
   it('parses JSON safely', () => {
-    expect(SafeJsonUtil.parse('{"ok":true}', {} as Record<string, unknown>)).toEqual({
+    expect(
+      SafeJsonUtil.parse('{"ok":true}', {} as Record<string, unknown>),
+    ).toEqual({
       ok: true,
     });
     expect(SafeJsonUtil.parse('invalid-json', { fallback: true })).toEqual({

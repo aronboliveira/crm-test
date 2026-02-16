@@ -41,18 +41,18 @@ async function handleSubmit() {
 
     if (result?.ok) {
       success.value =
-        "Password changed successfully. You may need to log in again.";
+        "Senha alterada com sucesso. Você pode precisar fazer login novamente.";
       currentPassword.value = "";
       newPassword.value = "";
       confirmPassword.value = "";
     } else {
-      error.value = "Password change failed.";
+      error.value = "Falha ao alterar senha.";
     }
   } catch (err: any) {
     const msg =
       err?.response?.data?.message ||
       err?.message ||
-      "An error occurred. Please try again.";
+      "Ocorreu um erro. Tente novamente.";
     error.value = msg;
   } finally {
     busy.value = false;
@@ -64,14 +64,14 @@ async function handleSubmit() {
   <form class="change-pw-modal" @submit.prevent="handleSubmit">
     <div class="change-pw-modal__field">
       <label class="change-pw-modal__label" for="current-pw-input"
-        >Current Password</label
+        >Senha atual</label
       >
       <input
         id="current-pw-input"
         v-model="currentPassword"
         class="change-pw-modal__input"
         type="password"
-        placeholder="Enter current password"
+        placeholder="Digite a senha atual"
         autocomplete="current-password"
         required
       />
@@ -79,14 +79,14 @@ async function handleSubmit() {
 
     <div class="change-pw-modal__field">
       <label class="change-pw-modal__label" for="new-pw-input"
-        >New Password</label
+        >Nova senha</label
       >
       <input
         id="new-pw-input"
         v-model="newPassword"
         class="change-pw-modal__input"
         type="password"
-        placeholder="Min. 8 characters"
+        placeholder="Mín. 8 caracteres"
         autocomplete="new-password"
         minlength="8"
         required
@@ -95,7 +95,7 @@ async function handleSubmit() {
 
     <div class="change-pw-modal__field">
       <label class="change-pw-modal__label" for="confirm-pw-input"
-        >Confirm New Password</label
+        >Confirmar nova senha</label
       >
       <input
         id="confirm-pw-input"
@@ -106,7 +106,7 @@ async function handleSubmit() {
             confirmPassword.length > 0 && !passwordMatch,
         }"
         type="password"
-        placeholder="Re-enter new password"
+        placeholder="Digite novamente a nova senha"
         autocomplete="new-password"
         required
       />
@@ -114,7 +114,7 @@ async function handleSubmit() {
         v-if="confirmPassword.length > 0 && !passwordMatch"
         class="change-pw-modal__hint"
       >
-        Passwords do not match
+        As senhas não conferem
       </span>
     </div>
 
@@ -135,10 +135,10 @@ async function handleSubmit() {
         :disabled="busy"
         @click="emit('close')"
       >
-        Cancel
+        Cancelar
       </button>
       <button class="btn btn-primary" type="submit" :disabled="!canSubmit">
-        {{ busy ? "Saving…" : "Change Password" }}
+        {{ busy ? "Salvando…" : "Alterar senha" }}
       </button>
     </footer>
   </form>

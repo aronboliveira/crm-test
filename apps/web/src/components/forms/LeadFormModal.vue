@@ -14,6 +14,18 @@ import AlertService from "../../services/AlertService";
 
 interface Props {
   lead?: LeadRow;
+  draft?: Partial<{
+    name: string;
+    company: string;
+    email: string;
+    phone: string;
+    status: LeadStatus;
+    source: LeadSource;
+    estimatedValue: number | string;
+    assignedTo: string;
+    notes: string;
+    tags: string[] | string;
+  }>;
 }
 
 const props = defineProps<Props>();
@@ -28,16 +40,30 @@ const error = ref("");
 const activeTab = ref<"info" | "campaigns" | "contracts" | "cta">("info");
 
 /* ── Form fields ────────────────────────────────────────── */
-const name = ref(props.lead?.name ?? "");
-const company = ref(props.lead?.company ?? "");
-const email = ref(props.lead?.email ?? "");
-const phone = ref(props.lead?.phone ?? "");
-const status = ref<LeadStatus>(props.lead?.status ?? "new");
-const source = ref<LeadSource>(props.lead?.source ?? "other");
-const estimatedValue = ref<number | undefined>(props.lead?.estimatedValue);
-const assignedTo = ref(props.lead?.assignedTo ?? "");
-const notes = ref(props.lead?.notes ?? "");
-const tags = ref(props.lead?.tags?.join(", ") ?? "");
+const name = ref(props.lead?.name ?? props.draft?.name ?? "");
+const company = ref(props.lead?.company ?? props.draft?.company ?? "");
+const email = ref(props.lead?.email ?? props.draft?.email ?? "");
+const phone = ref(props.lead?.phone ?? props.draft?.phone ?? "");
+const status = ref<LeadStatus>(
+  props.lead?.status ?? props.draft?.status ?? "new",
+);
+const source = ref<LeadSource>(
+  props.lead?.source ?? props.draft?.source ?? "other",
+);
+const estimatedValue = ref<number | undefined>(
+  props.lead?.estimatedValue ??
+    (typeof props.draft?.estimatedValue === "string"
+      ? Number(props.draft.estimatedValue)
+      : props.draft?.estimatedValue),
+);
+const assignedTo = ref(props.lead?.assignedTo ?? props.draft?.assignedTo ?? "");
+const notes = ref(props.lead?.notes ?? props.draft?.notes ?? "");
+const tags = ref(
+  props.lead?.tags?.join(", ") ??
+    (Array.isArray(props.draft?.tags)
+      ? props.draft.tags.join(", ")
+      : (props.draft?.tags ?? "")),
+);
 
 /* ── Campaign attachment ────────────────────────────────── */
 const campName = ref("");
@@ -312,7 +338,7 @@ const submit = async () => {
           v-model="tags"
           class="form-input"
           type="text"
-          placeholder="enterprise, saas, fintech"
+          placeholder="empresa, saas, fintech"
         />
         <p class="form-hint">Separe tags por vírgula</p>
       </div>

@@ -38,6 +38,10 @@ describe('IntegrationsService', () => {
     reconcileDataset: jest.Mock;
     appendDatasetSummary: jest.Mock;
   };
+  let resilience: {
+    execute: jest.Mock;
+    getIntegrationSnapshot: jest.Mock;
+  };
 
   beforeEach(() => {
     glpi = createAdapter('glpi');
@@ -69,16 +73,26 @@ describe('IntegrationsService', () => {
       }),
       appendDatasetSummary: jest.fn().mockResolvedValue(undefined),
     };
+    resilience = {
+      execute: jest
+        .fn()
+        .mockImplementation(
+          async (_options: unknown, run: () => Promise<unknown>) => run(),
+        ),
+      getIntegrationSnapshot: jest.fn().mockReturnValue([]),
+    };
 
     service = new IntegrationsService(
       glpi as never,
       sat as never,
       nextcloud as never,
       createAdapter('whatsapp') as never,
+      createAdapter('openai') as never,
       createAdapter('zimbra') as never,
       createAdapter('outlook') as never,
       configs as never,
       syncRuns as never,
+      resilience as never,
     );
   });
 
@@ -216,10 +230,12 @@ describe('IntegrationsService', () => {
       sat as never,
       nextcloud as never,
       createAdapter('whatsapp') as never,
+      createAdapter('openai') as never,
       zimbra as never,
       createAdapter('outlook') as never,
       configs as never,
       syncRuns as never,
+      resilience as never,
     );
 
     const overview = await service.getConfigOverview('zimbra');
@@ -268,10 +284,12 @@ describe('IntegrationsService', () => {
       sat as never,
       nextcloud as never,
       createAdapter('whatsapp') as never,
+      createAdapter('openai') as never,
       createAdapter('zimbra') as never,
       outlook as never,
       configs as never,
       syncRuns as never,
+      resilience as never,
     );
 
     const overview = await service.getConfigOverview('outlook');
@@ -314,10 +332,12 @@ describe('IntegrationsService', () => {
       sat as never,
       nextcloud as never,
       whatsapp as never,
+      createAdapter('openai') as never,
       createAdapter('zimbra') as never,
       createAdapter('outlook') as never,
       configs as never,
       syncRuns as never,
+      resilience as never,
     );
 
     const overview = await service.getConfigOverview('whatsapp');
@@ -343,9 +363,9 @@ describe('IntegrationsService', () => {
   });
 
   it('includes Nextcloud health metadata in checkHealth details', async () => {
-    const nextcloudWithHealth = createAdapter('nextcloud') as jest.Mocked<
-      IntegrationAdapter
-    > & {
+    const nextcloudWithHealth = createAdapter(
+      'nextcloud',
+    ) as jest.Mocked<IntegrationAdapter> & {
       isConfigured: jest.Mock;
       getHealthInfo: jest.Mock;
     };
@@ -362,10 +382,12 @@ describe('IntegrationsService', () => {
       sat as never,
       nextcloudWithHealth as never,
       createAdapter('whatsapp') as never,
+      createAdapter('openai') as never,
       createAdapter('zimbra') as never,
       createAdapter('outlook') as never,
       configs as never,
       syncRuns as never,
+      resilience as never,
     );
 
     const health = await service.checkHealth('nextcloud');

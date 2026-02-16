@@ -105,6 +105,12 @@ const _INTEGRATION_ICONS = {
 
   WHATSAPP: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>`,
 
+  OPENAI: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5a2.5 2.5 0 0 1-4.96.5A3 3 0 0 0 3 9v.5a2.5 2.5 0 0 1-2 4.5v0a3 3 0 0 0 0 6 2.5 2.5 0 0 1 2 4.5V24a3 3 0 0 0 5-2.24 2.5 2.5 0 0 1 4 0A3 3 0 0 0 15 24v-.5a2.5 2.5 0 0 1 4.96-.5A3 3 0 0 0 21 15v-.5a2.5 2.5 0 0 1 2-4.5v0a3 3 0 0 0 0-6 2.5 2.5 0 0 1-2-4.5V0a3 3 0 0 0-5 2.24 2.5 2.5 0 0 1-4 0Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+
+  DEEPSEEK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v.5a2.5 2.5 0 0 1-4.96.5A3 3 0 0 0 3 9v.5a2.5 2.5 0 0 1-2 4.5v0a3 3 0 0 0 0 6 2.5 2.5 0 0 1 2 4.5V24a3 3 0 0 0 5-2.24 2.5 2.5 0 0 1 4 0A3 3 0 0 0 15 24v-.5a2.5 2.5 0 0 1 4.96-.5A3 3 0 0 0 21 15v-.5a2.5 2.5 0 0 1 2-4.5v0a3 3 0 0 0 0-6 2.5 2.5 0 0 1-2-4.5V0a3 3 0 0 0-5 2.24 2.5 2.5 0 0 1-4 0Z"/><circle cx="12" cy="12" r="3"/></svg>`,
+
+  GEMINI: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+
   ZIMBRA: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
 
   OUTLOOK: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>`,
@@ -130,6 +136,9 @@ const _INTEGRATION_COLORS = {
   SAT: "#1e88e5",
   NEXTCLOUD: "#0082c9",
   WHATSAPP: "#25d366",
+  OPENAI: "#10a37f",
+  DEEPSEEK: "#0084ff",
+  GEMINI: "#8e75f2",
   ZIMBRA: "#ff7043",
   OUTLOOK: "#0078d4",
   DEFAULT: "#6c757d",
@@ -689,12 +698,307 @@ const _WHATSAPP_FEATURES: readonly IntegrationFeature[] = [
   },
 ] as const;
 
+/** DeepSeek integration configuration */
+const _DEEPSEEK_CONFIG_FIELDS: readonly ConfigField[] = [
+  {
+    key: "apiKey",
+    label: "API Key",
+    type: "password",
+    required: true,
+    placeholder: "sk-...",
+    helpText: "Chave API do DeepSeek (inicia com 'sk-')",
+  },
+  {
+    key: "model",
+    label: "Modelo",
+    type: "select",
+    required: false,
+    options: [
+      { value: "deepseek-chat", label: "DeepSeek Chat (Recomendado)" },
+      { value: "deepseek-coder", label: "DeepSeek Coder" },
+      { value: "deepseek-v3", label: "DeepSeek V3" },
+      { value: "deepseek-reasoner", label: "DeepSeek Reasoner (R1)" },
+    ],
+    helpText: "Modelo de linguagem a ser utilizado",
+  },
+  {
+    key: "temperature",
+    label: "Temperature",
+    type: "number",
+    required: false,
+    placeholder: "0.7",
+    helpText: "Controla criatividade (0.0-2.0). Padrão: 0.7",
+    validation: {
+      min: 0,
+      max: 2,
+    },
+  },
+  {
+    key: "maxTokens",
+    label: "Max Tokens",
+    type: "number",
+    required: false,
+    placeholder: "4096",
+    helpText: "Máximo de tokens na resposta",
+    validation: {
+      min: 1,
+      max: 128000,
+    },
+  },
+  {
+    key: "systemPrompt",
+    label: "System Prompt",
+    type: "textarea",
+    required: false,
+    placeholder: "Você é Gepeto, um assistente CRM inteligente...",
+    helpText: "Instrução que define comportamento do assistente",
+  },
+  {
+    key: "apiBaseUrl",
+    label: "API Base URL",
+    type: "url",
+    required: false,
+    placeholder: "https://api.deepseek.com/v1",
+    helpText: "URL base da API (padrão: https://api.deepseek.com/v1)",
+  },
+] as const;
+
+const _DEEPSEEK_FEATURES: readonly IntegrationFeature[] = [
+  {
+    key: "chat",
+    label: "Chat Assistente",
+    description: "Assistente de IA conversacional para CRM",
+    enabled: true,
+  },
+  {
+    key: "deepseekModels",
+    label: "DeepSeek Chat & Coder",
+    description: "Modelos otimizados para conversação e código",
+    enabled: true,
+  },
+  {
+    key: "deepseekV3",
+    label: "DeepSeek V3",
+    description: "Modelo avançado de última geração",
+    enabled: true,
+  },
+  {
+    key: "reasoner",
+    label: "DeepSeek Reasoner (R1)",
+    description: "Raciocínio lógico e análise profunda",
+    enabled: true,
+  },
+  {
+    key: "contextAware",
+    label: "Context-Aware",
+    description: "Respostas personalizadas com contexto do usuário e CRM",
+    enabled: true,
+  },
+  {
+    key: "costEffective",
+    label: "Custo-Benefício",
+    description: "Preços competitivos com alta qualidade",
+    enabled: true,
+  },
+] as const;
+
+/** Gemini integration configuration */
+const _GEMINI_CONFIG_FIELDS: readonly ConfigField[] = [
+  {
+    key: "apiKey",
+    label: "API Key",
+    type: "password",
+    required: true,
+    placeholder: "AIza...",
+    helpText: "Chave API do Google AI Studio",
+  },
+  {
+    key: "model",
+    label: "Modelo",
+    type: "select",
+    required: false,
+    options: [
+      { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Recomendado)" },
+      { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+      { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+      { value: "gemini-2.0-pro", label: "Gemini 2.0 Pro" },
+      { value: "gemini-1.0-pro", label: "Gemini 1.0 Pro (Legacy)" },
+    ],
+    helpText: "Modelo de linguagem a ser utilizado",
+  },
+  {
+    key: "temperature",
+    label: "Temperature",
+    type: "number",
+    required: false,
+    placeholder: "0.7",
+    helpText: "Controla criatividade (0.0-2.0). Padrão: 0.7",
+    validation: {
+      min: 0,
+      max: 2,
+    },
+  },
+  {
+    key: "maxOutputTokens",
+    label: "Max Output Tokens",
+    type: "number",
+    required: false,
+    placeholder: "4096",
+    helpText: "Máximo de tokens na resposta",
+    validation: {
+      min: 1,
+      max: 8192,
+    },
+  },
+  {
+    key: "systemInstruction",
+    label: "System Instruction",
+    type: "textarea",
+    required: false,
+    placeholder: "Você é Gepeto, um assistente CRM inteligente...",
+    helpText: "Instrução que define comportamento do assistente",
+  },
+] as const;
+
+const _GEMINI_FEATURES: readonly IntegrationFeature[] = [
+  {
+    key: "chat",
+    label: "Chat Assistente",
+    description: "Assistente de IA conversacional para CRM",
+    enabled: true,
+  },
+  {
+    key: "gemini15",
+    label: "Gemini 1.5 Pro & Flash",
+    description: "Modelos avançados com janela de contexto longa",
+    enabled: true,
+  },
+  {
+    key: "gemini20",
+    label: "Gemini 2.0",
+    description: "Última geração de modelos Google AI",
+    enabled: true,
+  },
+  {
+    key: "multimodal",
+    label: "Multimodal",
+    description: "Suporte a texto, imagens e mais",
+    enabled: true,
+  },
+  {
+    key: "longContext",
+    label: "Contexto Extenso",
+    description: "Até 1M+ tokens de contexto",
+    enabled: true,
+  },
+  {
+    key: "contextAware",
+    label: "Context-Aware",
+    description: "Respostas personalizadas com contexto do usuário e CRM",
+    enabled: true,
+  },
+] as const;
+
+/** OpenAI integration configuration */
+const _OPENAI_CONFIG_FIELDS: readonly ConfigField[] = [
+  {
+    key: "apiKey",
+    label: "API Key",
+    type: "password",
+    required: true,
+    placeholder: "sk-...",
+    helpText: "Chave API do OpenAI (inicia com 'sk-')",
+  },
+  {
+    key: "model",
+    label: "Modelo",
+    type: "select",
+    required: false,
+    options: [
+      { value: "gpt-4-turbo-preview", label: "GPT-4 Turbo (Recomendado)" },
+      { value: "gpt-4", label: "GPT-4" },
+      { value: "gpt-4o", label: "GPT-4o (Mais rápido)" },
+      { value: "gpt-4o-mini", label: "GPT-4o Mini (Econômico)" },
+      { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo (Mais barato)" },
+    ],
+    helpText: "Modelo de linguagem a ser utilizado",
+  },
+  {
+    key: "temperature",
+    label: "Temperature",
+    type: "number",
+    required: false,
+    placeholder: "0.7",
+    helpText: "Controla criatividade (0.0-2.0). Padrão: 0.7",
+    validation: {
+      min: 0,
+      max: 2,
+    },
+  },
+  {
+    key: "maxTokens",
+    label: "Max Tokens",
+    type: "number",
+    required: false,
+    placeholder: "1000",
+    helpText: "Máximo de tokens na resposta",
+    validation: {
+      min: 1,
+      max: 128000,
+    },
+  },
+  {
+    key: "systemPrompt",
+    label: "System Prompt",
+    type: "textarea",
+    required: false,
+    placeholder: "Você é Gepeto, um assistente CRM inteligente...",
+    helpText: "Instrução que define comportamento do assistente",
+  },
+] as const;
+
+const _OPENAI_FEATURES: readonly IntegrationFeature[] = [
+  {
+    key: "chat",
+    label: "Chat Assistente",
+    description: "Assistente de IA conversacional para CRM",
+    enabled: true,
+  },
+  {
+    key: "gpt4",
+    label: "GPT-4 & GPT-4 Turbo",
+    description: "Modelos de linguagem avançados da OpenAI",
+    enabled: true,
+  },
+  {
+    key: "contextAware",
+    label: "Context-Aware",
+    description: "Respostas personalizadas com contexto do usuário e CRM",
+    enabled: true,
+  },
+  {
+    key: "conversationHistory",
+    label: "Histórico de Conversação",
+    description: "Mantém contexto de conversas anteriores",
+    enabled: true,
+  },
+  {
+    key: "errorHandling",
+    label: "Tratamento de Erros",
+    description: "Mensagens amigáveis para erros de API e rate limit",
+    enabled: true,
+  },
+] as const;
+
 // =============================================================================
 // INTEGRATION REGISTRY
 // =============================================================================
 
 /** Logo sizing tokens for consistent card presentation across providers */
-const _INTEGRATION_LOGO_PRESENTATION: Record<string, IntegrationLogoPresentation> = {
+const _INTEGRATION_LOGO_PRESENTATION: Record<
+  string,
+  IntegrationLogoPresentation
+> = {
   glpi: {
     scale: 0.88,
     offsetYRem: 0,
@@ -717,6 +1021,18 @@ const _INTEGRATION_LOGO_PRESENTATION: Record<string, IntegrationLogoPresentation
   },
   whatsapp: {
     scale: 0.98,
+    offsetYRem: 0,
+  },
+  openai: {
+    scale: 1,
+    offsetYRem: 0,
+  },
+  deepseek: {
+    scale: 1,
+    offsetYRem: 0,
+  },
+  gemini: {
+    scale: 1,
     offsetYRem: 0,
   },
 };
@@ -820,6 +1136,55 @@ const _INTEGRATIONS: Record<string, IntegrationDefinition> = {
     apiVersion: "Meta Graph API v18.0",
     logoPresentation: _INTEGRATION_LOGO_PRESENTATION.whatsapp,
   },
+  openai: {
+    id: "openai",
+    name: "OpenAI",
+    description: "Integração de LLM para chatbot e assistente inteligente",
+    type: "IA/Chatbot",
+    category: "analytics",
+    icon: "brain",
+    logoUrl: "openai.svg",
+    color: _INTEGRATION_COLORS.OPENAI,
+    features: _OPENAI_FEATURES,
+    configFields: _OPENAI_CONFIG_FIELDS,
+    configurable: true,
+    docsUrl: "https://platform.openai.com/docs/overview",
+    apiVersion: "Chat Completions API",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.openai,
+  },
+  deepseek: {
+    id: "deepseek",
+    name: "DeepSeek",
+    description:
+      "LLM de alto desempenho com modelos especializados em código e raciocínio",
+    type: "IA/Chatbot",
+    category: "analytics",
+    icon: "brain",
+    color: _INTEGRATION_COLORS.DEEPSEEK,
+    features: _DEEPSEEK_FEATURES,
+    configFields: _DEEPSEEK_CONFIG_FIELDS,
+    configurable: true,
+    docsUrl: "https://platform.deepseek.com/docs",
+    apiVersion: "OpenAI-compatible API",
+    logoUrl: "ds.svg",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.deepseek,
+  },
+  gemini: {
+    id: "gemini",
+    name: "Google Gemini",
+    description: "IA multimodal do Google com janela de contexto extra longa",
+    type: "IA/Chatbot",
+    category: "analytics",
+    icon: "brain",
+    color: _INTEGRATION_COLORS.GEMINI,
+    features: _GEMINI_FEATURES,
+    configFields: _GEMINI_CONFIG_FIELDS,
+    configurable: true,
+    docsUrl: "https://ai.google.dev/docs",
+    apiVersion: "Gemini API v1beta",
+    logoUrl: "gemini.svg",
+    logoPresentation: _INTEGRATION_LOGO_PRESENTATION.gemini,
+  },
 } as const;
 
 // =============================================================================
@@ -869,6 +1234,19 @@ export const NEXTCLOUD_CONFIG_FIELDS: DeepReadonly<
 export const WHATSAPP_CONFIG_FIELDS: DeepReadonly<
   typeof _WHATSAPP_CONFIG_FIELDS
 > = ObjectDeep.freeze(_WHATSAPP_CONFIG_FIELDS);
+
+/** Frozen OpenAI config fields */
+export const OPENAI_CONFIG_FIELDS: DeepReadonly<typeof _OPENAI_CONFIG_FIELDS> =
+  ObjectDeep.freeze(_OPENAI_CONFIG_FIELDS);
+
+/** Frozen DeepSeek config fields */
+export const DEEPSEEK_CONFIG_FIELDS: DeepReadonly<
+  typeof _DEEPSEEK_CONFIG_FIELDS
+> = ObjectDeep.freeze(_DEEPSEEK_CONFIG_FIELDS);
+
+/** Frozen Gemini config fields */
+export const GEMINI_CONFIG_FIELDS: DeepReadonly<typeof _GEMINI_CONFIG_FIELDS> =
+  ObjectDeep.freeze(_GEMINI_CONFIG_FIELDS);
 
 // =============================================================================
 // HELPER FUNCTIONS

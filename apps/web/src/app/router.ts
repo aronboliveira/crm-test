@@ -15,6 +15,11 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true },
   },
   {
+    path: "/verify-2fa",
+    component: () => import("../pages/Auth2FAPage.vue"),
+    meta: { public: true },
+  },
+  {
     path: "/forgot-password",
     component: () => import("../pages/AuthForgotPasswordPage.vue"),
     meta: { public: true },
@@ -22,6 +27,11 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/reset-password",
     component: () => import("../pages/AuthResetPasswordPage.vue"),
+    meta: { public: true },
+  },
+  {
+    path: "/oauth/callback",
+    component: () => import("../pages/AuthOAuthCallbackPage.vue"),
     meta: { public: true },
   },
   {
@@ -101,6 +111,11 @@ const routes: RouteRecordRaw[] = [
         meta: { perm: "projects.read" } satisfies RouteMetaGuard,
       },
       {
+        path: "dashboard/settings",
+        name: "DashboardSettings",
+        component: () => import("../pages/DashboardSettingsPage.vue"),
+      },
+      {
         path: "admin/users",
         component: () => import("../pages/AdminUsersPage.vue"),
         meta: { perm: "users.manage" } satisfies RouteMetaGuard,
@@ -121,6 +136,11 @@ const routes: RouteRecordRaw[] = [
         name: "Integrations",
         component: () => import("../pages/IntegrationsPage.vue"),
         meta: { perm: "projects.manage" } satisfies RouteMetaGuard,
+      },
+      {
+        path: "profile",
+        name: "UserProfile",
+        component: () => import("../pages/UserProfilePage.vue"),
       },
     ],
   },

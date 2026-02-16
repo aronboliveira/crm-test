@@ -37,12 +37,13 @@ const formatAuditMeta = (meta: unknown): string =>
       :aria-label="title"
       @click.self="close"
     >
-      <aside class="drawer-panel" aria-label="User details">
+      <aside class="drawer-panel" aria-label="Detalhes do usuário">
         <header class="drawer-head">
           <div class="grid gap-1">
             <h2 class="drawer-title">{{ title }}</h2>
             <p class="drawer-sub opacity-70">
-              Role: <strong>{{ user?.roleKey || "-" }}</strong> · Token v:
+              Perfil: <strong>{{ user?.roleKey || "-" }}</strong> · Versão do
+              token:
               <strong>{{ user?.tokenVersion ?? "-" }}</strong>
             </p>
           </div>
@@ -50,14 +51,14 @@ const formatAuditMeta = (meta: unknown): string =>
           <button
             class="btn btn-ghost"
             type="button"
-            aria-label="Close drawer"
+            aria-label="Fechar painel"
             @click="close"
           >
-            Close
+            Fechar
           </button>
         </header>
 
-        <section class="drawer-actions" aria-label="User actions">
+        <section class="drawer-actions" aria-label="Ações do usuário">
           <button
             class="btn btn-ghost"
             type="button"
@@ -65,7 +66,7 @@ const formatAuditMeta = (meta: unknown): string =>
             :aria-disabled="!canAct"
             @click="changeRole"
           >
-            Change role
+            Alterar perfil
           </button>
 
           <button
@@ -75,28 +76,28 @@ const formatAuditMeta = (meta: unknown): string =>
             :aria-disabled="!canAct"
             @click="forceReset"
           >
-            Force reset
+            Forçar redefinição
           </button>
         </section>
 
-        <section class="drawer-body" aria-label="Recent audit">
-          <h3 class="font-black">Recent audit</h3>
+        <section class="drawer-body" aria-label="Auditoria recente">
+          <h3 class="font-black">Auditoria recente</h3>
 
           <div
             class="card p-2 overflow-auto"
             role="region"
-            aria-label="Audit events for user"
+            aria-label="Eventos de auditoria do usuário"
           >
             <table
               class="min-w-[820px] w-full"
               role="table"
-              aria-label="Audit list"
+              aria-label="Lista de auditoria"
             >
               <thead>
                 <tr class="text-left opacity-80">
-                  <th class="py-2 pr-3">At</th>
-                  <th class="py-2 pr-3">Kind</th>
-                  <th class="py-2 pr-3">Actor</th>
+                  <th class="py-2 pr-3">Em</th>
+                  <th class="py-2 pr-3">Tipo</th>
+                  <th class="py-2 pr-3">Ator</th>
                   <th class="py-2 pr-3">Meta</th>
                 </tr>
               </thead>
@@ -123,7 +124,7 @@ const formatAuditMeta = (meta: unknown): string =>
 
                 <tr v-if="!auditRows.length && !busy">
                   <td colspan="4" class="py-6 opacity-70 text-center">
-                    No events.
+                    Sem eventos.
                   </td>
                 </tr>
               </tbody>
@@ -228,5 +229,4 @@ const formatAuditMeta = (meta: unknown): string =>
     transform: translateX(10px);
   }
 }
-
 </style>

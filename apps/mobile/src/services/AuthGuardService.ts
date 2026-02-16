@@ -65,7 +65,7 @@ export default class AuthGuardService {
       } catch {
         // swallow and retry
       }
-      await new Promise((r) => setTimeout(r, intervalMs));
+      await new Promise<void>((r) => setTimeout(r, intervalMs));
       i += 1;
     }
     return false;

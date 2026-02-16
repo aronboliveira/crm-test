@@ -9,6 +9,7 @@ import type {
   GlpiCreateTicketPayload,
   GlpiUpdateTicketPayload,
 } from './glpi.types';
+import type { IntegrationResilienceService } from '../../integration-resilience.service';
 
 export interface GlpiClientConfig {
   baseUrl: string;
@@ -28,12 +29,41 @@ export class GlpiApiClient {
   private readonly logger = new Logger(GlpiApiClient.name);
   private sessionToken: string | null = null;
   private readonly config: GlpiClientConfig;
+  private readonly integrationId: string;
+  private readonly resilience?: IntegrationResilienceService;
 
-  constructor(config: GlpiClientConfig) {
+  constructor(
+    config: GlpiClientConfig,
+    resilience?: IntegrationResilienceService,
+    integrationId = 'glpi',
+  ) {
     this.config = {
       ...config,
       baseUrl: config.baseUrl.replace(/\/$/, ''),
     };
+    this.resilience = resilience;
+    this.integrationId = integrationId;
+  }
+
+  private async executeResilient<T>(
+    operation: string,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    if (!this.resilience) {
+      return action();
+    }
+
+    return this.resilience.execute(
+      {
+        integrationId: this.integrationId,
+        operation,
+        timeoutMs: 20_000,
+        maxRetries: 2,
+        baseDelayMs: 300,
+        maxDelayMs: 5_000,
+      },
+      action,
+    );
   }
 
   private get apiBase(): string {
@@ -69,13 +99,15 @@ export class GlpiApiClient {
   async initSession(): Promise<string> {
     this.logger.debug('Initializing GLPI session');
 
-    const response = await fetch(`${this.apiBase}/initSession`, {
-      method: 'GET',
-      headers: {
-        ...this.getHeaders(false),
-        Authorization: this.getAuthHeader(),
-      },
-    });
+    const response = await this.executeResilient('initSession', () =>
+      fetch(`${this.apiBase}/initSession`, {
+        method: 'GET',
+        headers: {
+          ...this.getHeaders(false),
+          Authorization: this.getAuthHeader(),
+        },
+      }),
+    );
 
     if (!response.ok) {
       const error: GlpiApiError = await response.json().catch(() => ({
@@ -94,10 +126,12 @@ export class GlpiApiClient {
     if (!this.sessionToken) return;
 
     try {
-      await fetch(`${this.apiBase}/killSession`, {
-        method: 'GET',
-        headers: this.getHeaders(),
-      });
+      await this.executeResilient('killSession', () =>
+        fetch(`${this.apiBase}/killSession`, {
+          method: 'GET',
+          headers: this.getHeaders(),
+        }),
+      );
     } catch (error) {
       this.logger.warn('Failed to kill GLPI session', error);
     } finally {
@@ -123,9 +157,11 @@ export class GlpiApiClient {
     }
     url.searchParams.set('expand_dropdowns', 'true');
 
-    const response = await fetch(url.toString(), {
-      headers: this.getHeaders(),
-    });
+    const response = await this.executeResilient('getTickets', () =>
+      fetch(url.toString(), {
+        headers: this.getHeaders(),
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch tickets: HTTP ${response.status}`);
@@ -137,9 +173,11 @@ export class GlpiApiClient {
   async getTicket(id: number): Promise<GlpiTicket> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.apiBase}/Ticket/${id}`, {
-      headers: this.getHeaders(),
-    });
+    const response = await this.executeResilient('getTicket', () =>
+      fetch(`${this.apiBase}/Ticket/${id}`, {
+        headers: this.getHeaders(),
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch ticket ${id}: HTTP ${response.status}`);
@@ -151,11 +189,13 @@ export class GlpiApiClient {
   async createTicket(payload: GlpiCreateTicketPayload): Promise<GlpiTicket> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.apiBase}/Ticket`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(payload),
-    });
+    const response = await this.executeResilient('createTicket', () =>
+      fetch(`${this.apiBase}/Ticket`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload),
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to create ticket: HTTP ${response.status}`);
@@ -171,11 +211,13 @@ export class GlpiApiClient {
   ): Promise<GlpiTicket> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.apiBase}/Ticket/${id}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(payload),
-    });
+    const response = await this.executeResilient('updateTicket', () =>
+      fetch(`${this.apiBase}/Ticket/${id}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(payload),
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to update ticket ${id}: HTTP ${response.status}`);
@@ -192,9 +234,11 @@ export class GlpiApiClient {
       url.searchParams.set('range', params.range);
     }
 
-    const response = await fetch(url.toString(), {
-      headers: this.getHeaders(),
-    });
+    const response = await this.executeResilient('getUsers', () =>
+      fetch(url.toString(), {
+        headers: this.getHeaders(),
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch users: HTTP ${response.status}`);
@@ -206,9 +250,11 @@ export class GlpiApiClient {
   async getUser(id: number): Promise<GlpiUser> {
     await this.ensureSession();
 
-    const response = await fetch(`${this.apiBase}/User/${id}`, {
-      headers: this.getHeaders(),
-    });
+    const response = await this.executeResilient('getUser', () =>
+      fetch(`${this.apiBase}/User/${id}`, {
+        headers: this.getHeaders(),
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch user ${id}: HTTP ${response.status}`);
@@ -225,9 +271,11 @@ export class GlpiApiClient {
       url.searchParams.set('range', params.range);
     }
 
-    const response = await fetch(url.toString(), {
-      headers: this.getHeaders(),
-    });
+    const response = await this.executeResilient('getEntities', () =>
+      fetch(url.toString(), {
+        headers: this.getHeaders(),
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch entities: HTTP ${response.status}`);
@@ -244,9 +292,11 @@ export class GlpiApiClient {
       url.searchParams.set('range', params.range);
     }
 
-    const response = await fetch(url.toString(), {
-      headers: this.getHeaders(),
-    });
+    const response = await this.executeResilient('getComputers', () =>
+      fetch(url.toString(), {
+        headers: this.getHeaders(),
+      }),
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch computers: HTTP ${response.status}`);

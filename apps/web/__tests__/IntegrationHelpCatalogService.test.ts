@@ -11,6 +11,7 @@ describe("IntegrationHelpCatalogService", () => {
     expect(ids).toEqual([
       "glpi",
       "nextcloud",
+      "openai",
       "outlook",
       "sat",
       "whatsapp",

@@ -120,7 +120,7 @@ export default function PromptHost() {
       const raw = v?.[f.key];
       const ok = String(raw ?? "").trim().length > 0;
       if (!ok) {
-        setFormError(`${f.label} is required`);
+        setFormError(`${f.label} é obrigatório`);
         return;
       }
     }
@@ -159,10 +159,10 @@ export default function PromptHost() {
 
   const cancelText =
     st.kind === "confirm"
-      ? st.args.cancelText || "Cancel"
+      ? st.args.cancelText || "Cancelar"
       : st.kind === "form"
-        ? st.args.cancelText || "Cancel"
-        : "Cancel";
+        ? st.args.cancelText || "Cancelar"
+        : "Cancelar";
 
   return (
     <Modal
@@ -187,11 +187,7 @@ export default function PromptHost() {
               : close();
         }}
       >
-        <Pressable
-          style={styles.panel}
-          onPress={() => void 0}
-          accessibilityRole="dialog"
-        >
+        <Pressable style={styles.panel} onPress={() => void 0}>
           <View style={styles.head}>
             <Text style={styles.title}>{title}</Text>
             {st.kind === "confirm" && st.args.message ? (
@@ -211,7 +207,7 @@ export default function PromptHost() {
                         selectedValue={String(formValues?.[f.key] ?? "")}
                         onValueChange={(val) => setField(f.key, String(val))}
                       >
-                        <Picker.Item label="Select..." value="" />
+                        <Picker.Item label="Selecione..." value="" />
                         {(f.options || []).map((o) => (
                           <Picker.Item
                             key={o.value}
@@ -239,7 +235,7 @@ export default function PromptHost() {
 
                   {f.type === "date" ? (
                     <Text style={styles.hint}>
-                      Format: YYYY-MM-DD (optional)
+                      Formato: AAAA-MM-DD (opcional)
                     </Text>
                   ) : null}
                 </View>

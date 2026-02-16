@@ -1,5 +1,7 @@
 import type { ClientImportDraft } from "./blueprints/ClientImportBlueprint";
+import type { LeadImportDraft } from "./blueprints/LeadImportBlueprint";
 import type { ProjectImportDraft } from "./blueprints/ProjectImportBlueprint";
+import type { TaskImportDraft } from "./blueprints/TaskImportBlueprint";
 import type { UserImportDraft } from "./blueprints/UserImportBlueprint";
 import type { ImportRawRecord } from "./ImportSourceTypes";
 import type { ImportEntityKind } from "./ImportTypes";
@@ -23,6 +25,8 @@ type ImportDraftByKind = {
   clients: ClientImportDraft;
   projects: ProjectImportDraft;
   users: UserImportDraft;
+  tasks: TaskImportDraft;
+  leads: LeadImportDraft;
 };
 
 type ImportDraftMapperByKind = {
@@ -46,7 +50,10 @@ class NormalizedRecordReader {
       const normalized = normalizeKey(String(key));
       if (!normalized || this.values.has(normalized)) return;
       this.values.set(normalized, String(value ?? "").trim());
-      this.originalKeyByNormalized.set(normalized, String(key).trim() || normalized);
+      this.originalKeyByNormalized.set(
+        normalized,
+        String(key).trim() || normalized,
+      );
     });
   }
 
@@ -252,12 +259,7 @@ class UserImportDraftMapper implements ImportDraftMapper<UserImportDraft> {
       roleKey: this.resolveRole(
         reader.pick("role", "perfil", "role_key", "nivel", "tipo_usuario"),
       ),
-      firstName: reader.pick(
-        "first_name",
-        "firstName",
-        "nome",
-        "given_name",
-      ),
+      firstName: reader.pick("first_name", "firstName", "nome", "given_name"),
       lastName: reader.pick(
         "last_name",
         "lastName",
@@ -296,11 +298,154 @@ class UserImportDraftMapper implements ImportDraftMapper<UserImportDraft> {
   }
 }
 
+class TaskImportDraftMapper implements ImportDraftMapper<TaskImportDraft> {
+  map(record: ImportRawRecord): ImportDraftMappingResult<TaskImportDraft> {
+    const reader = new NormalizedRecordReader(record);
+    const draft: TaskImportDraft = {
+      title: reader.pick("title", "titulo", "task", "tarefa", "name", "nome"),
+      description: reader.pick("description", "descricao", "detalhes"),
+      status: this.resolveStatus(reader.pick("status", "estado", "situacao")),
+      priority: this.resolvePriority(
+        reader.pick("priority", "prioridade", "urgencia"),
+      ),
+      assigneeEmail: reader.pick(
+        "assignee",
+        "assignee_email",
+        "responsavel",
+        "responsavel_email",
+      ),
+      projectId: reader.pick(
+        "project_id",
+        "projectid",
+        "projeto_id",
+        "project",
+        "projeto",
+      ),
+      milestoneId: reader.pick(
+        "milestone_id",
+        "milestoneid",
+        "marco_id",
+        "milestone",
+        "marco",
+      ),
+      tags: reader.pick("tags", "tag", "etiquetas"),
+      dueAt: reader.pick("due_at", "previsao", "due_date", "data_prevista"),
+      deadlineAt: reader.pick("deadline_at", "entrega", "deadline", "prazo"),
+    };
+    return {
+      draft,
+      matchedFieldCount: reader.getMatchedFieldCount(),
+      unmappedEntries: reader.listUnmappedEntries(),
+    };
+  }
+
+  private resolveStatus(value: string): TaskImportDraft["status"] {
+    const normalized = normalizeKey(value);
+    if (
+      normalized.includes("doing") ||
+      normalized.includes("andamento") ||
+      normalized.includes("progress")
+    )
+      return "doing";
+    if (
+      normalized.includes("done") ||
+      normalized.includes("conclu") ||
+      normalized.includes("finaliz")
+    )
+      return "done";
+    if (normalized.includes("blocked") || normalized.includes("bloque"))
+      return "blocked";
+    return "todo";
+  }
+
+  private resolvePriority(value: string): TaskImportDraft["priority"] {
+    const n = parseInt(normalizeKey(value), 10);
+    if (n >= 1 && n <= 5) return n as TaskImportDraft["priority"];
+    return 3;
+  }
+}
+
+class LeadImportDraftMapper implements ImportDraftMapper<LeadImportDraft> {
+  map(record: ImportRawRecord): ImportDraftMappingResult<LeadImportDraft> {
+    const reader = new NormalizedRecordReader(record);
+    const draft: LeadImportDraft = {
+      name: reader.pick("name", "nome", "lead", "contato"),
+      email: reader.pick("email", "e-mail", "mail"),
+      phone: reader.pick("phone", "telefone", "tel"),
+      company: reader.pick("company", "empresa", "organization", "organizacao"),
+      status: this.resolveStatus(
+        reader.pick("status", "estado", "situacao", "stage"),
+      ),
+      source: this.resolveSource(
+        reader.pick("source", "origem", "canal", "channel"),
+      ),
+      assignedTo: reader.pick(
+        "assigned_to",
+        "responsavel",
+        "assignee",
+        "owner",
+      ),
+      estimatedValue: reader.pick(
+        "estimated_value",
+        "valor_estimado",
+        "value",
+        "valor",
+      ),
+      notes: reader.pick(
+        "notes",
+        "notas",
+        "observacao",
+        "observacoes",
+        "comments",
+      ),
+      tags: reader.pick("tags", "tag", "etiquetas"),
+    };
+    return {
+      draft,
+      matchedFieldCount: reader.getMatchedFieldCount(),
+      unmappedEntries: reader.listUnmappedEntries(),
+    };
+  }
+
+  private resolveStatus(value: string): LeadImportDraft["status"] {
+    const normalized = normalizeKey(value);
+    if (normalized.includes("contact")) return "contacted";
+    if (normalized.includes("qualif")) return "qualified";
+    if (normalized.includes("propos")) return "proposal";
+    if (normalized.includes("negoci") || normalized.includes("negoti"))
+      return "negotiation";
+    if (normalized.includes("won") || normalized.includes("ganh")) return "won";
+    if (normalized.includes("lost") || normalized.includes("perd"))
+      return "lost";
+    return "new";
+  }
+
+  private resolveSource(value: string): LeadImportDraft["source"] {
+    const normalized = normalizeKey(value);
+    if (normalized.includes("website") || normalized.includes("site"))
+      return "website";
+    if (normalized.includes("referr") || normalized.includes("indica"))
+      return "referral";
+    if (normalized.includes("social")) return "social";
+    if (normalized.includes("email") || normalized.includes("campan"))
+      return "email_campaign";
+    if (normalized.includes("cold") || normalized.includes("fria"))
+      return "cold_call";
+    if (normalized.includes("event") || normalized.includes("evento"))
+      return "event";
+    if (normalized.includes("partner") || normalized.includes("parceir"))
+      return "partner";
+    return "other";
+  }
+}
+
 export class ImportDraftMapperRegistry {
   private readonly mapperByKind: ImportDraftMapperByKind = {
     clients: new ClientImportDraftMapper(),
     projects: new ProjectImportDraftMapper(),
     users: new UserImportDraftMapper(),
+    tasks: new TaskImportDraftMapper(),
+    leads: new LeadImportDraftMapper(),
   };
 
   resolve<TKind extends ImportEntityKind>(

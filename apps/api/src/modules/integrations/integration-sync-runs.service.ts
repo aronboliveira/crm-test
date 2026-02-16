@@ -223,7 +223,9 @@ export class IntegrationSyncRunsService {
     });
   }
 
-  private async getJobOrThrow(jobId: string): Promise<IntegrationSyncJobEntity> {
+  private async getJobOrThrow(
+    jobId: string,
+  ): Promise<IntegrationSyncJobEntity> {
     const job = await this.jobsRepository.findOne({
       where: { jobId } as any,
     });
@@ -274,7 +276,16 @@ export class IntegrationSyncRunsService {
   ): string | null {
     const candidates = preferredField
       ? [preferredField]
-      : ['sourceId', 'id', 'path', 'number', 'code', 'document', 'email', 'name'];
+      : [
+          'sourceId',
+          'id',
+          'path',
+          'number',
+          'code',
+          'document',
+          'email',
+          'name',
+        ];
 
     for (const key of candidates) {
       const value = record[key];
@@ -310,7 +321,8 @@ export class IntegrationSyncRunsService {
       const keys = Object.keys(objectValue).sort();
       return `{${keys
         .map(
-          (key) => `${JSON.stringify(key)}:${this.stableSerialize(objectValue[key])}`,
+          (key) =>
+            `${JSON.stringify(key)}:${this.stableSerialize(objectValue[key])}`,
         )
         .join(',')}}`;
     }

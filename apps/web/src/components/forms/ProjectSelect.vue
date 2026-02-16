@@ -26,7 +26,7 @@ const { busy, options, label, val, load } = useProjectSelect(props, emit);
         :aria-label="label"
         @change="val = ($event.target as HTMLSelectElement).value"
       >
-        <option value="" disabled>Select a project</option>
+        <option value="" disabled>Selecione um projeto</option>
         <option v-for="p in options" :key="p.id" :value="p.id">
           {{ p.name }}
         </option>
@@ -38,10 +38,10 @@ const { busy, options, label, val, load } = useProjectSelect(props, emit);
       type="button"
       :disabled="disabled || busy"
       :aria-disabled="disabled || busy"
-      aria-label="Refresh projects"
+      aria-label="Atualizar projetos"
       @click="load"
     >
-      Refresh
+      Atualizar
     </button>
   </div>
 </template>

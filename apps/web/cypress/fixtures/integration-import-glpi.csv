@@ -1,0 +1,2 @@
+baseUrl,appToken,userToken,username,password
+https://glpi.example.com,abc123token,usr456token,admin,secret

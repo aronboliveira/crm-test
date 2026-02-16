@@ -6,22 +6,22 @@ const { canCreate, create, load, table } = useProjectsTable();
 </script>
 
 <template>
-  <section class="card" aria-label="Projects view">
+  <section class="card" aria-label="Visão de projetos">
     <div class="card-head">
-      <h3 class="card-title">Projects</h3>
+      <h3 class="card-title">Projetos</h3>
 
       <div class="flex gap-2">
         <button
           v-if="canCreate"
           class="btn btn-primary"
           type="button"
-          aria-label="Create project"
+          aria-label="Criar projeto"
           @click="create"
         >
-          New project
+          Novo projeto
         </button>
         <button class="btn btn-ghost" type="button" @click="load">
-          Refresh
+          Atualizar
         </button>
       </div>
     </div>

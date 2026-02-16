@@ -289,7 +289,7 @@ export class WhatsAppDataMapper {
       category: template.category,
       status: template.status,
       headerText: headerComponent?.text,
-      headerFormat: headerComponent?.format as WhatsAppHeaderFormat | undefined,
+      headerFormat: headerComponent?.format,
       bodyText,
       footerText: footerComponent?.text,
       buttons: buttonsComponent?.buttons,

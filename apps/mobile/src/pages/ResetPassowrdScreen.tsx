@@ -69,7 +69,7 @@ export default function ResetPasswordScreen() {
       setToken(v);
     } catch (e) {
       console.error("[ResetPasswordScreen] pasteToken failed:", e);
-      await AlertService.error("Paste failed", e);
+      await AlertService.error("Falha ao colar", e);
     }
   }, []);
 
@@ -85,17 +85,20 @@ export default function ResetPasswordScreen() {
       const r = await AuthRecoveryService.resetPassword(t, pw, cf);
 
       if (r?.ok) {
-        await AlertService.success("Password updated", "You can now sign in.");
+        await AlertService.success(
+          "Senha atualizada",
+          "Agora você pode entrar.",
+        );
         nav.replace("Login");
       } else {
         await AlertService.error(
-          "Reset failed",
-          r?.message || "Invalid request",
+          "Falha na redefinição",
+          r?.message || "Solicitação inválida",
         );
       }
     } catch (e) {
       console.error("[ResetPasswordScreen] submit failed:", e);
-      await AlertService.error("Reset failed", e);
+      await AlertService.error("Falha na redefinição", e);
     } finally {
       setBusy(false);
     }
@@ -105,13 +108,13 @@ export default function ResetPasswordScreen() {
     <KeyboardAvoidingView
       style={styles.page}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      accessibilityLabel="Reset password page"
+      accessibilityLabel="Página de redefinição de senha"
     >
       <View style={styles.card}>
         <View style={styles.head}>
-          <Text style={styles.h1}>Reset password</Text>
+          <Text style={styles.h1}>Redefinir senha</Text>
           <Text style={styles.sub} accessibilityLabel={`${FORM_ID}__help`}>
-            Provide the token (from invite/outbox) and set a new password.
+            Informe o token (convite/caixa de saída) e defina uma nova senha.
           </Text>
         </View>
 
@@ -124,7 +127,7 @@ export default function ResetPasswordScreen() {
               <TextInput
                 value={token}
                 onChangeText={setToken}
-                placeholder="paste token here"
+                placeholder="cole o token aqui"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!busy}
@@ -139,29 +142,29 @@ export default function ResetPasswordScreen() {
               <Pressable
                 onPress={() => void pasteToken()}
                 disabled={busy}
-                accessibilityLabel="Paste token"
+                accessibilityLabel="Colar token"
                 style={({ pressed }) => [
                   styles.btnGhost,
                   busy && styles.btnDisabled,
                   pressed && styles.btnPressed,
                 ]}
               >
-                <Text style={styles.btnText}>Paste</Text>
+                <Text style={styles.btnText}>Colar</Text>
               </Pressable>
             </View>
 
             {token && !tokenOk ? (
-              <Text style={styles.help}>Token format invalid.</Text>
+              <Text style={styles.help}>Formato de token inválido.</Text>
             ) : null}
           </View>
 
           {/* New password */}
           <View style={styles.field}>
-            <Text style={styles.label}>New password</Text>
+            <Text style={styles.label}>Nova senha</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
-              placeholder="min 10 chars"
+              placeholder="mínimo de 10 caracteres"
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -171,20 +174,20 @@ export default function ResetPasswordScreen() {
                 busy && styles.inputDisabled,
                 password && !passOk && styles.inputInvalid,
               ]}
-              accessibilityLabel="New password"
+              accessibilityLabel="Nova senha"
             />
             {password && !passOk ? (
-              <Text style={styles.help}>Minimum 10 characters.</Text>
+              <Text style={styles.help}>Mínimo de 10 caracteres.</Text>
             ) : null}
           </View>
 
           {/* Confirm password */}
           <View style={styles.field}>
-            <Text style={styles.label}>Confirm password</Text>
+            <Text style={styles.label}>Confirmar senha</Text>
             <TextInput
               value={confirm}
               onChangeText={setConfirm}
-              placeholder="repeat password"
+              placeholder="repita a senha"
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -194,12 +197,12 @@ export default function ResetPasswordScreen() {
                 busy && styles.inputDisabled,
                 confirm && !sameOk && styles.inputInvalid,
               ]}
-              accessibilityLabel="Confirm password"
+              accessibilityLabel="Confirmar senha"
               returnKeyType="done"
               onSubmitEditing={() => void submit()}
             />
             {confirm && !sameOk ? (
-              <Text style={styles.help}>Passwords do not match.</Text>
+              <Text style={styles.help}>As senhas não conferem.</Text>
             ) : null}
           </View>
 
@@ -207,7 +210,7 @@ export default function ResetPasswordScreen() {
             <Pressable
               onPress={() => void submit()}
               disabled={!canSubmit}
-              accessibilityLabel="Save"
+              accessibilityLabel="Salvar"
               style={({ pressed }) => [
                 styles.btnPrimary,
                 !canSubmit && styles.btnDisabled,
@@ -217,10 +220,10 @@ export default function ResetPasswordScreen() {
               {busy ? (
                 <View style={styles.busyInline}>
                   <ActivityIndicator />
-                  <Text style={styles.btnText}>Saving…</Text>
+                  <Text style={styles.btnText}>Salvando…</Text>
                 </View>
               ) : (
-                <Text style={styles.btnText}>Save</Text>
+                <Text style={styles.btnText}>Salvar</Text>
               )}
             </Pressable>
           </View>

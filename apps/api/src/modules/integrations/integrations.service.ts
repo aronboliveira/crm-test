@@ -8,10 +8,12 @@ import { GlpiAdapter } from './adapters/glpi';
 import { SatAdapter } from './adapters/sat';
 import { NextcloudAdapter } from './adapters/nextcloud';
 import { WhatsAppAdapter } from './adapters/whatsapp';
+import { OpenAiAdapter } from './adapters/openai';
 import { ZimbraAdapter } from './adapters/zimbra.adapter';
 import { OutlookAdapter } from './adapters/outlook.adapter';
 import { IntegrationConfigsService } from './integration-configs.service';
 import { IntegrationSyncRunsService } from './integration-sync-runs.service';
+import { IntegrationResilienceService } from './integration-resilience.service';
 import type {
   IntegrationConfig,
   IntegrationConfigOverview,
@@ -33,16 +35,19 @@ export class IntegrationsService implements OnModuleInit {
     private readonly sat: SatAdapter,
     private readonly nextcloud: NextcloudAdapter,
     private readonly whatsapp: WhatsAppAdapter,
+    private readonly openai: OpenAiAdapter,
     private readonly zimbra: ZimbraAdapter,
     private readonly outlook: OutlookAdapter,
     private readonly configs: IntegrationConfigsService,
     private readonly syncRuns: IntegrationSyncRunsService,
+    private readonly resilience: IntegrationResilienceService,
   ) {
     this.adapters = new Map<string, IntegrationAdapter>([
       ['glpi', glpi as IntegrationAdapter],
       ['sat', sat as IntegrationAdapter],
       ['nextcloud', nextcloud as IntegrationAdapter],
       ['whatsapp', whatsapp as IntegrationAdapter],
+      ['openai', openai as IntegrationAdapter],
       ['zimbra', zimbra as IntegrationAdapter],
       ['outlook', outlook as IntegrationAdapter],
     ]);
@@ -60,7 +65,9 @@ export class IntegrationsService implements OnModuleInit {
     for (const [id, config] of stored) {
       const adapter = this.adapters.get(id);
       if (!adapter) {
-        this.logger.warn(`Ignoring persisted config for unknown adapter: ${id}`);
+        this.logger.warn(
+          `Ignoring persisted config for unknown adapter: ${id}`,
+        );
         continue;
       }
 
@@ -81,7 +88,7 @@ export class IntegrationsService implements OnModuleInit {
   async listAll(): Promise<IntegrationStatus[]> {
     const statuses: IntegrationStatus[] = [];
 
-    for (const [id, adapter] of this.adapters) {
+    for (const [, adapter] of this.adapters) {
       statuses.push(await adapter.getStatus());
     }
 
@@ -129,7 +136,17 @@ export class IntegrationsService implements OnModuleInit {
     const adapter = this.getAdapterOrThrow(id);
 
     try {
-      const result = await adapter.testConnection();
+      const result = await this.resilience.execute(
+        {
+          integrationId: id,
+          operation: 'testConnection',
+          timeoutMs: 15_000,
+          maxRetries: 2,
+          baseDelayMs: 400,
+          maxDelayMs: 6_000,
+        },
+        () => adapter.testConnection(),
+      );
       return {
         success: result,
         message: result
@@ -203,7 +220,17 @@ export class IntegrationsService implements OnModuleInit {
     let connected = false;
     let authValid = false;
     try {
-      connected = await adapter.testConnection();
+      connected = await this.resilience.execute(
+        {
+          integrationId: id,
+          operation: 'healthCheck',
+          timeoutMs: 12_000,
+          maxRetries: 1,
+          baseDelayMs: 300,
+          maxDelayMs: 2_000,
+        },
+        () => adapter.testConnection(),
+      );
       authValid = connected; // If connection works, auth is valid
       info.connectionTest = 'passed';
     } catch (error) {
@@ -214,6 +241,8 @@ export class IntegrationsService implements OnModuleInit {
       info.connectionError =
         error instanceof Error ? error.message : 'Unknown error';
     }
+
+    info.resilience = this.resilience.getIntegrationSnapshot(id);
 
     // Get additional info if available
     if ('getSmtpProfile' in adapter && configured) {
@@ -226,7 +255,7 @@ export class IntegrationsService implements OnModuleInit {
             secure: smtpProfile.secure,
           };
         }
-      } catch (error) {
+      } catch {
         warnings.push('SMTP configuration unavailable');
       }
     }
@@ -237,7 +266,7 @@ export class IntegrationsService implements OnModuleInit {
         if (healthInfo && typeof healthInfo === 'object') {
           info[id] = healthInfo;
         }
-      } catch (error) {
+      } catch {
         warnings.push('Integration health details unavailable');
       }
     }
@@ -310,7 +339,10 @@ export class IntegrationsService implements OnModuleInit {
         }
       }
     } catch (error) {
-      this.logger.error(`Sync orchestration failed for job ${jobId}`, error as Error);
+      this.logger.error(
+        `Sync orchestration failed for job ${jobId}`,
+        error as Error,
+      );
     }
   }
 
@@ -319,7 +351,7 @@ export class IntegrationsService implements OnModuleInit {
     integrationId: string,
     adapter: IntegrationAdapter,
   ): Promise<void> {
-    const datasets = await this.collectSyncDatasets(adapter);
+    const datasets = await this.collectSyncDatasets(adapter, integrationId);
 
     for (const dataset of datasets) {
       const stats = await this.syncRuns.reconcileDataset(
@@ -327,7 +359,11 @@ export class IntegrationsService implements OnModuleInit {
         integrationId,
         dataset,
       );
-      await this.syncRuns.appendDatasetSummary(jobId, dataset.recordType, stats);
+      await this.syncRuns.appendDatasetSummary(
+        jobId,
+        dataset.recordType,
+        stats,
+      );
     }
 
     // * FINISH INTEGRATION HERE [GLPI/SAT/NEXTCLOUD/ZIMBRA/OUTLOOK]:
@@ -337,16 +373,49 @@ export class IntegrationsService implements OnModuleInit {
 
   private async collectSyncDatasets(
     adapter: IntegrationAdapter,
+    integrationId: string,
   ): Promise<IntegrationSyncDataset[]> {
     if (typeof adapter.pullSyncSnapshot === 'function') {
-      return adapter.pullSyncSnapshot();
+      return this.resilience.execute(
+        {
+          integrationId,
+          operation: 'pullSyncSnapshot',
+          timeoutMs: 30_000,
+          maxRetries: 1,
+          baseDelayMs: 800,
+          maxDelayMs: 8_000,
+        },
+        () => adapter.pullSyncSnapshot!(),
+      );
     }
 
     if (typeof adapter.sync === 'function') {
-      await adapter.sync();
+      await this.resilience.execute(
+        {
+          integrationId,
+          operation: 'sync',
+          timeoutMs: 45_000,
+          maxRetries: 1,
+          baseDelayMs: 1_000,
+          maxDelayMs: 10_000,
+        },
+        async () => {
+          await adapter.sync!();
+          return true;
+        },
+      );
     }
 
     return [];
+  }
+
+  getResilienceSnapshot(id: string) {
+    this.getAdapterOrThrow(id);
+    return {
+      integration: id,
+      circuits: this.resilience.getIntegrationSnapshot(id),
+      generatedAt: new Date(),
+    };
   }
 
   private retryDelay(attempt: number): number {
@@ -397,9 +466,13 @@ export class IntegrationsService implements OnModuleInit {
           clientId: this.safeString(config.clientId),
           companyId: this.safeString(config.companyId),
           syncInvoices:
-            typeof config.syncInvoices === 'boolean' ? config.syncInvoices : true,
+            typeof config.syncInvoices === 'boolean'
+              ? config.syncInvoices
+              : true,
           syncProducts:
-            typeof config.syncProducts === 'boolean' ? config.syncProducts : true,
+            typeof config.syncProducts === 'boolean'
+              ? config.syncProducts
+              : true,
         },
         secrets: {
           clientSecret: this.hasNonEmptyString(config.clientSecret),
@@ -443,8 +516,7 @@ export class IntegrationsService implements OnModuleInit {
           smtpSecure:
             typeof config.smtpSecure === 'boolean' ? config.smtpSecure : false,
           smtpFrom: this.safeString(config.smtpFrom),
-          smtpProfile:
-            config.smtpProfile === 'default' ? 'default' : 'zimbra',
+          smtpProfile: config.smtpProfile === 'default' ? 'default' : 'zimbra',
           mockNotifications:
             typeof config.mockNotifications === 'boolean'
               ? config.mockNotifications
@@ -452,8 +524,8 @@ export class IntegrationsService implements OnModuleInit {
         },
         secrets: {
           password:
-            this.hasNonEmptyString(config.password)
-            || this.hasNonEmptyString(config.apiKey),
+            this.hasNonEmptyString(config.password) ||
+            this.hasNonEmptyString(config.apiKey),
           smtpPass: this.hasNonEmptyString(config.smtpPass),
         },
       };
@@ -470,8 +542,7 @@ export class IntegrationsService implements OnModuleInit {
           smtpSecure:
             typeof config.smtpSecure === 'boolean' ? config.smtpSecure : false,
           smtpFrom: this.safeString(config.smtpFrom),
-          smtpProfile:
-            config.smtpProfile === 'default' ? 'default' : 'outlook',
+          smtpProfile: config.smtpProfile === 'default' ? 'default' : 'outlook',
           mockNotifications:
             typeof config.mockNotifications === 'boolean'
               ? config.mockNotifications
@@ -493,6 +564,25 @@ export class IntegrationsService implements OnModuleInit {
         },
         secrets: {
           accessToken: this.hasNonEmptyString(config.accessToken),
+        },
+      };
+    }
+
+    if (id === 'openai') {
+      return {
+        values: {
+          provider: this.safeString(config.provider) || 'openai',
+          model: this.safeString(config.model) || 'gpt-4-turbo-preview',
+          temperature:
+            typeof config.temperature === 'number' ? config.temperature : 0.7,
+          maxTokens:
+            typeof config.maxTokens === 'number' ? config.maxTokens : 1000,
+          systemPrompt: this.safeString(config.systemPrompt),
+          apiBaseUrl:
+            this.safeString(config.apiBaseUrl) || 'https://api.openai.com/v1',
+        },
+        secrets: {
+          apiKey: this.hasNonEmptyString(config.apiKey),
         },
       };
     }
@@ -524,14 +614,14 @@ export class IntegrationsService implements OnModuleInit {
   private pickFirstString(...values: Array<string | undefined>): string {
     for (const value of values) {
       if (this.hasNonEmptyString(value)) {
-        return value!.trim();
+        return value.trim();
       }
     }
     return '';
   }
 
   private safeString(value?: string): string {
-    return this.hasNonEmptyString(value) ? value!.trim() : '';
+    return this.hasNonEmptyString(value) ? value.trim() : '';
   }
 
   private hasNonEmptyString(value: unknown): value is string {

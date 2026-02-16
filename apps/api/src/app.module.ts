@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 
@@ -25,6 +25,7 @@ import AttachmentEntity from './entities/AttachmentEntity';
 import TagEntity from './entities/TagEntity';
 import MilestoneEntity from './entities/MilestoneEntity';
 import ProjectTemplateEntity from './entities/ProjectTemplateEntity';
+import UserPreferencesEntity from './entities/UserPreferencesEntity';
 
 import AuthModule from './modules/auth/auth.module';
 import UsersModule from './modules/users/users.module';
@@ -90,6 +91,7 @@ import { DevicesModule } from './modules/devices/devices.module';
         TagEntity,
         MilestoneEntity,
         ProjectTemplateEntity,
+        UserPreferencesEntity,
       ],
       synchronize: process.env.TYPEORM_SYNC === '1',
       logging: process.env.TYPEORM_LOGGING === '1',
@@ -123,14 +125,15 @@ import { DevicesModule } from './modules/devices/devices.module';
   providers: [AppService],
 })
 export class AppModule {
+  private readonly logger = new Logger(AppModule.name);
+
   constructor() {
     const mongoUrl = process.env.MONGO_URL;
     if (!mongoUrl) {
-      console.warn('[AppModule] MONGO_URL not set, using default localhost');
+      this.logger.warn('MONGO_URL not set, using default localhost');
     }
-    console.log('[AppModule] Initialized with', {
-      sync: process.env.TYPEORM_SYNC === '1',
-      logging: process.env.TYPEORM_LOGGING === '1',
-    });
+    this.logger.log(
+      `Initialized with sync=${process.env.TYPEORM_SYNC === '1'}, logging=${process.env.TYPEORM_LOGGING === '1'}`,
+    );
   }
 }

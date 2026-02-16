@@ -88,7 +88,9 @@ class WeightedSuggestionsBuilder {
               score: Number((baseScore + queryBoost).toFixed(2)),
             };
           })
-          .filter((entry): entry is { value: string; score: number } => Boolean(entry))
+          .filter((entry): entry is { value: string; score: number } =>
+            Boolean(entry),
+          )
           .sort((left, right) => {
             if (right.score !== left.score) {
               return right.score - left.score;
@@ -136,7 +138,9 @@ export default class ImportFieldSuggestionsService {
   ): Promise<readonly ImportFieldSuggestionsItem[]> {
     const kind = options.kind;
     if (!VALID_KINDS.has(kind)) {
-      throw new BadRequestException('Kind inválido. Use clients, projects ou users.');
+      throw new BadRequestException(
+        'Kind inválido. Use clients, projects ou users.',
+      );
     }
     const limit = toSafeLimit(options.limit);
     const field = toCleanText(options.field) || undefined;
@@ -167,7 +171,10 @@ export default class ImportFieldSuggestionsService {
     projects.forEach((project) => {
       const clientId = toCleanText((project as any).clientId);
       if (!clientId) return;
-      projectsByClientId.set(clientId, (projectsByClientId.get(clientId) ?? 0) + 1);
+      projectsByClientId.set(
+        clientId,
+        (projectsByClientId.get(clientId) ?? 0) + 1,
+      );
     });
 
     const conversionsByClientId = new Map<string, number>();
@@ -193,14 +200,19 @@ export default class ImportFieldSuggestionsService {
       const projectCount = projectsByClientId.get(clientId) ?? 0;
       const convertedCount = conversionsByClientId.get(clientId) ?? 0;
       const eventCount = eventsByClientId.get(clientId) ?? 0;
-      const baseScore = 8 + projectCount * 5 + convertedCount * 3 + eventCount * 0.2;
+      const baseScore =
+        8 + projectCount * 5 + convertedCount * 3 + eventCount * 0.2;
 
       builder.add('name', (client as any).name, baseScore + 8);
       builder.add('company', (client as any).company, baseScore + 5);
       builder.add('email', (client as any).email, baseScore + 4);
       builder.add('phone', (client as any).phone, baseScore + 3);
       builder.add('cellPhone', (client as any).cellPhone, baseScore + 3);
-      builder.add('whatsappNumber', (client as any).whatsappNumber, baseScore + 3);
+      builder.add(
+        'whatsappNumber',
+        (client as any).whatsappNumber,
+        baseScore + 3,
+      );
       builder.add('cep', (client as any).cep, baseScore + 1);
       builder.add('cnpj', (client as any).cnpj, baseScore + 1);
     });
@@ -222,7 +234,10 @@ export default class ImportFieldSuggestionsService {
     tasks.forEach((task) => {
       const projectId = toCleanText((task as any).projectId);
       if (!projectId) return;
-      tasksByProjectId.set(projectId, (tasksByProjectId.get(projectId) ?? 0) + 1);
+      tasksByProjectId.set(
+        projectId,
+        (tasksByProjectId.get(projectId) ?? 0) + 1,
+      );
     });
 
     const statusBoostByValue: Readonly<Record<string, number>> = {
@@ -247,7 +262,9 @@ export default class ImportFieldSuggestionsService {
       builder.add('status', status, baseScore + 2);
       builder.add('description', (project as any).description, baseScore + 1);
 
-      const tags = Array.isArray((project as any).tags) ? (project as any).tags : [];
+      const tags = Array.isArray((project as any).tags)
+        ? (project as any).tags
+        : [];
       tags.forEach((tag: unknown) => builder.add('tags', tag, baseScore + 1));
     });
 
@@ -269,14 +286,20 @@ export default class ImportFieldSuggestionsService {
     tasks.forEach((task) => {
       const email = normalizeToken((task as any).assigneeEmail);
       if (!email) return;
-      taskAssignmentsByEmail.set(email, (taskAssignmentsByEmail.get(email) ?? 0) + 1);
+      taskAssignmentsByEmail.set(
+        email,
+        (taskAssignmentsByEmail.get(email) ?? 0) + 1,
+      );
     });
 
     const projectsByOwnerEmail = new Map<string, number>();
     projects.forEach((project) => {
       const email = normalizeToken((project as any).ownerEmail);
       if (!email) return;
-      projectsByOwnerEmail.set(email, (projectsByOwnerEmail.get(email) ?? 0) + 1);
+      projectsByOwnerEmail.set(
+        email,
+        (projectsByOwnerEmail.get(email) ?? 0) + 1,
+      );
     });
 
     const builder = new WeightedSuggestionsBuilder();
@@ -285,7 +308,9 @@ export default class ImportFieldSuggestionsService {
       if (!email) return;
       const taskCount = taskAssignmentsByEmail.get(email) ?? 0;
       const projectOwnership = projectsByOwnerEmail.get(email) ?? 0;
-      const roles = Array.isArray((user as any).roles) ? (user as any).roles : [];
+      const roles = Array.isArray((user as any).roles)
+        ? (user as any).roles
+        : [];
       const roleBoost = roles.includes('admin')
         ? 4
         : roles.includes('manager')

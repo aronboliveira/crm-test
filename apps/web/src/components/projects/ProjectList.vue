@@ -4,7 +4,7 @@ const { rows, busy } = useProjectList();
 </script>
 
 <template>
-  <section class="card" aria-label="Projects">
+  <section class="card" aria-label="Projetos">
     <div class="card-head">
       <h3 class="card-title section-title">
         <svg
@@ -22,12 +22,12 @@ const { rows, busy } = useProjectList();
           <path d="M4 13h7v7H4z" />
           <path d="M13 13h7v7h-7z" />
         </svg>
-        Projects
+        Projetos
       </h3>
     </div>
 
     <div v-if="busy" class="skeleton" aria-busy="true" aria-live="polite">
-      Loading…
+      Carregando…
     </div>
 
     <ul v-else class="list" role="list">

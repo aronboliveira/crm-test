@@ -23,6 +23,7 @@ import { useNavigation } from "@react-navigation/native";
 
 import AlertService from "../services/AlertService";
 import AuthRecoveryService from "../services/AuthRecoveryService";
+import { STORAGE_KEYS, NAV_ROUTES, validateEmail } from "../constants";
 
 type RequestResetResult = {
   ok?: boolean;
@@ -30,14 +31,14 @@ type RequestResetResult = {
   devResetToken?: string;
 };
 
-const FORM_ID = "auth_forgot_password_form";
-const PERSIST_KEY = `form.${FORM_ID}`;
+const PERSIST_KEY = STORAGE_KEYS.FORM.FORGOT_PASSWORD;
 
-// Minimal email validation for RN (Vue used input type="email" + required).
+/**
+ * Validate email format
+ * Uses centralized validation from constants
+ */
 function looksLikeEmail(v: string): boolean {
-  const s = (v || "").trim();
-  // pragmatic check; do not over-validate
-  return s.includes("@") && s.includes(".") && !s.includes(" ");
+  return validateEmail(v).valid;
 }
 
 export default function AuthForgotPasswordScreen() {
@@ -116,10 +117,8 @@ export default function AuthForgotPasswordScreen() {
 
   const goToReset = useCallback(() => {
     const t = tok || "";
-    closeToken();
-    // Prefer pushing a screen instead of string URL routes.
-    // If you do deep-link style: nav.replace("ResetPassword", { token: t })
-    nav.replace("ResetPassword", { token: t });
+    // Navigate to reset password screen with token
+    nav.replace(NAV_ROUTES.AUTH.RESET_PASSWORD, { token: t });
   }, [closeToken, nav, tok]);
 
   const submit = useCallback(async () => {
@@ -129,13 +128,19 @@ export default function AuthForgotPasswordScreen() {
     try {
       const e = (email || "").trim();
       if (!e) {
-        await AlertService.error("Request failed", "Email is required");
+        await AlertService.error(
+          "Falha na solicitação",
+          "E-mail é obrigatório",
+        );
         return;
       }
 
       // Optional: keep parity with HTML email input feedback.
       if (!looksLikeEmail(e)) {
-        await AlertService.error("Request failed", "Enter a valid email");
+        await AlertService.error(
+          "Falha na solicitação",
+          "Informe um e-mail válido",
+        );
         return;
       }
 
@@ -158,20 +163,20 @@ export default function AuthForgotPasswordScreen() {
 
       if (r?.ok) {
         await AlertService.success(
-          "Request received",
+          "Solicitação recebida",
           r.message ||
-            "If the email exists, you will receive reset instructions.",
+            "Se o e-mail existir, você receberá instruções para redefinição.",
         );
-        nav.replace("Login");
+        nav.replace(NAV_ROUTES.AUTH.LOGIN);
       } else {
         await AlertService.error(
-          "Request failed",
-          r?.message || "Invalid request",
+          "Falha na solicitação",
+          r?.message || "Solicitação inválida",
         );
       }
     } catch (err) {
       console.error("[AuthForgotPasswordScreen] submit failed:", err);
-      await AlertService.error("Request failed", err);
+      await AlertService.error("Falha na solicitação", err);
     } finally {
       setBusy(false);
     }
@@ -182,14 +187,18 @@ export default function AuthForgotPasswordScreen() {
       style={styles.page}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.card} accessibilityLabel="Password recovery">
+      <View style={styles.card} accessibilityLabel={"Recuperação de senha"}>
         <View style={styles.cardHead}>
-          <Text style={styles.title}>Forgot password</Text>
+          <Text style={styles.title}>Esqueci minha senha</Text>
         </View>
 
-        <View style={styles.form} accessibilityLabel="Forgot password form">
+        <View
+          style={styles.form}
+          accessibilityLabel={"Formulário de recuperação de senha"}
+        >
           <Text style={styles.helper} accessibilityLiveRegion="polite">
-            Enter your email. If it exists, you will receive reset instructions.
+            Informe seu e-mail. Se ele existir, você receberá instruções para
+            redefinição.
           </Text>
 
           <View style={styles.field}>
@@ -201,7 +210,7 @@ export default function AuthForgotPasswordScreen() {
                 void persistEmail(v);
               }}
               placeholder="admin@corp.local"
-              accessibilityLabel="Email"
+              accessibilityLabel={"Email"}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -215,8 +224,8 @@ export default function AuthForgotPasswordScreen() {
 
           <View style={styles.actions}>
             <Pressable
-              onPress={() => nav.replace("Login")}
-              accessibilityLabel="Back to login"
+              onPress={() => nav.replace(NAV_ROUTES.AUTH.LOGIN)}
+              accessibilityLabel={"Voltar para login"}
               disabled={busy}
               style={({ pressed }) => [
                 styles.btnGhost,
@@ -224,12 +233,12 @@ export default function AuthForgotPasswordScreen() {
                 pressed && styles.btnPressed,
               ]}
             >
-              <Text style={styles.btnText}>Back</Text>
+              <Text style={styles.btnText}>Voltar</Text>
             </Pressable>
 
             <Pressable
               onPress={() => void submit()}
-              accessibilityLabel="Send reset link"
+              accessibilityLabel={"Enviar link de redefinição"}
               disabled={busy}
               style={({ pressed }) => [
                 styles.btnPrimary,
@@ -240,10 +249,10 @@ export default function AuthForgotPasswordScreen() {
               {busy ? (
                 <View style={styles.busyInline}>
                   <ActivityIndicator />
-                  <Text style={styles.btnText}>Sending…</Text>
+                  <Text style={styles.btnText}>Enviando…</Text>
                 </View>
               ) : (
-                <Text style={styles.btnText}>Send reset link</Text>
+                <Text style={styles.btnText}>Enviar link de redefinição</Text>
               )}
             </Pressable>
           </View>
@@ -251,10 +260,10 @@ export default function AuthForgotPasswordScreen() {
           {/* Equivalent of "Return to login" link */}
           <View style={styles.links}>
             <Pressable
-              onPress={() => nav.replace("Login")}
-              accessibilityLabel="Go to login"
+              onPress={() => nav.replace(NAV_ROUTES.AUTH.LOGIN)}
+              accessibilityLabel={"Ir para login"}
             >
-              <Text style={styles.link}>Return to login</Text>
+              <Text style={styles.link}>Voltar para login</Text>
             </Pressable>
           </View>
         </View>
@@ -270,7 +279,7 @@ export default function AuthForgotPasswordScreen() {
         <Pressable
           style={styles.overlay}
           onPress={closeToken}
-          accessibilityLabel="Dev reset token"
+          accessibilityLabel={"Token de redefinição (dev)"}
         >
           <Animated.View
             style={[
@@ -296,7 +305,7 @@ export default function AuthForgotPasswordScreen() {
                 </View>
 
                 <Pressable onPress={closeToken} style={styles.btnGhost}>
-                  <Text style={styles.btnText}>Close</Text>
+                  <Text style={styles.btnText}>Fechar</Text>
                 </Pressable>
               </View>
 
@@ -312,9 +321,9 @@ export default function AuthForgotPasswordScreen() {
                       styles.btnPrimary,
                       pressed && styles.btnPressed,
                     ]}
-                    accessibilityLabel="Copy"
+                    accessibilityLabel={"Copiar"}
                   >
-                    <Text style={styles.btnText}>Copy</Text>
+                    <Text style={styles.btnText}>Copiar</Text>
                   </Pressable>
 
                   <Pressable
@@ -323,9 +332,9 @@ export default function AuthForgotPasswordScreen() {
                       styles.btnGhost,
                       pressed && styles.btnPressed,
                     ]}
-                    accessibilityLabel="Go to reset"
+                    accessibilityLabel={"Ir para redefinição"}
                   >
-                    <Text style={styles.btnText}>Go to reset</Text>
+                    <Text style={styles.btnText}>Ir para redefinição</Text>
                   </Pressable>
                 </View>
               </View>

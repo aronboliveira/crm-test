@@ -70,7 +70,9 @@ const DUPLICATE_STRATEGIES = new Set<ImportIngestionDuplicateStrategy>([
 const normalizeDuplicateStrategy = (
   raw: string | undefined,
 ): ImportIngestionDuplicateStrategy => {
-  const value = String(raw || 'skip-duplicates').trim().toLowerCase();
+  const value = String(raw || 'skip-duplicates')
+    .trim()
+    .toLowerCase();
   if (DUPLICATE_STRATEGIES.has(value as ImportIngestionDuplicateStrategy)) {
     return value as ImportIngestionDuplicateStrategy;
   }
@@ -122,7 +124,9 @@ export default class ImportService {
     originalName?: string,
     options: ImportFileOptions = {},
   ): Promise<ImportFileResult> {
-    const normalizedOwner = String(ownerEmail || '').trim().toLowerCase();
+    const normalizedOwner = String(ownerEmail || '')
+      .trim()
+      .toLowerCase();
     if (!normalizedOwner) {
       throw new BadRequestException('Owner email is required');
     }
@@ -134,7 +138,9 @@ export default class ImportService {
       );
     }
 
-    const duplicateStrategy = normalizeDuplicateStrategy(options.duplicateStrategy);
+    const duplicateStrategy = normalizeDuplicateStrategy(
+      options.duplicateStrategy,
+    );
     const fileHash = createHash('sha256').update(buffer).digest('hex');
     const importKey = createHash('sha256')
       .update(`${normalizedOwner}|${format}|${duplicateStrategy}|${fileHash}`)
@@ -157,7 +163,9 @@ export default class ImportService {
       };
     }
     if (existingRun?.status === 'processing') {
-      throw new ConflictException('An import with the same payload is already processing.');
+      throw new ConflictException(
+        'An import with the same payload is already processing.',
+      );
     }
 
     let runEntity: ImportIngestionRunEntity;
@@ -249,7 +257,8 @@ export default class ImportService {
     if (format === 'csv') return this.parseCsvStream(buffer);
     if (format === 'yaml') return this.parseYamlStream(buffer);
     if (format === 'xml') return this.parseXml(buffer.toString('utf-8').trim());
-    if (format === 'json') return this.parseJson(buffer.toString('utf-8').trim());
+    if (format === 'json')
+      return this.parseJson(buffer.toString('utf-8').trim());
     return this.parseMarkdown(buffer.toString('utf-8').trim());
   }
 
@@ -277,7 +286,9 @@ export default class ImportService {
     }
 
     if (!headers) {
-      throw new BadRequestException('CSV must have a header and at least one row');
+      throw new BadRequestException(
+        'CSV must have a header and at least one row',
+      );
     }
     if (!rows.length) {
       throw new BadRequestException('CSV must contain at least one data row');
@@ -400,20 +411,18 @@ export default class ImportService {
     return items.map((entry) => this.mapRow(this.stringifyRecord(entry)));
   }
 
-  private extractJsonItems(value: unknown): ReadonlyArray<Record<string, unknown>> {
+  private extractJsonItems(
+    value: unknown,
+  ): ReadonlyArray<Record<string, unknown>> {
     if (Array.isArray(value)) {
-      return value.filter((entry) => this.isRecord(entry)) as Array<
-        Record<string, unknown>
-      >;
+      return value.filter((entry) => this.isRecord(entry));
     }
     if (!this.isRecord(value)) return [];
 
-    const rec = value as Record<string, unknown>;
+    const rec = value;
     const nested = rec['items'] ?? rec['rows'] ?? rec['data'];
     if (Array.isArray(nested)) {
-      return nested.filter((entry) => this.isRecord(entry)) as Array<
-        Record<string, unknown>
-      >;
+      return nested.filter((entry) => this.isRecord(entry));
     }
     return [rec];
   }
@@ -469,7 +478,9 @@ export default class ImportService {
       .map((cell) => cell.trim());
   }
 
-  private parseMarkdownKeyValueBlocks(text: string): Array<Record<string, string>> {
+  private parseMarkdownKeyValueBlocks(
+    text: string,
+  ): Array<Record<string, string>> {
     const blocks: Array<Record<string, string>> = [];
     let current: Record<string, string> = {};
 
@@ -505,7 +516,9 @@ export default class ImportService {
       type,
       name: String(obj['name'] || obj['title'] || 'Untitled').trim(),
       description: String(obj['description'] || obj['desc'] || '').trim(),
-      status: String(obj['status'] || (type === 'project' ? 'planned' : 'todo')).trim(),
+      status: String(
+        obj['status'] || (type === 'project' ? 'planned' : 'todo'),
+      ).trim(),
       priority: parseInt(String(obj['priority'] || '3').trim(), 10) || 3,
       dueAt: String(obj['dueat'] || obj['due_at'] || obj['due'] || '').trim(),
       tags: String(obj['tags'] || '')
@@ -569,7 +582,9 @@ export default class ImportService {
 
     return {
       rows:
-        strategy === 'update-on-match' ? Array.from(updateMap.values()) : deduped,
+        strategy === 'update-on-match'
+          ? Array.from(updateMap.values())
+          : deduped,
       duplicateRowsInPayload,
     };
   }
@@ -583,7 +598,11 @@ export default class ImportService {
 
     rows.forEach((row) => {
       if (row.type === 'project') {
-        projectCodes.add(String(row.code || '').trim().toUpperCase());
+        projectCodes.add(
+          String(row.code || '')
+            .trim()
+            .toUpperCase(),
+        );
       } else {
         taskTitles.add(String(row.name || '').trim());
       }
@@ -700,7 +719,9 @@ export default class ImportService {
       const existing = existingLookup.taskByKey.get(dedupKey);
       if (existing) {
         if (strategy === 'strict-fail') {
-          throw new ConflictException(`Task duplicate found for key "${dedupKey}"`);
+          throw new ConflictException(
+            `Task duplicate found for key "${dedupKey}"`,
+          );
         }
         if (strategy === 'skip-duplicates') {
           skipped += 1;
@@ -757,18 +778,21 @@ export default class ImportService {
     operations: readonly any[],
   ): Promise<void> {
     if (!operations.length) return;
-    for (let index = 0; index < operations.length; index += ImportService.BATCH_SIZE) {
+    for (
+      let index = 0;
+      index < operations.length;
+      index += ImportService.BATCH_SIZE
+    ) {
       const chunk = operations.slice(index, index + ImportService.BATCH_SIZE);
       await repo.bulkWrite(chunk as any, { ordered: false } as any);
     }
   }
 
-  private rowDedupKey(
-    row: ValidatedImportRow,
-    ownerEmail = '',
-  ): string {
+  private rowDedupKey(row: ValidatedImportRow, ownerEmail = ''): string {
     if (row.type === 'project') {
-      return `project:${String(row.code || '').trim().toUpperCase()}`;
+      return `project:${String(row.code || '')
+        .trim()
+        .toUpperCase()}`;
     }
     const scope = String(row.projectId || '__no_project__').trim();
     return `task:${scope}:${row.name.trim().toLowerCase()}:${ownerEmail}`;
@@ -829,10 +853,14 @@ export default class ImportService {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
-  private stringifyRecord(record: Record<string, unknown>): Record<string, string> {
+  private stringifyRecord(
+    record: Record<string, unknown>,
+  ): Record<string, string> {
     return Object.entries(record).reduce<Record<string, string>>(
       (acc, [rawKey, rawValue]) => {
-        const key = String(rawKey || '').trim().toLowerCase();
+        const key = String(rawKey || '')
+          .trim()
+          .toLowerCase();
         if (!key) return acc;
         if (typeof rawValue === 'string') {
           acc[key] = rawValue.trim();

@@ -43,6 +43,20 @@ export default class AdminApiService {
     }
   }
 
+  static async clientsList(
+    params: Readonly<{ q?: string; cursor?: string; limit?: number }>,
+  ): Promise<PagedResult<Record<string, unknown>>> {
+    try {
+      const response = await ApiClientService.raw.get("/clients", {
+        params,
+      });
+      return response.data as PagedResult<Record<string, unknown>>;
+    } catch (error) {
+      console.error("[AdminApiService.clientsList] Request failed:", error);
+      throw error;
+    }
+  }
+
   static async tasksList(
     params: Readonly<{
       q?: string;

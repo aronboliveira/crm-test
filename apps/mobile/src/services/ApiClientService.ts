@@ -6,7 +6,8 @@ import { authEvents } from "./AuthEvents";
 import type { CreateDTO, UpdateDTO } from "../types/api.types";
 
 // Replace this with react-native-config / expo-constants / your own config layer.
-const API_BASE_URL = (global as any)?.API_BASE_URL || "http://10.0.2.2:3000"; // Android emulator default
+const API_BASE_URL =
+  (globalThis as any)?.API_BASE_URL || "http://10.0.2.2:3000"; // Android emulator default
 
 class ApiClient {
   #ax: AxiosInstance;

@@ -1,6 +1,13 @@
-export type ImportEntityKind = "clients" | "projects" | "users";
+export type ImportEntityKind =
+  | "clients"
+  | "projects"
+  | "users"
+  | "tasks"
+  | "leads";
 
-export type ValidationErrorKey<TDraft> = Extract<keyof TDraft, string> | "__form";
+export type ValidationErrorKey<TDraft> =
+  | Extract<keyof TDraft, string>
+  | "__form";
 
 export type FieldErrorMap<TDraft> = Partial<
   Record<ValidationErrorKey<TDraft>, string>

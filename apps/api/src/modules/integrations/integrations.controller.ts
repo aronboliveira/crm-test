@@ -41,7 +41,9 @@ export class IntegrationsController {
    * Gets persisted status/details for a sync job.
    */
   @Get('sync-jobs/:jobId')
-  async getSyncJob(@Param('jobId') jobId: string): Promise<IntegrationSyncJobView> {
+  async getSyncJob(
+    @Param('jobId') jobId: string,
+  ): Promise<IntegrationSyncJobView> {
     this.logger.log(`Getting sync job: ${jobId}`);
     return this.integrationsService.getSyncJob(jobId);
   }
@@ -124,5 +126,29 @@ export class IntegrationsController {
   }> {
     this.logger.log(`Health check for: ${id}`);
     return this.integrationsService.checkHealth(id);
+  }
+
+  /**
+   * Resilience state endpoint for an integration.
+   * Returns current circuit breaker snapshots and counters.
+   */
+  @Get(':id/resilience')
+  async getResilience(@Param('id') id: string): Promise<{
+    integration: string;
+    circuits: Array<{
+      key: string;
+      integrationId: string;
+      operation: string;
+      state: 'open' | 'closed' | 'halfOpen';
+      fires: number;
+      failures: number;
+      successes: number;
+      rejects: number;
+      timeouts: number;
+    }>;
+    generatedAt: Date;
+  }> {
+    this.logger.log(`Resilience snapshot for: ${id}`);
+    return this.integrationsService.getResilienceSnapshot(id);
   }
 }

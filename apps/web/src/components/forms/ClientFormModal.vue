@@ -6,6 +6,20 @@ import AlertService from "../../services/AlertService";
 
 interface Props {
   client?: ClientRow;
+  draft?: Partial<{
+    name: string;
+    type: "pessoa" | "empresa";
+    company: string;
+    email: string;
+    phone: string;
+    cellPhone: string;
+    whatsappNumber: string;
+    cnpj: string;
+    cep: string;
+    hasWhatsapp: boolean;
+    preferredContact: "email" | "phone" | "whatsapp" | "cellphone";
+    notes: string;
+  }>;
 }
 
 const props = defineProps<Props>();
@@ -18,20 +32,26 @@ const isEditing = computed(() => !!props.client);
 const busy = ref(false);
 const error = ref("");
 
-const name = ref(props.client?.name ?? "");
-const clientType = ref<"pessoa" | "empresa">(props.client?.type ?? "pessoa");
-const company = ref(props.client?.company ?? "");
-const email = ref(props.client?.email ?? "");
-const phone = ref(props.client?.phone ?? "");
-const cellPhone = ref(props.client?.cellPhone ?? "");
-const whatsappNumber = ref(props.client?.whatsappNumber ?? "");
-const cnpj = ref(props.client?.cnpj ?? "");
-const cep = ref(props.client?.cep ?? "");
-const hasWhatsapp = ref(props.client?.hasWhatsapp ?? false);
-const preferredContact = ref<"email" | "phone" | "whatsapp" | "cellphone">(
-  props.client?.preferredContact ?? "email",
+const name = ref(props.client?.name ?? props.draft?.name ?? "");
+const clientType = ref<"pessoa" | "empresa">(
+  props.client?.type ?? props.draft?.type ?? "pessoa",
 );
-const notes = ref(props.client?.notes ?? "");
+const company = ref(props.client?.company ?? props.draft?.company ?? "");
+const email = ref(props.client?.email ?? props.draft?.email ?? "");
+const phone = ref(props.client?.phone ?? props.draft?.phone ?? "");
+const cellPhone = ref(props.client?.cellPhone ?? props.draft?.cellPhone ?? "");
+const whatsappNumber = ref(
+  props.client?.whatsappNumber ?? props.draft?.whatsappNumber ?? "",
+);
+const cnpj = ref(props.client?.cnpj ?? props.draft?.cnpj ?? "");
+const cep = ref(props.client?.cep ?? props.draft?.cep ?? "");
+const hasWhatsapp = ref(
+  props.client?.hasWhatsapp ?? props.draft?.hasWhatsapp ?? false,
+);
+const preferredContact = ref<"email" | "phone" | "whatsapp" | "cellphone">(
+  props.client?.preferredContact ?? props.draft?.preferredContact ?? "email",
+);
+const notes = ref(props.client?.notes ?? props.draft?.notes ?? "");
 
 const CNPJ_PATTERN = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/;
 const CEP_PATTERN = /^\d{5}-\d{3}$/;

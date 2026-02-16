@@ -17,6 +17,17 @@ const TagPicker = defineAsyncComponent(() => import("../ui/TagPicker.vue"));
 interface Props {
   task?: TaskRow;
   projectId?: string;
+  draft?: Partial<{
+    title: string;
+    projectId: string;
+    status: TaskStatus;
+    priority: TaskPriority;
+    dueAt: string;
+    deadlineAt: string;
+    assigneeEmail: string;
+    milestoneId: string;
+    tags: string[] | string;
+  }>;
 }
 
 const props = defineProps<Props>();
@@ -41,15 +52,39 @@ const titleSuggestions = ref<string[]>([]);
 const showSuggestions = ref(false);
 
 // Form state
-const title = ref(props.task?.title ?? "");
-const projectId = ref(props.task?.projectId ?? props.projectId ?? "");
-const status = ref<TaskStatus>(props.task?.status ?? "todo");
-const priority = ref<TaskPriority>(props.task?.priority ?? 3);
-const dueAt = ref(props.task?.dueAt?.split("T")[0] ?? "");
-const deadlineAt = ref((props.task as any)?.deadlineAt?.split("T")[0] ?? "");
-const assigneeEmail = ref(props.task?.assigneeEmail ?? "");
-const milestoneId = ref((props.task as any)?.milestoneId ?? "");
-const tags = ref<string[]>((props.task as any)?.tags ?? []);
+const title = ref(props.task?.title ?? props.draft?.title ?? "");
+const projectId = ref(
+  props.task?.projectId ?? props.draft?.projectId ?? props.projectId ?? "",
+);
+const status = ref<TaskStatus>(
+  props.task?.status ?? props.draft?.status ?? "todo",
+);
+const priority = ref<TaskPriority>(
+  props.task?.priority ?? props.draft?.priority ?? 3,
+);
+const dueAt = ref(
+  props.task?.dueAt?.split("T")[0] ?? props.draft?.dueAt?.split("T")[0] ?? "",
+);
+const deadlineAt = ref(
+  (props.task as any)?.deadlineAt?.split("T")[0] ??
+    props.draft?.deadlineAt?.split("T")[0] ??
+    "",
+);
+const assigneeEmail = ref(
+  props.task?.assigneeEmail ?? props.draft?.assigneeEmail ?? "",
+);
+const milestoneId = ref(
+  (props.task as any)?.milestoneId ?? props.draft?.milestoneId ?? "",
+);
+const tags = ref<string[]>(
+  (props.task as any)?.tags ??
+    (Array.isArray(props.draft?.tags)
+      ? props.draft?.tags
+      : String(props.draft?.tags ?? "")
+          .split(/[,;|]/)
+          .map((item) => item.trim())
+          .filter(Boolean)),
+);
 
 // Assignee validation state
 const assigneeError = ref("");

@@ -94,15 +94,13 @@ export class IntegrationConfigsService {
       }
 
       try {
-        decrypted[key as keyof IntegrationConfig] = this.crypto.decrypt(
-          value,
-        ) as never;
+        decrypted[key] = this.crypto.decrypt(value) as never;
       } catch (error) {
         this.logger.error(
           `Failed to decrypt secret "${key}" for integration "${integrationId}"`,
           error as Error,
         );
-        delete decrypted[key as keyof IntegrationConfig];
+        delete decrypted[key];
       }
     }
 
@@ -119,9 +117,7 @@ export class IntegrationConfigsService {
         continue;
       }
 
-      encrypted[key as keyof IntegrationConfig] = this.crypto.encrypt(
-        value,
-      ) as never;
+      encrypted[key] = this.crypto.encrypt(value) as never;
     }
 
     return encrypted;

@@ -2,9 +2,15 @@ import { SatAdapter } from './sat.adapter';
 
 describe('SatAdapter', () => {
   let adapter: SatAdapter;
+  const resilience = {
+    execute: jest.fn(async (_options: unknown, run: () => Promise<unknown>) =>
+      run(),
+    ),
+    getIntegrationSnapshot: jest.fn().mockReturnValue([]),
+  };
 
   beforeEach(() => {
-    adapter = new SatAdapter({} as never);
+    adapter = new SatAdapter({} as never, resilience as never);
   });
 
   describe('getStatus', () => {

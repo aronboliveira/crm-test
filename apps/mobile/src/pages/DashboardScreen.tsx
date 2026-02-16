@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
 import PolicyService from "../services/PolicyService";
+import { NAV_ROUTES } from "../constants";
 
 /**
  * RN replacement for <DashboardHome />
@@ -10,10 +11,10 @@ import PolicyService from "../services/PolicyService";
  */
 function DashboardHome() {
   return (
-    <View style={styles.homeCard} accessibilityLabel="Dashboard home">
-      <Text style={styles.homeTitle}>Welcome</Text>
+    <View style={styles.homeCard} accessibilityLabel="Início do dashboard">
+      <Text style={styles.homeTitle}>Bem-vindo</Text>
       <Text style={styles.homeSub}>
-        This is a placeholder for the DashboardHome component.
+        Este é um espaço temporário para o conteúdo inicial do dashboard.
       </Text>
     </View>
   );
@@ -41,48 +42,77 @@ export default function DashboardScreen() {
   }, []);
 
   const goProjects = useCallback(() => {
-    // Route names are examples; change to your actual stack route names.
-    nav.navigate("Projects");
+    nav.navigate(NAV_ROUTES.DASHBOARD.PROJECTS);
   }, [nav]);
 
   const goTasks = useCallback(() => {
-    nav.navigate("Tasks");
+    nav.navigate(NAV_ROUTES.DASHBOARD.TASKS);
+  }, [nav]);
+
+  const goClients = useCallback(() => {
+    nav.navigate(NAV_ROUTES.DASHBOARD.CLIENTS);
+  }, [nav]);
+
+  const goDevices = useCallback(() => {
+    nav.navigate(NAV_ROUTES.DASHBOARD.DEVICES);
   }, [nav]);
 
   return (
-    <View style={styles.page} accessibilityLabel="Dashboard">
+    <View style={styles.page} accessibilityLabel="Painel">
       <View style={styles.header}>
-        <Text style={styles.h1}>Dashboard</Text>
+        <Text style={styles.h1}>Painel</Text>
       </View>
 
       <DashboardHome />
 
-      <View style={styles.nav} accessibilityLabel="Dashboard sections">
+      <View style={styles.nav} accessibilityLabel="Seções do painel">
         {canProjects ? (
           <Pressable
             onPress={goProjects}
-            accessibilityLabel="Projects"
+            accessibilityLabel="Projetos"
             style={({ pressed }) => [
               styles.btnOutline,
               pressed && styles.btnPressed,
             ]}
           >
-            <Text style={styles.btnText}>Projects</Text>
+            <Text style={styles.btnText}>Projetos</Text>
           </Pressable>
         ) : null}
+
+        <Pressable
+          onPress={goClients}
+          accessibilityLabel="Clientes"
+          style={({ pressed }) => [
+            styles.btnOutline,
+            pressed && styles.btnPressed,
+          ]}
+        >
+          <Text style={styles.btnText}>Clientes</Text>
+        </Pressable>
 
         {canTasks ? (
           <Pressable
             onPress={goTasks}
-            accessibilityLabel="Tasks"
+            accessibilityLabel="Tarefas"
             style={({ pressed }) => [
               styles.btnOutline,
               pressed && styles.btnPressed,
             ]}
           >
-            <Text style={styles.btnText}>Tasks</Text>
+            <Text style={styles.btnText}>Tarefas</Text>
           </Pressable>
         ) : null}
+
+        <Pressable
+          onPress={goDevices}
+          accessibilityLabel="Meus dispositivos"
+          style={({ pressed }) => [
+            styles.btnOutline,
+            pressed && styles.btnPressed,
+          ]}
+        >
+          <Text style={styles.btnText}>Meus Dispositivos</Text>
+        </Pressable>
       </View>
     </View>
   );

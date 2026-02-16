@@ -40,15 +40,17 @@ async function handleSubmit() {
 
     if (result?.ok) {
       success.value =
-        result.message || "Email change request submitted successfully.";
+        result.message ||
+        "Solicitação de alteração de e-mail enviada com sucesso.";
     } else {
-      error.value = result?.message || "Email change request failed.";
+      error.value =
+        result?.message || "Falha na solicitação de alteração de e-mail.";
     }
   } catch (err: any) {
     const msg =
       err?.response?.data?.message ||
       err?.message ||
-      "An error occurred. Please try again.";
+      "Ocorreu um erro. Tente novamente.";
     error.value = msg;
   } finally {
     busy.value = false;
@@ -59,13 +61,13 @@ async function handleSubmit() {
 <template>
   <form class="change-email-modal" @submit.prevent="handleSubmit">
     <div class="change-email-modal__field">
-      <label class="change-email-modal__label">Current Email</label>
+      <label class="change-email-modal__label">E-mail atual</label>
       <span class="change-email-modal__current">{{ currentEmail }}</span>
     </div>
 
     <div class="change-email-modal__field">
       <label class="change-email-modal__label" for="new-email-input"
-        >New Email</label
+        >Novo e-mail</label
       >
       <input
         id="new-email-input"
@@ -80,14 +82,14 @@ async function handleSubmit() {
 
     <div class="change-email-modal__field">
       <label class="change-email-modal__label" for="confirm-password-input"
-        >Confirm Password</label
+        >Confirme a senha</label
       >
       <input
         id="confirm-password-input"
         v-model="password"
         class="change-email-modal__input"
         type="password"
-        placeholder="Enter your current password"
+        placeholder="Digite sua senha atual"
         autocomplete="current-password"
         required
       />
@@ -113,10 +115,10 @@ async function handleSubmit() {
         :disabled="busy"
         @click="emit('close')"
       >
-        Cancel
+        Cancelar
       </button>
       <button class="btn btn-primary" type="submit" :disabled="!canSubmit">
-        {{ busy ? "Submitting…" : "Request Change" }}
+        {{ busy ? "Enviando…" : "Solicitar alteração" }}
       </button>
     </footer>
   </form>

@@ -15,13 +15,13 @@ export default function DashboardProjectsScreen() {
     useDashboardProjectsPage();
 
   return (
-    <View style={styles.page} accessibilityLabel="Projects">
+    <View style={styles.page} accessibilityLabel="Projetos">
       <View style={styles.header}>
         <View style={styles.headText}>
-          <Text style={styles.h1}>Projects</Text>
+          <Text style={styles.h1}>Projetos</Text>
           <Text style={styles.sub}>
-            Data comes from store; if backend endpoint is missing, dev fallback
-            mocks are used.
+            Os dados vêm do store; se o endpoint do backend não existir, o
+            fallback de desenvolvimento usa mocks.
           </Text>
         </View>
 
@@ -29,8 +29,8 @@ export default function DashboardProjectsScreen() {
           <TextInput
             value={q}
             onChangeText={setQ}
-            placeholder="search"
-            accessibilityLabel="Search projects"
+            placeholder="buscar"
+            accessibilityLabel="Buscar projetos"
             autoCapitalize="none"
             autoCorrect={false}
             style={styles.input}
@@ -41,39 +41,39 @@ export default function DashboardProjectsScreen() {
           <Pressable
             onPress={() => void load(true)}
             disabled={loading}
-            accessibilityLabel="Reload"
+            accessibilityLabel="Recarregar"
             style={({ pressed }) => [
               styles.btnPrimary,
               loading && styles.btnDisabled,
               pressed && styles.btnPressed,
             ]}
           >
-            <Text style={styles.btnText}>Reload</Text>
+            <Text style={styles.btnText}>Recarregar</Text>
           </Pressable>
         </View>
       </View>
 
       <View
         style={styles.card}
-        accessibilityLabel="Projects table"
+        accessibilityLabel="Tabela de projetos"
         role="region"
       >
         {loading ? (
           <View style={styles.busyRow}>
             <ActivityIndicator />
-            <Text style={styles.busyText}>Loading…</Text>
+            <Text style={styles.busyText}>Carregando…</Text>
           </View>
         ) : null}
 
         <ScrollView horizontal contentContainerStyle={styles.tableMinWidth}>
           <View style={styles.table}>
             <View style={[styles.tr, styles.thRow]}>
-              <Text style={[styles.th, styles.colCode]}>Code</Text>
-              <Text style={[styles.th, styles.colName]}>Name</Text>
-              <Text style={[styles.th, styles.colOwner]}>Owner</Text>
+              <Text style={[styles.th, styles.colCode]}>Código</Text>
+              <Text style={[styles.th, styles.colName]}>Nome</Text>
+              <Text style={[styles.th, styles.colOwner]}>Responsável</Text>
               <Text style={[styles.th, styles.colStatus]}>Status</Text>
-              <Text style={[styles.th, styles.colDue]}>Due</Text>
-              <Text style={[styles.th, styles.colActions]}>Actions</Text>
+              <Text style={[styles.th, styles.colDue]}>Prazo</Text>
+              <Text style={[styles.th, styles.colActions]}>Ações</Text>
             </View>
 
             {rows.map((p, idx) => {
@@ -101,17 +101,19 @@ export default function DashboardProjectsScreen() {
 
                   <View style={[styles.td, styles.colActions]}>
                     <Pressable
-                      onPress={() => {
-                        // TODO: navigate to edit screen
-                        // nav.navigate("ProjectEdit", { id: p.id })
-                      }}
-                      accessibilityLabel="Edit project"
+                      onPress={() =>
+                        nav.navigate(
+                          "ProjectEdit" as never,
+                          { id: p.id } as never,
+                        )
+                      }
+                      accessibilityLabel="Editar projeto"
                       style={({ pressed }) => [
                         styles.btnGhostSm,
                         pressed && styles.btnPressed,
                       ]}
                     >
-                      <Text style={styles.btnText}>Edit</Text>
+                      <Text style={styles.btnText}>Editar</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -120,7 +122,9 @@ export default function DashboardProjectsScreen() {
 
             {!rows.length && !loading ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>{error || "No projects."}</Text>
+                <Text style={styles.emptyText}>
+                  {error || "Nenhum projeto encontrado."}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -131,14 +135,14 @@ export default function DashboardProjectsScreen() {
         <Pressable
           onPress={() => void more()}
           disabled={!nextCursor || loading}
-          accessibilityLabel="Load more"
+          accessibilityLabel="Carregar mais"
           style={({ pressed }) => [
             styles.btnGhost,
             (!nextCursor || loading) && styles.btnDisabled,
             pressed && styles.btnPressed,
           ]}
         >
-          <Text style={styles.btnText}>Load more</Text>
+          <Text style={styles.btnText}>Carregar mais</Text>
         </Pressable>
       </View>
     </View>

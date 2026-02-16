@@ -843,7 +843,6 @@ const handleQuickAction = async (action: string) => {
 
 // Stat card click handlers
 const handleStatClick = async (stat: string) => {
-  console.log("[DashboardHome] handleStatClick:", stat);
   switch (stat) {
     case "total-projects":
       await ModalService.open(ProjectsTableModal, {
@@ -1237,7 +1236,7 @@ const handleStatClick = async (stat: string) => {
     border: 1px solid var(--border-1);
     border-radius: var(--radius-lg, 16px);
     background: var(--surface-1);
-    padding: 0.82rem 0.9rem;
+    padding: 0.82rem 0.9rem 0.82rem 1.6rem;
   }
 
   &__growth-toolbar-group {
@@ -1333,7 +1332,7 @@ const handleStatClick = async (stat: string) => {
   }
 
   &__growth-card {
-    padding: 1rem;
+    padding: 1rem 1rem 1rem 1.75rem;
     border: 1px solid var(--border-1);
     border-radius: var(--radius-lg, 16px);
     background: var(--surface-1);

@@ -91,21 +91,21 @@ function AdminUserDetailsDrawerRN(props: {
         >
           <View style={styles.modalHead}>
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={styles.h2}>User details</Text>
+              <Text style={styles.h2}>Detalhes do usuário</Text>
               <Text style={styles.modalSubtitle} numberOfLines={2}>
                 userId: {userId || "-"}
               </Text>
             </View>
 
             <Pressable onPress={onClose} style={styles.btnGhost}>
-              <Text style={styles.btnText}>Close</Text>
+              <Text style={styles.btnText}>Fechar</Text>
             </Pressable>
           </View>
 
           <View style={{ padding: 14, gap: 10 }}>
             <Text style={{ opacity: 0.8 }}>
-              Stub component. Replace with your real drawer (fetch user details,
-              etc.).
+              Componente temporário. Substitua pelo seu drawer real (buscar
+              detalhes do usuário etc.).
             </Text>
 
             <Pressable
@@ -115,7 +115,7 @@ function AdminUserDetailsDrawerRN(props: {
                 pressed && styles.btnPressed,
               ]}
             >
-              <Text style={styles.btnText}>Reload list</Text>
+              <Text style={styles.btnText}>Recarregar lista</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -142,20 +142,22 @@ function CreateUserModalRN(props: {
         <Pressable onPress={(e) => e.stopPropagation()} style={styles.panel}>
           <View style={styles.modalHead}>
             <View style={{ flex: 1, gap: 4 }}>
-              <Text style={styles.h2}>Create user</Text>
+              <Text style={styles.h2}>Criar usuário</Text>
               <Text style={styles.modalSubtitle} numberOfLines={2}>
-                Stub modal. Wire to your create-user API here.
+                Modal temporário. Integre aqui com sua API de criação de
+                usuário.
               </Text>
             </View>
 
             <Pressable onPress={onClose} style={styles.btnGhost}>
-              <Text style={styles.btnText}>Close</Text>
+              <Text style={styles.btnText}>Fechar</Text>
             </Pressable>
           </View>
 
           <View style={{ padding: 14, gap: 10 }}>
             <Text style={{ opacity: 0.8 }}>
-              Implement your form + call your API, then call onCreated().
+              Implemente seu formulário + chamada de API e depois chame
+              onCreated().
             </Text>
 
             <Pressable
@@ -168,7 +170,7 @@ function CreateUserModalRN(props: {
                 pressed && styles.btnPressed,
               ]}
             >
-              <Text style={styles.btnText}>Simulate created</Text>
+              <Text style={styles.btnText}>Simular criação</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -221,14 +223,14 @@ function TokenModal(props: {
           <Pressable onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHead}>
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={styles.h2}>Dev reset token</Text>
+                <Text style={styles.h2}>Token de redefinição (dev)</Text>
                 <Text style={styles.modalSubtitle} numberOfLines={2}>
-                  Use this token to build a dev reset URL.
+                  Use este token para montar uma URL de redefinição em dev.
                 </Text>
               </View>
 
               <Pressable onPress={onClose} style={styles.btnGhost}>
-                <Text style={styles.btnText}>Close</Text>
+                <Text style={styles.btnText}>Fechar</Text>
               </Pressable>
             </View>
 
@@ -341,12 +343,24 @@ export default function AdminUsersScreen() {
           stRef.current = effectiveState;
         }
 
-        const r = await AdminApiService.usersList({
-          q: effectiveState.q.trim() || undefined,
-          roleKey: effectiveState.roleKey.trim() || undefined,
-          cursor: effectiveState.cursor || undefined,
+        const query: {
+          q?: string;
+          roleKey?: string;
+          cursor?: string;
+          limit?: number;
+        } = {
           limit: effectiveState.limit,
-        });
+        };
+
+        const q = effectiveState.q.trim();
+        const roleKey = effectiveState.roleKey.trim();
+        const cursor = effectiveState.cursor || "";
+
+        if (q) query.q = q;
+        if (roleKey) query.roleKey = roleKey;
+        if (cursor) query.cursor = cursor;
+
+        const r = await AdminApiService.usersList(query);
 
         const newCursor = r?.nextCursor || null;
 
@@ -360,7 +374,7 @@ export default function AdminUsersScreen() {
         await saveState(newState);
       } catch (e) {
         console.error("[AdminUsersScreen] load failed:", e);
-        await AlertService.error("Failed to load users", e);
+        await AlertService.error("Falha ao carregar usuários", e);
       } finally {
         setBusy(false);
       }
@@ -401,11 +415,11 @@ export default function AdminUsersScreen() {
     try {
       await AdminApiService.userSetRole(id, String(roleValue || "viewer"));
       setRoleModalOpen(false);
-      await AlertService.success("Role updated");
+      await AlertService.success("Perfil atualizado");
       await load(true);
     } catch (e) {
       console.error("[AdminUsersScreen] setRole failed:", e);
-      await AlertService.error("Failed to update role", e);
+      await AlertService.error("Falha ao atualizar perfil", e);
     } finally {
       setActionBusy(false);
     }
@@ -423,12 +437,12 @@ export default function AdminUsersScreen() {
       }
 
       Alert.alert(
-        "Force password reset?",
-        `This will invalidate sessions for "${email}".`,
+        "Forçar redefinição de senha?",
+        `Isso irá invalidar as sessões de "${email}".`,
         [
-          { text: "Cancel", style: "cancel" },
+          { text: "Cancelar", style: "cancel" },
           {
-            text: "Force reset",
+            text: "Forçar redefinição",
             style: "destructive",
             onPress: async () => {
               setActionBusy(true);
@@ -442,15 +456,15 @@ export default function AdminUsersScreen() {
                   setTokenOpen(true);
                 } else {
                   await AlertService.success(
-                    "Force reset applied",
-                    "If in production, an email delivery should be used.",
+                    "Redefinição forçada aplicada",
+                    "Em produção, deve ser usado envio por e-mail.",
                   );
                 }
 
                 await load(true);
               } catch (e) {
                 console.error("[AdminUsersScreen] forceReset failed:", e);
-                await AlertService.error("Failed to force reset", e);
+                await AlertService.error("Falha ao forçar redefinição", e);
               } finally {
                 setActionBusy(false);
               }
@@ -478,8 +492,8 @@ export default function AdminUsersScreen() {
 
   if (!can) {
     return (
-      <View style={styles.denied} accessibilityLabel="Access denied">
-        <Text style={styles.deniedText}>Access denied.</Text>
+      <View style={styles.denied} accessibilityLabel="Acesso negado">
+        <Text style={styles.deniedText}>Acesso negado.</Text>
       </View>
     );
   }
@@ -487,25 +501,27 @@ export default function AdminUsersScreen() {
   const roleOptions: RoleKey[] = ["viewer", "member", "manager", "admin"];
 
   return (
-    <View style={styles.root} accessibilityLabel="Admin users">
+    <View style={styles.root} accessibilityLabel="Usuários administrativos">
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleWrap}>
-          <Text style={styles.h1}>Users</Text>
-          <Text style={styles.subtitle}>Admin-only user management.</Text>
+          <Text style={styles.h1}>Usuários</Text>
+          <Text style={styles.subtitle}>
+            Gestão de usuários apenas para administradores.
+          </Text>
         </View>
 
         <View style={styles.filters}>
           <View style={styles.filterRow}>
             <View style={styles.field}>
-              <Text style={styles.label}>Search</Text>
+              <Text style={styles.label}>Busca</Text>
               <TextInput
                 value={st.q}
                 onChangeText={(v) => setSt((p) => ({ ...p, q: v }))}
-                placeholder="email contains..."
+                placeholder="e-mail contém..."
                 autoCapitalize="none"
                 autoCorrect={false}
-                accessibilityLabel="Search by email"
+                accessibilityLabel="Buscar por e-mail"
                 style={styles.input}
                 returnKeyType="search"
                 onSubmitEditing={() => void load(true)}
@@ -513,7 +529,7 @@ export default function AdminUsersScreen() {
             </View>
 
             <View style={[styles.field, styles.fieldRight]}>
-              <Text style={styles.label}>Role</Text>
+              <Text style={styles.label}>Perfil</Text>
               <View style={styles.pickerWrap}>
                 <Picker
                   selectedValue={st.roleKey}
@@ -527,9 +543,9 @@ export default function AdminUsersScreen() {
                     stRef.current = newState;
                     void load(true);
                   }}
-                  accessibilityLabel="Role filter"
+                  accessibilityLabel="Filtro por perfil"
                 >
-                  <Picker.Item label="all" value="" />
+                  <Picker.Item label="todos" value="" />
                   {roleOptions.map((r) => (
                     <Picker.Item key={r} label={r} value={r} />
                   ))}
@@ -542,25 +558,29 @@ export default function AdminUsersScreen() {
             <Pressable
               onPress={() => void load(true)}
               disabled={busy}
-              accessibilityLabel="Refresh"
+              accessibilityLabel="Atualizar"
               style={({ pressed }) => [
                 styles.btnGhost,
                 busy && styles.btnDisabled,
                 pressed && styles.btnPressed,
               ]}
             >
-              <Text style={styles.btnText}>Refresh</Text>
+              <Text style={styles.btnText}>Atualizar</Text>
             </Pressable>
           </View>
         </View>
       </View>
 
       {/* Table-like card */}
-      <View style={styles.card} accessibilityLabel="Users table" role="region">
+      <View
+        style={styles.card}
+        accessibilityLabel="Tabela de usuários"
+        role="region"
+      >
         {busy ? (
           <View style={styles.busyRow}>
             <ActivityIndicator />
-            <Text style={styles.busyText}>Loading…</Text>
+            <Text style={styles.busyText}>Carregando…</Text>
           </View>
         ) : null}
 
@@ -568,12 +588,12 @@ export default function AdminUsersScreen() {
           <View style={styles.table}>
             <View style={[styles.tr, styles.thRow]}>
               <Text style={[styles.th, styles.colEmail]}>Email</Text>
-              <Text style={[styles.th, styles.colRole]}>Role</Text>
+              <Text style={[styles.th, styles.colRole]}>Perfil</Text>
               <Text style={[styles.th, styles.colTok]}>Token v</Text>
-              <Text style={[styles.th, styles.colPwd]}>Pwd updated</Text>
-              <Text style={[styles.th, styles.colCreated]}>Created</Text>
-              <Text style={[styles.th, styles.colActions]}>Actions</Text>
-              <Text style={[styles.th, styles.colLocked]}>Locked</Text>
+              <Text style={[styles.th, styles.colPwd]}>Senha atualizada</Text>
+              <Text style={[styles.th, styles.colCreated]}>Criado em</Text>
+              <Text style={[styles.th, styles.colActions]}>Ações</Text>
+              <Text style={[styles.th, styles.colLocked]}>Bloqueado</Text>
             </View>
 
             <FlatList
@@ -586,7 +606,7 @@ export default function AdminUsersScreen() {
                 const tokenVersion = String((u as any).tokenVersion ?? "-");
                 const pwdUpdated = String((u as any).passwordUpdatedAt || "-");
                 const created = String((u as any).createdAt || "-");
-                const locked = (u as any).lockedAt ? "yes" : "no";
+                const locked = (u as any).lockedAt ? "sim" : "não";
 
                 return (
                   <View style={[styles.tr, styles.tdRow]}>
@@ -597,7 +617,7 @@ export default function AdminUsersScreen() {
                           styles.btnGhostSm,
                           pressed && styles.btnPressed,
                         ]}
-                        accessibilityLabel="Open user details"
+                        accessibilityLabel="Abrir detalhes do usuário"
                         disabled={actionBusy}
                       >
                         <Text
@@ -636,10 +656,10 @@ export default function AdminUsersScreen() {
                             styles.btnGhostSm,
                             pressed && styles.btnPressed,
                           ]}
-                          accessibilityLabel="Change role"
+                          accessibilityLabel="Alterar perfil"
                           disabled={actionBusy}
                         >
-                          <Text style={styles.btnText}>Role</Text>
+                          <Text style={styles.btnText}>Perfil</Text>
                         </Pressable>
 
                         <Pressable
@@ -648,10 +668,10 @@ export default function AdminUsersScreen() {
                             styles.btnGhostSm,
                             pressed && styles.btnPressed,
                           ]}
-                          accessibilityLabel="Force reset"
+                          accessibilityLabel="Forçar redefinição"
                           disabled={actionBusy}
                         >
-                          <Text style={styles.btnText}>Force reset</Text>
+                          <Text style={styles.btnText}>Forçar redefinição</Text>
                         </Pressable>
 
                         <Pressable
@@ -660,10 +680,10 @@ export default function AdminUsersScreen() {
                             styles.btnGhostSm,
                             pressed && styles.btnPressed,
                           ]}
-                          accessibilityLabel="View user"
+                          accessibilityLabel="Ver usuário"
                           disabled={actionBusy}
                         >
-                          <Text style={styles.btnText}>View</Text>
+                          <Text style={styles.btnText}>Ver</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -680,7 +700,7 @@ export default function AdminUsersScreen() {
               ListEmptyComponent={
                 !rows.length && !busy ? (
                   <View style={styles.empty}>
-                    <Text style={styles.emptyText}>No users.</Text>
+                    <Text style={styles.emptyText}>Nenhum usuário.</Text>
                   </View>
                 ) : null
               }
@@ -694,27 +714,27 @@ export default function AdminUsersScreen() {
         <Pressable
           onPress={() => void load(false)}
           disabled={busy || !nextCursor}
-          accessibilityLabel="Load more"
+          accessibilityLabel="Carregar mais"
           style={({ pressed }) => [
             styles.btnPrimary,
             (busy || !nextCursor) && styles.btnDisabled,
             pressed && styles.btnPressed,
           ]}
         >
-          <Text style={styles.btnText}>Load more</Text>
+          <Text style={styles.btnText}>Carregar mais</Text>
         </Pressable>
 
         <Pressable
           onPress={openCreate}
           disabled={busy}
-          accessibilityLabel="Create user"
+          accessibilityLabel="Criar usuário"
           style={({ pressed }) => [
             styles.btnPrimary,
             busy && styles.btnDisabled,
             pressed && styles.btnPressed,
           ]}
         >
-          <Text style={styles.btnText}>Create user</Text>
+          <Text style={styles.btnText}>Criar usuário</Text>
         </Pressable>
       </View>
 
@@ -732,7 +752,7 @@ export default function AdminUsersScreen() {
           <Pressable onPress={(e) => e.stopPropagation()} style={styles.panel}>
             <View style={styles.modalHead}>
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={styles.h2}>Change role</Text>
+                <Text style={styles.h2}>Alterar perfil</Text>
                 <Text style={styles.modalSubtitle} numberOfLines={2}>
                   {String((roleTarget as any)?.email || "")}
                 </Text>
@@ -742,7 +762,7 @@ export default function AdminUsersScreen() {
                 onPress={() => setRoleModalOpen(false)}
                 style={styles.btnGhost}
               >
-                <Text style={styles.btnText}>Cancel</Text>
+                <Text style={styles.btnText}>Cancelar</Text>
               </Pressable>
             </View>
 
@@ -767,7 +787,7 @@ export default function AdminUsersScreen() {
                   pressed && styles.btnPressed,
                 ]}
               >
-                <Text style={styles.btnText}>Apply</Text>
+                <Text style={styles.btnText}>Aplicar</Text>
               </Pressable>
             </View>
           </Pressable>

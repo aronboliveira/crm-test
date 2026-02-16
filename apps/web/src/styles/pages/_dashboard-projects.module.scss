@@ -15,6 +15,16 @@
   }
 }
 
+@keyframes dpPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
 .dp-actions {
   align-items: end;
   display: flex;
@@ -77,6 +87,173 @@
   flex: 0 0 auto;
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Status badges                                                             */
+/* -------------------------------------------------------------------------- */
+
+.dp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+
+  &--planned {
+    background: color-mix(in oklab, #6366f1 18%, transparent);
+    color: #818cf8;
+  }
+
+  &--active {
+    background: color-mix(in oklab, #22c55e 18%, transparent);
+    color: #4ade80;
+  }
+
+  &--blocked {
+    background: color-mix(in oklab, #ef4444 18%, transparent);
+    color: #f87171;
+  }
+
+  &--done {
+    background: color-mix(in oklab, #14b8a6 18%, transparent);
+    color: #2dd4bf;
+  }
+
+  &--archived {
+    background: color-mix(in oklab, #94a3b8 18%, transparent);
+    color: #94a3b8;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Inline status dropdown                                                    */
+/* -------------------------------------------------------------------------- */
+
+.dp-status-cell {
+  position: relative;
+}
+
+.dp-status-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 30;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: var(--surface-2, #1e1e2e);
+  border: 1px solid var(--border-1);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  min-width: 140px;
+  overflow: hidden;
+}
+
+.dp-status-dropdown__item {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  &:hover {
+    background: var(--primary, #6366f1);
+    color: #fff;
+  }
+
+  &--current {
+    font-weight: 700;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Sortable column headers                                                   */
+/* -------------------------------------------------------------------------- */
+
+.dp-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 100ms ease;
+
+  &:hover {
+    color: var(--primary, #6366f1);
+  }
+}
+
+.dp-sort-icon {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.7rem;
+  opacity: 0.5;
+  transition: opacity 100ms ease;
+
+  &--active {
+    opacity: 1;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Bulk action bar                                                           */
+/* -------------------------------------------------------------------------- */
+
+.dp-bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--primary) 30%, transparent);
+  font-size: 0.8rem;
+  animation: dpIn 120ms ease both;
+}
+
+.dp-bulk-bar__count {
+  font-weight: 700;
+  color: var(--primary, #6366f1);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Loading skeleton                                                          */
+/* -------------------------------------------------------------------------- */
+
+.dp-skeleton-row {
+  display: table-row;
+}
+
+.dp-skeleton-cell {
+  padding: 0.7rem 0.75rem;
+}
+
+.dp-skeleton-bar {
+  height: 0.8rem;
+  background: color-mix(in oklab, var(--text-1) 12%, transparent);
+  border-radius: 0.25rem;
+  animation: dpPulse 1.2s ease-in-out infinite;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Checkbox in table                                                         */
+/* -------------------------------------------------------------------------- */
+
+.dp-checkbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--primary, #6366f1);
+  cursor: pointer;
+}
+
 @media (max-width: 960px) {
   .dp-layout {
     flex-direction: column;
@@ -95,6 +272,11 @@
 
   .dp-async-fallback__spinner {
     animation: none;
+  }
+
+  .dp-skeleton-bar {
+    animation: none;
+    opacity: 0.45;
   }
 }
 

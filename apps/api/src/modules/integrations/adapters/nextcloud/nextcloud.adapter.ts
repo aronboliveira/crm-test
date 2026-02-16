@@ -6,6 +6,7 @@ import type {
   IntegrationStatus,
   IntegrationConfig,
 } from '../../types';
+import { IntegrationResilienceService } from '../../integration-resilience.service';
 import { NextcloudApiClient } from './nextcloud-api.client';
 import {
   NextcloudDataMapper,
@@ -62,8 +63,15 @@ export class NextcloudAdapter implements IntegrationAdapter {
   private lastSyncAt?: string;
   private lastError?: string;
 
-  constructor(private readonly httpService: HttpService) {
-    this.apiClient = new NextcloudApiClient(httpService);
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly resilience: IntegrationResilienceService,
+  ) {
+    this.apiClient = new NextcloudApiClient(
+      httpService,
+      resilience,
+      'nextcloud',
+    );
   }
 
   // ===========================================================================
@@ -166,8 +174,8 @@ export class NextcloudAdapter implements IntegrationAdapter {
   isConfigured(): boolean {
     return Boolean(
       this.config.baseUrl &&
-        this.config.username &&
-        (this.config.appPassword || this.config.password),
+      this.config.username &&
+      (this.config.appPassword || this.config.password),
     );
   }
 
@@ -207,7 +215,9 @@ export class NextcloudAdapter implements IntegrationAdapter {
           `Sync detected ${changes.added.length} new, ${changes.modified.length} modified, ${changes.deleted.length} deleted files`,
         );
       } else {
-        this.logger.log(`Full sync loaded ${attachments.length} files from ${path}`);
+        this.logger.log(
+          `Full sync loaded ${attachments.length} files from ${path}`,
+        );
       }
 
       this.syncState = newSyncState;
@@ -628,7 +638,9 @@ export class NextcloudAdapter implements IntegrationAdapter {
   // PRIVATE HELPERS
   // ===========================================================================
 
-  private resolveConfig(config: NextcloudAdapterConfig): NextcloudAdapterConfig {
+  private resolveConfig(
+    config: NextcloudAdapterConfig,
+  ): NextcloudAdapterConfig {
     return {
       baseUrl: this.normalizeString(
         config.baseUrl ?? config.apiUrl ?? config.serverUrl,

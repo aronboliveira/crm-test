@@ -67,7 +67,9 @@ const capabilityTermId = (capabilityKey: string): string =>
               aria-hidden="true"
             >
               <path
-                v-for="(pathData, pathIndex) in BOOTSTRAP_QUESTION_CIRCLE_ICON_PATHS"
+                v-for="(
+                  pathData, pathIndex
+                ) in BOOTSTRAP_QUESTION_CIRCLE_ICON_PATHS"
                 :key="`help-question-path-${pathIndex}`"
                 :d="pathData"
               />
@@ -78,7 +80,7 @@ const capabilityTermId = (capabilityKey: string): string =>
             type="button"
             class="btn btn-ghost btn-sm"
             :class="$style.helpCloseButton"
-            title="Fechar ajuda de integracao"
+            title="Fechar ajuda de integração"
             aria-label="Fechar modal de ajuda"
             @click="closeModal"
           >
@@ -96,13 +98,13 @@ const capabilityTermId = (capabilityKey: string): string =>
             :id="sectionAboutId"
             :class="$style.helpFold"
             role="listitem"
-            :aria-label="`Descricao e vantagens de ${entry.integrationName}`"
+            :aria-label="`Descrição e vantagens de ${entry.integrationName}`"
             :data-help-section="'about'"
             open
           >
             <summary :class="$style.helpSummary">
               <span :class="$style.summaryTitle">
-                Descricao das funcionalidades e vantagens
+                Descrição das funcionalidades e vantagens
               </span>
               <span :class="$style.summaryHint">Expandir ou recolher</span>
             </summary>
@@ -113,10 +115,15 @@ const capabilityTermId = (capabilityKey: string): string =>
                   :key="capability.key"
                   :class="$style.definitionItem"
                 >
-                  <dt :id="capabilityTermId(capability.key)" :class="$style.definitionTerm">
+                  <dt
+                    :id="capabilityTermId(capability.key)"
+                    :class="$style.definitionTerm"
+                  >
                     <dfn>{{ capability.term }}</dfn>
                     <abbr
-                      v-if="capability.abbreviation && capability.abbreviationTitle"
+                      v-if="
+                        capability.abbreviation && capability.abbreviationTitle
+                      "
                       :class="$style.capabilityAbbr"
                       :title="capability.abbreviationTitle"
                     >
@@ -148,11 +155,11 @@ const capabilityTermId = (capabilityKey: string): string =>
             :id="sectionHowToId"
             :class="$style.helpFold"
             role="listitem"
-            :aria-label="`Guia de configuracao para ${entry.integrationName}`"
+            :aria-label="`Guia de configuração para ${entry.integrationName}`"
             :data-help-section="'how-to'"
           >
             <summary :class="$style.helpSummary">
-              <span :class="$style.summaryTitle">How-to de configuracao</span>
+              <span :class="$style.summaryTitle">How-to de configuração</span>
               <span :class="$style.summaryHint">Expandir ou recolher</span>
             </summary>
             <div :class="$style.helpFoldContent">

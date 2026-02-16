@@ -3,7 +3,7 @@ import DashboardHome from "../components/dashboard/DashboardHome.vue";
 </script>
 
 <template>
-  <main class="dashboard-page" aria-label="Dashboard">
+  <main class="dashboard-page" aria-label="Painel">
     <DashboardHome />
   </main>
 </template>

@@ -16,24 +16,24 @@ const noop = () => void 0;
 
 const editProject: RowAction<Project> = DeepFreeze.apply({
   id: "edit",
-  label: "Edit",
-  ariaLabel: (p: Project) => `Edit project ${p.name}`,
+  label: "Editar",
+  ariaLabel: (p: Project) => `Editar projeto ${p.name}`,
   onClick: (p: Project) => (DrawerService.showProject(p), noop()),
   visible: () => PolicyService.can("projects.write"),
 });
 
 const editTask: RowAction<Task> = DeepFreeze.apply({
   id: "edit",
-  label: "Edit",
-  ariaLabel: (t: Task) => `Edit task ${t.title}`,
+  label: "Editar",
+  ariaLabel: (t: Task) => `Editar tarefa ${t.title}`,
   onClick: (t: Task) => (DrawerService.showTask(t), noop()),
   visible: () => PolicyService.can("tasks.write"),
 });
 
 const delProject = DeepFreeze.apply({
   id: "delete",
-  label: "Delete",
-  ariaLabel: (p: Project) => `Delete project ${p.name}`,
+  label: "Excluir",
+  ariaLabel: (p: Project) => `Excluir projeto ${p.name}`,
   onClick: async (p: Project) =>
     (await EntityPromptService.confirmDeleteProject(
       String((p as any).id),
@@ -46,8 +46,8 @@ const delProject = DeepFreeze.apply({
 
 const delTask = DeepFreeze.apply({
   id: "delete",
-  label: "Delete",
-  ariaLabel: (t: Task) => `Delete task ${t.title}`,
+  label: "Excluir",
+  ariaLabel: (t: Task) => `Excluir tarefa ${t.title}`,
   onClick: async (t: Task) =>
     (await EntityPromptService.confirmDeleteTask(
       String((t as any).id),
@@ -62,8 +62,8 @@ const projectsSpec: Spec<Project> = DeepFreeze.apply({
   columns: [
     {
       id: "name",
-      header: "Name",
-      ariaHeader: "Project name",
+      header: "Nome",
+      ariaHeader: "Nome do projeto",
       accessor: "name",
       sortable: true,
       searchable: true,
@@ -72,7 +72,7 @@ const projectsSpec: Spec<Project> = DeepFreeze.apply({
     {
       id: "status",
       header: "Status",
-      ariaHeader: "Project status",
+      ariaHeader: "Status do projeto",
       accessor: "status",
       sortable: true,
       searchable: true,
@@ -80,8 +80,8 @@ const projectsSpec: Spec<Project> = DeepFreeze.apply({
     },
     {
       id: "updatedAt",
-      header: "Updated",
-      ariaHeader: "Last update date",
+      header: "Atualizado",
+      ariaHeader: "Data da última atualização",
       accessor: "updatedAt",
       sortable: true,
       searchable: false,
@@ -95,8 +95,8 @@ const tasksSpec: Spec<Task> = DeepFreeze.apply({
   columns: [
     {
       id: "title",
-      header: "Title",
-      ariaHeader: "Task title",
+      header: "Título",
+      ariaHeader: "Título da tarefa",
       accessor: "title",
       sortable: true,
       searchable: true,
@@ -105,7 +105,7 @@ const tasksSpec: Spec<Task> = DeepFreeze.apply({
     {
       id: "status",
       header: "Status",
-      ariaHeader: "Task status",
+      ariaHeader: "Status da tarefa",
       accessor: "status",
       sortable: true,
       searchable: true,
@@ -113,8 +113,8 @@ const tasksSpec: Spec<Task> = DeepFreeze.apply({
     },
     {
       id: "priority",
-      header: "Priority",
-      ariaHeader: "Task priority",
+      header: "Prioridade",
+      ariaHeader: "Prioridade da tarefa",
       accessor: "priority",
       sortable: true,
       searchable: false,
@@ -122,8 +122,8 @@ const tasksSpec: Spec<Task> = DeepFreeze.apply({
     },
     {
       id: "dueAt",
-      header: "Due",
-      ariaHeader: "Due date",
+      header: "Prazo",
+      ariaHeader: "Data de vencimento",
       accessor: (t: Task) => (DateValidator.isIso(t.dueAt) ? t.dueAt : null),
       sortable: (a, b) => DateValidator.compareIso(a, b),
       searchable: false,
@@ -131,8 +131,8 @@ const tasksSpec: Spec<Task> = DeepFreeze.apply({
     },
     {
       id: "updatedAt",
-      header: "Updated",
-      ariaHeader: "Last update date",
+      header: "Atualizado",
+      ariaHeader: "Data da última atualização",
       accessor: "updatedAt",
       sortable: true,
       searchable: false,

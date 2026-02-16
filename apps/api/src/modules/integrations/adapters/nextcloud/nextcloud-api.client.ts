@@ -15,6 +15,7 @@ import type {
   NextcloudUserSearchParams,
   NextcloudWebdavProps,
 } from './nextcloud.types';
+import type { IntegrationResilienceService } from '../../integration-resilience.service';
 
 /**
  * Low-level HTTP client for NextCloud WebDAV and OCS APIs.
@@ -30,8 +31,38 @@ export class NextcloudApiClient {
   private username: string = '';
   private password: string = '';
   private appPassword: string = '';
+  private readonly resilience?: IntegrationResilienceService;
+  private readonly integrationId: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    resilience?: IntegrationResilienceService,
+    integrationId = 'nextcloud',
+  ) {
+    this.resilience = resilience;
+    this.integrationId = integrationId;
+  }
+
+  private async executeResilient<T>(
+    operation: string,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    if (!this.resilience) {
+      return action();
+    }
+
+    return this.resilience.execute(
+      {
+        integrationId: this.integrationId,
+        operation,
+        timeoutMs: 25_000,
+        maxRetries: 2,
+        baseDelayMs: 350,
+        maxDelayMs: 8_000,
+      },
+      action,
+    );
+  }
 
   // ===========================================================================
   // CONFIGURATION
@@ -108,18 +139,20 @@ export class NextcloudApiClient {
 </d:propfind>`;
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.request({
-          method: 'PROPFIND',
-          url: `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
-          headers: {
-            ...this.getHeaders({
-              'Content-Type': 'application/xml',
-            }),
-            Depth: depth,
-          },
-          data: propfindBody,
-        }),
+      const response = await this.executeResilient('listFiles', () =>
+        firstValueFrom(
+          this.httpService.request({
+            method: 'PROPFIND',
+            url: `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
+            headers: {
+              ...this.getHeaders({
+                'Content-Type': 'application/xml',
+              }),
+              Depth: depth,
+            },
+            data: propfindBody,
+          }),
+        ),
       );
 
       return this.parseWebdavResponse(response.data, path);
@@ -212,13 +245,15 @@ export class NextcloudApiClient {
    */
   async downloadFile(path: string): Promise<Buffer> {
     try {
-      const response = await firstValueFrom(
-        this.httpService.get(
-          `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
-          {
-            headers: this.getHeaders(),
-            responseType: 'arraybuffer',
-          },
+      const response = await this.executeResilient('downloadFile', () =>
+        firstValueFrom(
+          this.httpService.get(
+            `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
+            {
+              headers: this.getHeaders(),
+              responseType: 'arraybuffer',
+            },
+          ),
         ),
       );
       return Buffer.from(response.data);
@@ -237,15 +272,17 @@ export class NextcloudApiClient {
     contentType?: string,
   ): Promise<void> {
     try {
-      await firstValueFrom(
-        this.httpService.put(
-          `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
-          content,
-          {
-            headers: this.getHeaders({
-              'Content-Type': contentType || 'application/octet-stream',
-            }),
-          },
+      await this.executeResilient('uploadFile', () =>
+        firstValueFrom(
+          this.httpService.put(
+            `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
+            content,
+            {
+              headers: this.getHeaders({
+                'Content-Type': contentType || 'application/octet-stream',
+              }),
+            },
+          ),
         ),
       );
     } catch (error) {
@@ -259,12 +296,14 @@ export class NextcloudApiClient {
    */
   async createFolder(path: string): Promise<void> {
     try {
-      await firstValueFrom(
-        this.httpService.request({
-          method: 'MKCOL',
-          url: `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
-          headers: this.getHeaders(),
-        }),
+      await this.executeResilient('createFolder', () =>
+        firstValueFrom(
+          this.httpService.request({
+            method: 'MKCOL',
+            url: `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
+            headers: this.getHeaders(),
+          }),
+        ),
       );
     } catch (error) {
       this.logger.error(`Failed to create folder ${path}`, error);
@@ -277,12 +316,14 @@ export class NextcloudApiClient {
    */
   async deleteFile(path: string): Promise<void> {
     try {
-      await firstValueFrom(
-        this.httpService.delete(
-          `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
-          {
-            headers: this.getHeaders(),
-          },
+      await this.executeResilient('deleteFile', () =>
+        firstValueFrom(
+          this.httpService.delete(
+            `${this.baseUrl}/remote.php/dav/files/${this.username}${path}`,
+            {
+              headers: this.getHeaders(),
+            },
+          ),
         ),
       );
     } catch (error) {
@@ -296,15 +337,17 @@ export class NextcloudApiClient {
    */
   async moveFile(source: string, destination: string): Promise<void> {
     try {
-      await firstValueFrom(
-        this.httpService.request({
-          method: 'MOVE',
-          url: `${this.baseUrl}/remote.php/dav/files/${this.username}${source}`,
-          headers: this.getHeaders({
-            Destination: `${this.baseUrl}/remote.php/dav/files/${this.username}${destination}`,
-            Overwrite: 'F',
+      await this.executeResilient('moveFile', () =>
+        firstValueFrom(
+          this.httpService.request({
+            method: 'MOVE',
+            url: `${this.baseUrl}/remote.php/dav/files/${this.username}${source}`,
+            headers: this.getHeaders({
+              Destination: `${this.baseUrl}/remote.php/dav/files/${this.username}${destination}`,
+              Overwrite: 'F',
+            }),
           }),
-        }),
+        ),
       );
     } catch (error) {
       this.logger.error(`Failed to move ${source} to ${destination}`, error);
@@ -317,15 +360,17 @@ export class NextcloudApiClient {
    */
   async copyFile(source: string, destination: string): Promise<void> {
     try {
-      await firstValueFrom(
-        this.httpService.request({
-          method: 'COPY',
-          url: `${this.baseUrl}/remote.php/dav/files/${this.username}${source}`,
-          headers: this.getHeaders({
-            Destination: `${this.baseUrl}/remote.php/dav/files/${this.username}${destination}`,
-            Overwrite: 'F',
+      await this.executeResilient('copyFile', () =>
+        firstValueFrom(
+          this.httpService.request({
+            method: 'COPY',
+            url: `${this.baseUrl}/remote.php/dav/files/${this.username}${source}`,
+            headers: this.getHeaders({
+              Destination: `${this.baseUrl}/remote.php/dav/files/${this.username}${destination}`,
+              Overwrite: 'F',
+            }),
           }),
-        }),
+        ),
       );
     } catch (error) {
       this.logger.error(`Failed to copy ${source} to ${destination}`, error);
@@ -350,12 +395,14 @@ export class NextcloudApiClient {
     if (params.sharedWithMe) queryParams.append('shared_with_me', 'true');
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<NextcloudOcsResponse<NextcloudShare[]>>(
-          `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares?${queryParams.toString()}`,
-          {
-            headers: this.getHeaders({ Accept: 'application/json' }),
-          },
+      const response = await this.executeResilient('getShares', () =>
+        firstValueFrom(
+          this.httpService.get<NextcloudOcsResponse<NextcloudShare[]>>(
+            `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares?${queryParams.toString()}`,
+            {
+              headers: this.getHeaders({ Accept: 'application/json' }),
+            },
+          ),
         ),
       );
       return response.data.ocs.data;
@@ -370,12 +417,14 @@ export class NextcloudApiClient {
    */
   async getShare(shareId: string): Promise<NextcloudShare> {
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<NextcloudOcsResponse<NextcloudShare[]>>(
-          `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares/${shareId}`,
-          {
-            headers: this.getHeaders({ Accept: 'application/json' }),
-          },
+      const response = await this.executeResilient('getShare', () =>
+        firstValueFrom(
+          this.httpService.get<NextcloudOcsResponse<NextcloudShare[]>>(
+            `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares/${shareId}`,
+            {
+              headers: this.getHeaders({ Accept: 'application/json' }),
+            },
+          ),
         ),
       );
       return response.data.ocs.data[0];
@@ -405,16 +454,18 @@ export class NextcloudApiClient {
     if (payload.label) formData.append('label', payload.label);
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.post<NextcloudOcsResponse<NextcloudShare>>(
-          `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares`,
-          formData.toString(),
-          {
-            headers: this.getHeaders({
-              Accept: 'application/json',
-              'Content-Type': 'application/x-www-form-urlencoded',
-            }),
-          },
+      const response = await this.executeResilient('createShare', () =>
+        firstValueFrom(
+          this.httpService.post<NextcloudOcsResponse<NextcloudShare>>(
+            `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares`,
+            formData.toString(),
+            {
+              headers: this.getHeaders({
+                Accept: 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+              }),
+            },
+          ),
         ),
       );
       return response.data.ocs.data;
@@ -442,16 +493,18 @@ export class NextcloudApiClient {
       formData.append('hideDownload', payload.hideDownload.toString());
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.put<NextcloudOcsResponse<NextcloudShare>>(
-          `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares/${shareId}`,
-          formData.toString(),
-          {
-            headers: this.getHeaders({
-              Accept: 'application/json',
-              'Content-Type': 'application/x-www-form-urlencoded',
-            }),
-          },
+      const response = await this.executeResilient('updateShare', () =>
+        firstValueFrom(
+          this.httpService.put<NextcloudOcsResponse<NextcloudShare>>(
+            `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares/${shareId}`,
+            formData.toString(),
+            {
+              headers: this.getHeaders({
+                Accept: 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded',
+              }),
+            },
+          ),
         ),
       );
       return response.data.ocs.data;
@@ -466,12 +519,14 @@ export class NextcloudApiClient {
    */
   async deleteShare(shareId: string): Promise<void> {
     try {
-      await firstValueFrom(
-        this.httpService.delete(
-          `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares/${shareId}`,
-          {
-            headers: this.getHeaders({ Accept: 'application/json' }),
-          },
+      await this.executeResilient('deleteShare', () =>
+        firstValueFrom(
+          this.httpService.delete(
+            `${this.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/shares/${shareId}`,
+            {
+              headers: this.getHeaders({ Accept: 'application/json' }),
+            },
+          ),
         ),
       );
     } catch (error) {
@@ -489,12 +544,14 @@ export class NextcloudApiClient {
    */
   async getCurrentUser(): Promise<NextcloudUser> {
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<NextcloudOcsResponse<NextcloudUser>>(
-          `${this.baseUrl}/ocs/v2.php/cloud/user`,
-          {
-            headers: this.getHeaders({ Accept: 'application/json' }),
-          },
+      const response = await this.executeResilient('getCurrentUser', () =>
+        firstValueFrom(
+          this.httpService.get<NextcloudOcsResponse<NextcloudUser>>(
+            `${this.baseUrl}/ocs/v2.php/cloud/user`,
+            {
+              headers: this.getHeaders({ Accept: 'application/json' }),
+            },
+          ),
         ),
       );
       return response.data.ocs.data;
@@ -514,12 +571,14 @@ export class NextcloudApiClient {
     if (params.offset) queryParams.append('offset', params.offset.toString());
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<NextcloudOcsResponse<{ users: string[] }>>(
-          `${this.baseUrl}/ocs/v2.php/cloud/users?${queryParams.toString()}`,
-          {
-            headers: this.getHeaders({ Accept: 'application/json' }),
-          },
+      const response = await this.executeResilient('searchUsers', () =>
+        firstValueFrom(
+          this.httpService.get<NextcloudOcsResponse<{ users: string[] }>>(
+            `${this.baseUrl}/ocs/v2.php/cloud/users?${queryParams.toString()}`,
+            {
+              headers: this.getHeaders({ Accept: 'application/json' }),
+            },
+          ),
         ),
       );
       return response.data.ocs.data.users;
@@ -534,12 +593,14 @@ export class NextcloudApiClient {
    */
   async getUser(userId: string): Promise<NextcloudUser> {
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<NextcloudOcsResponse<NextcloudUser>>(
-          `${this.baseUrl}/ocs/v2.php/cloud/users/${encodeURIComponent(userId)}`,
-          {
-            headers: this.getHeaders({ Accept: 'application/json' }),
-          },
+      const response = await this.executeResilient('getUser', () =>
+        firstValueFrom(
+          this.httpService.get<NextcloudOcsResponse<NextcloudUser>>(
+            `${this.baseUrl}/ocs/v2.php/cloud/users/${encodeURIComponent(userId)}`,
+            {
+              headers: this.getHeaders({ Accept: 'application/json' }),
+            },
+          ),
         ),
       );
       return response.data.ocs.data;
@@ -568,12 +629,14 @@ export class NextcloudApiClient {
     if (params.sort) queryParams.append('sort', params.sort);
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<NextcloudOcsResponse<NextcloudActivity[]>>(
-          `${this.baseUrl}/ocs/v2.php/apps/activity/api/v2/activity?${queryParams.toString()}`,
-          {
-            headers: this.getHeaders({ Accept: 'application/json' }),
-          },
+      const response = await this.executeResilient('getActivities', () =>
+        firstValueFrom(
+          this.httpService.get<NextcloudOcsResponse<NextcloudActivity[]>>(
+            `${this.baseUrl}/ocs/v2.php/apps/activity/api/v2/activity?${queryParams.toString()}`,
+            {
+              headers: this.getHeaders({ Accept: 'application/json' }),
+            },
+          ),
         ),
       );
       return response.data.ocs.data;
@@ -592,12 +655,14 @@ export class NextcloudApiClient {
    */
   async getCapabilities(): Promise<Record<string, unknown>> {
     try {
-      const response = await firstValueFrom(
-        this.httpService.get<
-          NextcloudOcsResponse<{ capabilities: Record<string, unknown> }>
-        >(`${this.baseUrl}/ocs/v2.php/cloud/capabilities`, {
-          headers: this.getHeaders({ Accept: 'application/json' }),
-        }),
+      const response = await this.executeResilient('getCapabilities', () =>
+        firstValueFrom(
+          this.httpService.get<
+            NextcloudOcsResponse<{ capabilities: Record<string, unknown> }>
+          >(`${this.baseUrl}/ocs/v2.php/cloud/capabilities`, {
+            headers: this.getHeaders({ Accept: 'application/json' }),
+          }),
+        ),
       );
       return response.data.ocs.data.capabilities;
     } catch (error) {

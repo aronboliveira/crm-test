@@ -121,8 +121,8 @@ export default function AuthResetPasswordScreen() {
               "[AuthResetPasswordScreen] validateToken: no token available",
             );
             await AlertService.error(
-              "Invalid or expired token",
-              "No token provided",
+              "Token inválido ou expirado",
+              "Nenhum token informado",
             );
           }
           return;
@@ -135,11 +135,11 @@ export default function AuthResetPasswordScreen() {
         setEmail(resolvedEmail);
 
         if (!r?.ok) {
-          await AlertService.error("Invalid or expired token");
+          await AlertService.error("Token inválido ou expirado");
         }
       } catch (e) {
         console.error("[AuthResetPasswordScreen] validateToken failed:", e);
-        await AlertService.error("Failed to validate token", e);
+        await AlertService.error("Falha ao validar token", e);
       }
     },
     [],
@@ -152,14 +152,17 @@ export default function AuthResetPasswordScreen() {
     try {
       const t = String(tokenEffective || "").trim();
       if (!t) {
-        await AlertService.error("Reset failed", "No token provided");
+        await AlertService.error(
+          "Falha na redefinição",
+          "Nenhum token informado",
+        );
         return;
       }
 
       if (!password?.trim() || !confirm?.trim()) {
         await AlertService.error(
-          "Reset failed",
-          "Password fields are required",
+          "Falha na redefinição",
+          "Os campos de senha são obrigatórios",
         );
         return;
       }
@@ -168,19 +171,19 @@ export default function AuthResetPasswordScreen() {
 
       if (r?.ok) {
         await AlertService.success(
-          "Password updated",
-          "You can now login with your new password.",
+          "Senha atualizada",
+          "Agora você pode entrar com sua nova senha.",
         );
         nav.replace("Login");
       } else {
         await AlertService.error(
-          "Reset failed",
-          r?.message || "Invalid request",
+          "Falha na redefinição",
+          r?.message || "Solicitação inválida",
         );
       }
     } catch (e) {
       console.error("[AuthResetPasswordScreen] submit failed:", e);
-      await AlertService.error("Reset failed", e);
+      await AlertService.error("Falha na redefinição", e);
     } finally {
       setBusy(false);
     }
@@ -230,19 +233,22 @@ export default function AuthResetPasswordScreen() {
       style={styles.page}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.card} accessibilityLabel="Reset password">
+      <View style={styles.card} accessibilityLabel="Redefinir senha">
         <View style={styles.cardHead}>
-          <Text style={styles.title}>Reset password</Text>
+          <Text style={styles.title}>Redefinir senha</Text>
         </View>
 
-        <View style={styles.form} accessibilityLabel="Reset password form">
+        <View
+          style={styles.form}
+          accessibilityLabel="Formulário de redefinição de senha"
+        >
           <Text style={styles.helper} accessibilityLiveRegion="polite">
             {email ? (
               <>
-                For: <Text style={styles.bold}>{email}</Text>
+                Para: <Text style={styles.bold}>{email}</Text>
               </>
             ) : (
-              "Provide a valid token to reset your password."
+              "Informe um token válido para redefinir sua senha."
             )}
           </Text>
 
@@ -256,8 +262,8 @@ export default function AuthResetPasswordScreen() {
                   setToken(v);
                   void persistToken(v);
                 }}
-                placeholder="Paste token here"
-                accessibilityLabel="Reset token"
+                placeholder="Cole o token aqui"
+                accessibilityLabel="Token de redefinição"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!busy}
@@ -268,12 +274,12 @@ export default function AuthResetPasswordScreen() {
           ) : null}
 
           <View style={styles.field}>
-            <Text style={styles.label}>New password</Text>
+            <Text style={styles.label}>Nova senha</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
-              placeholder="At least 10 chars with upper/lower/number/symbol"
-              accessibilityLabel="New password"
+              placeholder="Mínimo de 10 caracteres com maiúscula/minúscula/número/símbolo"
+              accessibilityLabel="Nova senha"
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -285,12 +291,12 @@ export default function AuthResetPasswordScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Confirm password</Text>
+            <Text style={styles.label}>Confirmar senha</Text>
             <TextInput
               value={confirm}
               onChangeText={setConfirm}
-              placeholder="Confirm password"
-              accessibilityLabel="Confirm password"
+              placeholder="Confirme a senha"
+              accessibilityLabel="Confirmar senha"
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -305,23 +311,23 @@ export default function AuthResetPasswordScreen() {
           {/* PasswordChecklist.vue replacement */}
           <View
             style={styles.checklist}
-            accessibilityLabel="Password checklist"
+            accessibilityLabel="Checklist de senha"
           >
             <ChecklistRow
-              label="At least 10 characters"
+              label="Pelo menos 10 caracteres"
               ok={checklist.minLen}
             />
-            <ChecklistRow label="Uppercase letter" ok={checklist.hasUpper} />
-            <ChecklistRow label="Lowercase letter" ok={checklist.hasLower} />
-            <ChecklistRow label="Number" ok={checklist.hasNumber} />
-            <ChecklistRow label="Symbol" ok={checklist.hasSymbol} />
-            <ChecklistRow label="Passwords match" ok={checklist.matches} />
+            <ChecklistRow label="Letra maiúscula" ok={checklist.hasUpper} />
+            <ChecklistRow label="Letra minúscula" ok={checklist.hasLower} />
+            <ChecklistRow label="Número" ok={checklist.hasNumber} />
+            <ChecklistRow label="Símbolo" ok={checklist.hasSymbol} />
+            <ChecklistRow label="Senhas conferem" ok={checklist.matches} />
           </View>
 
           <View style={styles.actions}>
             <Pressable
               onPress={() => nav.replace("Login")}
-              accessibilityLabel="Back to login"
+              accessibilityLabel="Voltar para login"
               disabled={busy}
               style={({ pressed }) => [
                 styles.btnGhost,
@@ -329,12 +335,12 @@ export default function AuthResetPasswordScreen() {
                 pressed && styles.btnPressed,
               ]}
             >
-              <Text style={styles.btnText}>Back</Text>
+              <Text style={styles.btnText}>Voltar</Text>
             </Pressable>
 
             <Pressable
               onPress={() => void submit()}
-              accessibilityLabel="Save password"
+              accessibilityLabel="Salvar senha"
               disabled={!canSubmit}
               style={({ pressed }) => [
                 styles.btnPrimary,
@@ -345,10 +351,10 @@ export default function AuthResetPasswordScreen() {
               {busy ? (
                 <View style={styles.busyInline}>
                   <ActivityIndicator />
-                  <Text style={styles.btnText}>Saving…</Text>
+                  <Text style={styles.btnText}>Salvando…</Text>
                 </View>
               ) : (
-                <Text style={styles.btnText}>Save password</Text>
+                <Text style={styles.btnText}>Salvar senha</Text>
               )}
             </Pressable>
           </View>
@@ -356,11 +362,11 @@ export default function AuthResetPasswordScreen() {
           <View style={styles.links}>
             <Pressable
               onPress={() => nav.navigate("ForgotPassword")}
-              accessibilityLabel="Request a new reset link"
+              accessibilityLabel="Solicitar novo link de redefinição"
               disabled={busy}
             >
               <Text style={[styles.link, busy && styles.btnDisabled]}>
-                Request a new reset link
+                Solicitar novo link de redefinição
               </Text>
             </Pressable>
           </View>

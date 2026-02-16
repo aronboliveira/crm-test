@@ -97,7 +97,7 @@ const allItems: NavItem[] = [
   {
     key: "settings",
     label: "Configurações",
-    route: "/dashboard",
+    route: "/dashboard/settings",
     icon: "gear",
     permission: undefined,
   },
@@ -208,6 +208,7 @@ const mainItems = computed(() =>
         "import",
         "reports",
         "integrations",
+        "settings",
       ].includes(it.key) && hasAccess(it),
   ),
 );
@@ -360,6 +361,7 @@ const getButtonClass = (item: NavItem) => {
             :class="getButtonClass(it)"
             type="button"
             role="listitem"
+            :data-nav-key="it.key"
             :title="it.label"
             :aria-label="it.ariaLabel || it.label"
             :aria-current="
@@ -412,6 +414,7 @@ const getButtonClass = (item: NavItem) => {
             :class="getButtonClass(it)"
             type="button"
             role="listitem"
+            :data-nav-key="it.key"
             :title="it.label"
             :aria-label="it.ariaLabel || it.label"
             :aria-current="

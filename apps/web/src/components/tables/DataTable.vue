@@ -10,22 +10,22 @@ const { hasActions, ariaSort, cellText, actionAria } =
 
 <template>
   <section class="table-card" :aria-label="table.ariaLabel">
-    <div class="table-toolbar" role="search" aria-label="Table tools">
-      <label class="table-search" aria-label="Search">
-        <span class="sr-only">Search</span>
+    <div class="table-toolbar" role="search" aria-label="Ferramentas da tabela">
+      <label class="table-search" aria-label="Buscar">
+        <span class="sr-only">Buscar</span>
         <input
           class="table-search-input"
           type="search"
           name="q"
           autocomplete="off"
           v-model="table.search.value"
-          placeholder="Search…"
-          aria-label="Search table rows"
+          placeholder="Buscar…"
+          aria-label="Buscar linhas da tabela"
         />
       </label>
 
-      <label class="table-size" aria-label="Rows per page">
-        <span class="sr-only">Rows per page</span>
+      <label class="table-size" aria-label="Linhas por página">
+        <span class="sr-only">Linhas por página</span>
         <select
           class="table-size-select"
           name="pageSize"
@@ -35,7 +35,7 @@ const { hasActions, ariaSort, cellText, actionAria } =
               Number(($event.target as HTMLSelectElement).value),
             )
           "
-          aria-label="Select rows per page"
+          aria-label="Selecionar linhas por página"
         >
           <option v-for="n in table.pageSizes" :key="n" :value="n">
             {{ n }}
@@ -44,7 +44,7 @@ const { hasActions, ariaSort, cellText, actionAria } =
       </label>
 
       <div class="table-count" aria-live="polite">
-        {{ table.totalRows.value }} rows
+        {{ table.totalRows.value }} linhas
       </div>
     </div>
 
@@ -144,14 +144,14 @@ const { hasActions, ariaSort, cellText, actionAria } =
               :colspan="table.columns.length + (hasActions ? 1 : 0)"
               class="td-empty"
             >
-              No results.
+              Sem resultados.
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <nav class="pager" aria-label="Pagination">
+    <nav class="pager" aria-label="Paginação">
       <button
         class="btn btn-ghost btn-sm"
         type="button"
@@ -159,11 +159,11 @@ const { hasActions, ariaSort, cellText, actionAria } =
         :aria-disabled="table.page.value <= 1"
         @click="table.setPage(table.page.value - 1)"
       >
-        Prev
+        Anterior
       </button>
 
       <div class="pager-info" aria-live="polite">
-        Page {{ table.page.value }} / {{ table.totalPages.value }}
+        Página {{ table.page.value }} / {{ table.totalPages.value }}
       </div>
 
       <button
@@ -173,7 +173,7 @@ const { hasActions, ariaSort, cellText, actionAria } =
         :aria-disabled="table.page.value >= table.totalPages.value"
         @click="table.setPage(table.page.value + 1)"
       >
-        Next
+        Próxima
       </button>
     </nav>
   </section>

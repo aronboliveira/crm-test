@@ -101,19 +101,21 @@ export class OutlookAdapter implements IntegrationAdapter {
       ...merged,
       tenantId: IntegrationValueSanitizer.normalizeString(merged.tenantId),
       clientId: IntegrationValueSanitizer.normalizeString(merged.clientId),
-      clientSecret: IntegrationValueSanitizer.normalizeString(merged.clientSecret),
+      clientSecret: IntegrationValueSanitizer.normalizeString(
+        merged.clientSecret,
+      ),
       smtpHost: IntegrationValueSanitizer.normalizeString(merged.smtpHost),
       smtpPort: IntegrationValueSanitizer.normalizePort(merged.smtpPort),
       smtpSecure:
-        IntegrationValueSanitizer.normalizeBoolean(merged.smtpSecure)
-        ?? undefined,
+        IntegrationValueSanitizer.normalizeBoolean(merged.smtpSecure) ??
+        undefined,
       smtpUser: IntegrationValueSanitizer.normalizeString(merged.smtpUser),
       smtpPass: IntegrationValueSanitizer.normalizeString(merged.smtpPass),
       smtpFrom: IntegrationValueSanitizer.normalizeString(merged.smtpFrom),
       smtpProfile: merged.smtpProfile,
       mockNotifications:
-        IntegrationValueSanitizer.normalizeBoolean(merged.mockNotifications)
-        ?? false,
+        IntegrationValueSanitizer.normalizeBoolean(merged.mockNotifications) ??
+        false,
     };
 
     this.msalClient = undefined;
@@ -126,9 +128,9 @@ export class OutlookAdapter implements IntegrationAdapter {
 
   isConfigured(): boolean {
     return Boolean(
-      IntegrationValueSanitizer.hasString(this.config.clientId)
-      && IntegrationValueSanitizer.hasString(this.config.tenantId)
-      && IntegrationValueSanitizer.hasString(this.config.clientSecret),
+      IntegrationValueSanitizer.hasString(this.config.clientId) &&
+      IntegrationValueSanitizer.hasString(this.config.tenantId) &&
+      IntegrationValueSanitizer.hasString(this.config.clientSecret),
     );
   }
 
@@ -166,17 +168,23 @@ export class OutlookAdapter implements IntegrationAdapter {
       return [
         {
           recordType: MAIL_DATASET_TYPES.unreadEmails,
-          records: emails.map((item) => item as unknown as Record<string, unknown>),
+          records: emails.map(
+            (item) => item as unknown as Record<string, unknown>,
+          ),
           externalIdField: 'id',
         },
         {
           recordType: MAIL_DATASET_TYPES.upcomingEvents,
-          records: events.map((item) => item as unknown as Record<string, unknown>),
+          records: events.map(
+            (item) => item as unknown as Record<string, unknown>,
+          ),
           externalIdField: 'id',
         },
         {
           recordType: MAIL_DATASET_TYPES.tasks,
-          records: tasks.map((item) => item as unknown as Record<string, unknown>),
+          records: tasks.map(
+            (item) => item as unknown as Record<string, unknown>,
+          ),
           externalIdField: 'id',
         },
       ];
@@ -220,7 +228,7 @@ export class OutlookAdapter implements IntegrationAdapter {
     try {
       const client = await this.getGraphClient();
 
-      let query = client
+      const query = client
         .api('/users')
         .top(1)
         .select('id,mail,userPrincipalName');
@@ -248,13 +256,18 @@ export class OutlookAdapter implements IntegrationAdapter {
 
       return messages.map((message) => {
         const raw = this.asObject(message);
-        const from = this.readNestedString(raw, ['from', 'emailAddress', 'address']);
+        const from = this.readNestedString(raw, [
+          'from',
+          'emailAddress',
+          'address',
+        ]);
         return {
           id: this.readString(raw, 'id') ?? 'unknown',
           subject: this.readString(raw, 'subject') ?? '(no subject)',
           from: from ?? 'unknown@example.com',
           receivedAt:
-            this.readString(raw, 'receivedDateTime') ?? new Date().toISOString(),
+            this.readString(raw, 'receivedDateTime') ??
+            new Date().toISOString(),
           link: this.readString(raw, 'webLink'),
           hasAttachments: Boolean(raw.hasAttachments),
         };
@@ -267,7 +280,9 @@ export class OutlookAdapter implements IntegrationAdapter {
     }
   }
 
-  async getUpcomingEvents(withinMinutes = MAIL_DEFAULTS.outlookSyncWindowMinutes): Promise<
+  async getUpcomingEvents(
+    withinMinutes = MAIL_DEFAULTS.outlookSyncWindowMinutes,
+  ): Promise<
     Array<{
       id: string;
       subject: string;
@@ -311,11 +326,11 @@ export class OutlookAdapter implements IntegrationAdapter {
           id: this.readString(raw, 'id') ?? 'unknown',
           subject: this.readString(raw, 'subject') ?? '(no subject)',
           startAt:
-            this.readNestedString(raw, ['start', 'dateTime'])
-            ?? new Date().toISOString(),
+            this.readNestedString(raw, ['start', 'dateTime']) ??
+            new Date().toISOString(),
           endAt:
-            this.readNestedString(raw, ['end', 'dateTime'])
-            ?? new Date().toISOString(),
+            this.readNestedString(raw, ['end', 'dateTime']) ??
+            new Date().toISOString(),
           organizer: this.readNestedString(raw, [
             'organizer',
             'emailAddress',
@@ -369,7 +384,9 @@ export class OutlookAdapter implements IntegrationAdapter {
       }
 
       const tasksResponse = await client
-        .api(`/users/${encodeURIComponent(userId)}/todo/lists/${encodeURIComponent(defaultListId)}/tasks`)
+        .api(
+          `/users/${encodeURIComponent(userId)}/todo/lists/${encodeURIComponent(defaultListId)}/tasks`,
+        )
         .filter("status ne 'completed'")
         .select('id,title,dueDateTime,status,importance')
         .orderby('dueDateTime/dateTime')
@@ -401,7 +418,11 @@ export class OutlookAdapter implements IntegrationAdapter {
       return;
     }
 
-    if (!this.config.clientId || !this.config.tenantId || !this.config.clientSecret) {
+    if (
+      !this.config.clientId ||
+      !this.config.tenantId ||
+      !this.config.clientSecret
+    ) {
       throw new Error('Microsoft Outlook credentials not configured');
     }
 
@@ -459,7 +480,9 @@ export class OutlookAdapter implements IntegrationAdapter {
     await client.api('/organization').top(1).get();
   }
 
-  private async resolveGraphUserId(client: Client): Promise<string | undefined> {
+  private async resolveGraphUserId(
+    client: Client,
+  ): Promise<string | undefined> {
     const response = await client
       .api('/users')
       .top(1)
@@ -477,10 +500,7 @@ export class OutlookAdapter implements IntegrationAdapter {
     return this.readString(user, 'id');
   }
 
-  private readObject(
-    input: unknown,
-    key?: string,
-  ): Record<string, unknown> {
+  private readObject(input: unknown, key?: string): Record<string, unknown> {
     const object =
       input && typeof input === 'object' && !Array.isArray(input)
         ? (input as Record<string, unknown>)

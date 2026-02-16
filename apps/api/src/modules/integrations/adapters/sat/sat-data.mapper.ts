@@ -242,7 +242,7 @@ export class SatDataMapper {
     client: Partial<CrmClient>,
   ): import('./sat.types').SatCreateCustomerPayload {
     return {
-      type: (client.type === 'company' ? 'PJ' : 'PF') as 'PF' | 'PJ',
+      type: client.type === 'company' ? 'PJ' : 'PF',
       name: client.name || '',
       trade_name: client.tradeName,
       document: client.document || '',

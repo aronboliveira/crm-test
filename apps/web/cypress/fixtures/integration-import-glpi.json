@@ -1,0 +1,9 @@
+[
+  {
+    "baseUrl": "https://glpi.example.com",
+    "appToken": "abc123token",
+    "userToken": "usr456token",
+    "username": "admin",
+    "password": "secret"
+  }
+]

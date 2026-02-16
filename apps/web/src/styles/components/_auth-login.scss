@@ -33,6 +33,11 @@
   border-radius: var(--radius-lg, 16px);
   box-shadow: var(--shadow-2);
   text-align: left;
+
+  @media (min-width: 768px) {
+    max-width: 50vw;
+    min-width: 540px;
+  }
 }
 
 .auth-header {
@@ -211,8 +216,177 @@
   text-align: left;
 }
 
+/* ─── 2FA specific styles ─── */
+
+.auth-2fa-info {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--surface-2);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm, 8px);
+}
+
+.auth-2fa-email {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-2);
+
+  strong {
+    color: var(--text-1);
+    font-weight: 600;
+  }
+}
+
+.auth-2fa-description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.auth-2fa-toggle {
+  align-self: flex-start;
+  margin-top: -0.25rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:hover:not(:disabled) {
+    color: var(--primary-hover);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.auth-input-2fa {
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Spinner for loading states ─── */
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.auth-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.5rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: auth-spin 0.6s linear infinite;
+  vertical-align: text-bottom;
+}
+
 .dark-mode {
   .auth-input {
     background: var(--surface-2);
   }
 }
+
+/* ─── SSO / OAuth buttons ─── */
+
+.auth-sso-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.5rem 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: lowercase;
+
+  &::before,
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-1);
+  }
+}
+
+.auth-sso-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.auth-sso-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--radius-md, 12px);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-3);
+    border-color: var(--border-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.auth-sso-btn--active {
+  border-color: var(--primary);
+  background: var(--surface-3);
+}
+
+.auth-sso-btn--unavailable {
+  opacity: 0.6;
+}
+
+.auth-sso-inline-spinner {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: auth-spin 0.6s linear infinite;
+}
+
+.auth-sso-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+/* Unified hover / active behavior for all providers */

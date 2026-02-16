@@ -21,12 +21,12 @@ describe('IntegrationConfigsService', () => {
       save: jest.fn(),
     } as unknown as jest.Mocked<MongoRepository<IntegrationConfigEntity>>;
     crypto = {
-      encrypt: jest
+      encrypt: jest.fn().mockImplementation((value: string) => `enc:${value}`),
+      decrypt: jest
         .fn()
-        .mockImplementation((value: string) => `enc:${value}`),
-      decrypt: jest.fn().mockImplementation((value: string) =>
-        value.startsWith('enc:') ? value.slice(4) : value,
-      ),
+        .mockImplementation((value: string) =>
+          value.startsWith('enc:') ? value.slice(4) : value,
+        ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -44,9 +44,7 @@ describe('IntegrationConfigsService', () => {
     }).compile();
 
     service = module.get<IntegrationConfigsService>(IntegrationConfigsService);
-    repository = module.get(
-      getRepositoryToken(IntegrationConfigEntity),
-    ) as jest.Mocked<MongoRepository<IntegrationConfigEntity>>;
+    repository = module.get(getRepositoryToken(IntegrationConfigEntity));
   });
 
   afterEach(() => {
@@ -69,11 +67,11 @@ describe('IntegrationConfigsService', () => {
       {
         integrationId: 'glpi',
         config: { baseUrl: 'https://glpi.example.com', appToken: 'enc:token' },
-      } as IntegrationConfigEntity,
+      } as unknown as IntegrationConfigEntity,
       {
         integrationId: 'sat',
         config: { baseUrl: 'https://sat.example.com', apiKey: 'enc:sat-key' },
-      } as IntegrationConfigEntity,
+      } as unknown as IntegrationConfigEntity,
     ]);
 
     const result = await service.getAll();
@@ -96,7 +94,7 @@ describe('IntegrationConfigsService', () => {
         clientId: 'client-id',
         clientSecret: 'enc:client-secret',
       },
-    } as IntegrationConfigEntity);
+    } as unknown as IntegrationConfigEntity);
 
     const result = await service.getConfig('sat');
 
@@ -172,7 +170,7 @@ describe('IntegrationConfigsService', () => {
         appToken: 'enc:existing-app-token',
         userToken: 'enc:existing-user-token',
       },
-    } as IntegrationConfigEntity;
+    } as unknown as IntegrationConfigEntity;
 
     repository.findOne
       .mockResolvedValueOnce(existing)

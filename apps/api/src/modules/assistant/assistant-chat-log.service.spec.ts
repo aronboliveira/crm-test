@@ -121,7 +121,10 @@ describe('AssistantChatLogService', () => {
 
       expect(repo.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId: 'u1', createdAt: { $lt: '2026-02-11T11:00:00.000Z' } },
+          where: {
+            userId: 'u1',
+            createdAt: { $lt: '2026-02-11T11:00:00.000Z' },
+          },
           take: 2,
         }),
       );

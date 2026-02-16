@@ -21,15 +21,15 @@ type TaskCreateDTO = Readonly<{
 export default class EntityPromptService {
   static async createProject(): Promise<boolean> {
     const v = await PromptBridge.api().form<ProjectCreateDTO>({
-      title: "New Project",
-      confirmText: "Create",
+      title: "Novo Projeto",
+      confirmText: "Criar",
       fields: [
         {
           key: "name",
-          label: "Name",
+          label: "Nome",
           type: "text",
           required: true,
-          placeholder: "Project name",
+          placeholder: "Nome do projeto",
         },
         {
           key: "status",
@@ -37,21 +37,21 @@ export default class EntityPromptService {
           type: "select",
           required: true,
           options: [
-            { label: "active", value: "active" },
-            { label: "archived", value: "archived" },
+            { label: "ativo", value: "active" },
+            { label: "arquivado", value: "archived" },
           ],
         },
         {
           key: "description",
-          label: "Description",
+          label: "Descrição",
           type: "textarea",
-          placeholder: "Optional",
+          placeholder: "Opcional",
         },
       ],
       initial: { status: "active" as const },
       validate: (x) => {
         const name = String(x.name || "").trim();
-        if (!name) return "Name is required";
+        if (!name) return "Nome é obrigatório";
         return null;
       },
     });
@@ -59,18 +59,22 @@ export default class EntityPromptService {
     if (!v) return false;
 
     try {
+      const description = String(v.description || "").trim();
       const dto: ProjectCreateDTO = {
         name: String(v.name).trim(),
         status: v.status === "archived" ? "archived" : "active",
-        description: String(v.description || "").trim() || undefined,
       };
 
+      if (description) {
+        (dto as { description?: string }).description = description;
+      }
+
       await ApiClientService.projects.create(dto as any);
-      await AlertService.success("Project created");
+      await AlertService.success("Projeto criado");
       ProjectsOptionsService.bust();
       return true;
     } catch (e) {
-      await AlertService.error("Failed to create project", e);
+      await AlertService.error("Falha ao criar projeto", e);
       return false;
     }
   }
@@ -83,22 +87,22 @@ export default class EntityPromptService {
     }));
 
     const v = await PromptBridge.api().form<Record<string, any>>({
-      title: "New Task",
-      confirmText: "Create",
+      title: "Nova Tarefa",
+      confirmText: "Criar",
       fields: [
         {
           key: "projectId",
-          label: "Project",
+          label: "Projeto",
           type: "select",
           required: true,
           options: projectOptions,
         },
         {
           key: "title",
-          label: "Title",
+          label: "Título",
           type: "text",
           required: true,
-          placeholder: "Task title",
+          placeholder: "Título da tarefa",
         },
         {
           key: "status",
@@ -106,14 +110,14 @@ export default class EntityPromptService {
           type: "select",
           required: true,
           options: [
-            { label: "todo", value: "todo" },
-            { label: "doing", value: "doing" },
-            { label: "done", value: "done" },
+            { label: "a fazer", value: "todo" },
+            { label: "em andamento", value: "doing" },
+            { label: "concluída", value: "done" },
           ],
         },
         {
           key: "priority",
-          label: "Priority",
+          label: "Prioridade",
           type: "select",
           required: true,
           options: [
@@ -126,23 +130,23 @@ export default class EntityPromptService {
         },
         {
           key: "dueAt",
-          label: "Due date",
+          label: "Data de vencimento",
           type: "date",
-          placeholder: "YYYY-MM-DD (optional)",
+          placeholder: "AAAA-MM-DD (opcional)",
         },
       ],
       initial: { status: "todo", priority: "3" },
       validate: (x) => {
         const pid = String(x.projectId || "").trim();
         const title = String(x.title || "").trim();
-        if (!pid) return "Project is required";
-        if (!title) return "Title is required";
+        if (!pid) return "Projeto é obrigatório";
+        if (!title) return "Título é obrigatório";
 
         const dueRaw = String(x.dueAt || "").trim();
         if (dueRaw) {
           // Convert YYYY-MM-DD -> ISO (midnight UTC) and validate iso
           const iso = new Date(dueRaw).toISOString();
-          if (!DateValidator.isIso(iso)) return "Invalid due date";
+          if (!DateValidator.isIso(iso)) return "Data de vencimento inválida";
         }
         return null;
       },
@@ -167,14 +171,17 @@ export default class EntityPromptService {
               ? "doing"
               : "todo",
         priority,
-        dueAt: dueIso && DateValidator.isIso(dueIso) ? dueIso : undefined,
       };
 
+      if (dueIso && DateValidator.isIso(dueIso)) {
+        (dto as { dueAt?: string }).dueAt = dueIso;
+      }
+
       await ApiClientService.tasks.create(dto as any);
-      await AlertService.success("Task created");
+      await AlertService.success("Tarefa criada");
       return true;
     } catch (e) {
-      await AlertService.error("Failed to create task", e);
+      await AlertService.error("Falha ao criar tarefa", e);
       return false;
     }
   }
@@ -184,10 +191,10 @@ export default class EntityPromptService {
     name: string,
   ): Promise<boolean> {
     const ok = await PromptBridge.api().confirm({
-      title: "Delete project?",
-      message: `This will delete "${name}".`,
-      confirmText: "Delete",
-      cancelText: "Cancel",
+      title: "Excluir projeto?",
+      message: `Isso irá excluir "${name}".`,
+      confirmText: "Excluir",
+      cancelText: "Cancelar",
       destructive: true,
     });
 
@@ -195,21 +202,21 @@ export default class EntityPromptService {
 
     try {
       await ApiClientService.projects.remove(id);
-      await AlertService.success("Project deleted");
+      await AlertService.success("Projeto excluído");
       ProjectsOptionsService.bust();
       return true;
     } catch (e) {
-      await AlertService.error("Failed to delete project", e);
+      await AlertService.error("Falha ao excluir projeto", e);
       return false;
     }
   }
 
   static async confirmDeleteTask(id: string, title: string): Promise<boolean> {
     const ok = await PromptBridge.api().confirm({
-      title: "Delete task?",
-      message: `This will delete "${title}".`,
-      confirmText: "Delete",
-      cancelText: "Cancel",
+      title: "Excluir tarefa?",
+      message: `Isso irá excluir "${title}".`,
+      confirmText: "Excluir",
+      cancelText: "Cancelar",
       destructive: true,
     });
 
@@ -217,10 +224,10 @@ export default class EntityPromptService {
 
     try {
       await ApiClientService.tasks.remove(id);
-      await AlertService.success("Task deleted");
+      await AlertService.success("Tarefa excluída");
       return true;
     } catch (e) {
-      await AlertService.error("Failed to delete task", e);
+      await AlertService.error("Falha ao excluir tarefa", e);
       return false;
     }
   }
@@ -228,11 +235,11 @@ export default class EntityPromptService {
   static async saveProject(id: string, dto: any): Promise<boolean> {
     try {
       await ApiClientService.projects.update(id, dto);
-      await AlertService.success("Project updated");
+      await AlertService.success("Projeto atualizado");
       ProjectsOptionsService.bust();
       return true;
     } catch (e) {
-      await AlertService.error("Failed to update project", e);
+      await AlertService.error("Falha ao atualizar projeto", e);
       return false;
     }
   }
@@ -240,10 +247,10 @@ export default class EntityPromptService {
   static async saveTask(id: string, dto: any): Promise<boolean> {
     try {
       await ApiClientService.tasks.update(id, dto);
-      await AlertService.success("Task updated");
+      await AlertService.success("Tarefa atualizada");
       return true;
     } catch (e) {
-      await AlertService.error("Failed to update task", e);
+      await AlertService.error("Falha ao atualizar tarefa", e);
       return false;
     }
   }

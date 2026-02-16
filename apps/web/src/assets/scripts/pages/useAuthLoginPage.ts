@@ -56,12 +56,29 @@ export function useAuthLoginPage() {
         return;
       }
 
-      await authStore.login({ email: email.value, password: password.value });
+      const response = await authStore.login({
+        email: email.value,
+        password: password.value,
+      });
+
+      // Check if 2FA is required
+      if ((response as any)?.requiresTwoFactor) {
+        const token = (response as any)?.twoFactorToken;
+        const userEmail = (response as any)?.email || email.value;
+        const next = (route.query.next as string) || "/dashboard";
+        await router.replace({
+          path: "/verify-2fa",
+          query: { token, email: userEmail, next },
+        });
+        return;
+      }
 
       if (!authStore.isLoggedIn) {
         await AlertService.error("Falha no login", "Token não recebido");
         return;
       }
+
+      await AlertService.success("Bem-vindo!", "Login realizado com sucesso");
 
       // Warm up the first dashboard route chunk to reduce first-mount stutter
       // right after authentication on slower/cold browser caches.

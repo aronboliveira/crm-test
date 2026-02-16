@@ -2,13 +2,19 @@ import { NextcloudAdapter } from './nextcloud.adapter';
 
 describe('NextcloudAdapter', () => {
   let adapter: NextcloudAdapter;
+  const resilience = {
+    execute: jest.fn(async (_options: unknown, run: () => Promise<unknown>) =>
+      run(),
+    ),
+    getIntegrationSnapshot: jest.fn().mockReturnValue([]),
+  };
   let apiClient: {
     configure: jest.Mock;
     testConnection: jest.Mock;
   };
 
   beforeEach(() => {
-    adapter = new NextcloudAdapter({} as never);
+    adapter = new NextcloudAdapter({} as never, resilience as never);
     apiClient = {
       configure: jest.fn(),
       testConnection: jest.fn().mockResolvedValue(true),

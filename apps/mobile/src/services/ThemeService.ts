@@ -1,51 +1,31 @@
-import { DomGuard } from "@corp/foundations";
+import { Appearance } from "react-native";
 import StorageService from "./StorageService";
-
-type BootstrapOpts = Readonly<{ preferWebkitTransitions: boolean }>;
 
 export default class ThemeService {
   static #KEY = "ui.theme.dark";
-  static #CLS = "dark-mode";
-  static #DATASET_FLAG = "data-theme-wired";
 
-  static bootstrap(_opts?: BootstrapOpts): void {
+  static bootstrap(): void {
     try {
-      const html = document.documentElement;
-      if (!html) {
-        console.error("[ThemeService] Document root not found");
-        return;
-      }
-
-      if (!DomGuard.attr(html, ThemeService.#DATASET_FLAG)) return;
-
-      const prefersDark =
-        window.matchMedia?.("(prefers-color-scheme: dark)").matches || false;
+      const systemDark = Appearance.getColorScheme() === "dark";
       const stored = StorageService.local.getBool(
         ThemeService.#KEY,
-        prefersDark,
+        systemDark,
       );
-
       ThemeService.#apply(stored);
 
-      const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
-      if (mediaQuery) {
-        mediaQuery.addEventListener("change", (e) => {
-          try {
-            const isStored = StorageService.local.getBool(
-              ThemeService.#KEY,
-              prefersDark,
-            );
-            if (!isStored) {
-              ThemeService.#apply(!!e.matches);
-            }
-          } catch (error) {
-            console.error(
-              "[ThemeService] Media query change handler failed:",
-              error,
-            );
+      Appearance.addChangeListener(({ colorScheme }) => {
+        try {
+          const isManuallySet = StorageService.local.getBool(
+            ThemeService.#KEY,
+            false,
+          );
+          if (!isManuallySet) {
+            ThemeService.#apply(colorScheme === "dark");
           }
-        });
-      }
+        } catch (error) {
+          console.error("[ThemeService] Color scheme change failed:", error);
+        }
+      });
     } catch (error) {
       console.error("[ThemeService] Bootstrap failed:", error);
     }
@@ -53,35 +33,24 @@ export default class ThemeService {
 
   static toggle(): void {
     try {
-      const html = document.documentElement;
-      if (!html) {
-        console.error("[ThemeService] Document root not found");
-        return;
-      }
-
-      const on = html.classList.contains(ThemeService.#CLS);
-      StorageService.local.setBool(ThemeService.#KEY, !on);
-      ThemeService.#apply(!on);
+      const current = ThemeService.isDark();
+      StorageService.local.setBool(ThemeService.#KEY, !current);
+      ThemeService.#apply(!current);
     } catch (error) {
       console.error("[ThemeService] Toggle failed:", error);
     }
   }
 
+  static isDark(): boolean {
+    const systemDark = Appearance.getColorScheme() === "dark";
+    return StorageService.local.getBool(ThemeService.#KEY, systemDark);
+  }
+
   static #apply(on: boolean): void {
     try {
-      const html = document.documentElement;
-      if (!html) return;
-
-      if (on) {
-        DomGuard.classOnce(html, ThemeService.#CLS);
-      } else {
-        if (html.classList.contains(ThemeService.#CLS)) {
-          html.classList.remove(ThemeService.#CLS);
-        }
-      }
-      html.setAttribute("data-theme", on ? "dark" : "light");
-    } catch (error) {
-      console.error("[ThemeService] Apply theme failed:", error);
+      Appearance.setColorScheme(on ? "dark" : "light");
+    } catch {
+      // Appearance.setColorScheme may not be available on all RN versions
     }
   }
 }

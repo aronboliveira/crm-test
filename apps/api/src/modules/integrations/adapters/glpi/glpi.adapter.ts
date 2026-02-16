@@ -5,6 +5,7 @@ import type {
   IntegrationSyncDataset,
   IntegrationStatus,
 } from '../../types';
+import { IntegrationResilienceService } from '../../integration-resilience.service';
 import { GlpiApiClient } from './glpi-api.client';
 import {
   GlpiDataMapper,
@@ -32,6 +33,8 @@ export class GlpiAdapter implements IntegrationAdapter {
   private isConnected = false;
   private lastSyncAt?: string;
   private lastError?: string;
+
+  constructor(private readonly resilience: IntegrationResilienceService) {}
 
   async getStatus(): Promise<IntegrationStatus> {
     const isConfigured = this.isConfigured();
@@ -141,7 +144,9 @@ export class GlpiAdapter implements IntegrationAdapter {
         },
         {
           recordType: 'users',
-          records: users.map((user) => user as unknown as Record<string, unknown>),
+          records: users.map(
+            (user) => user as unknown as Record<string, unknown>,
+          ),
           externalIdField: 'sourceId',
         },
         {
@@ -209,8 +214,8 @@ export class GlpiAdapter implements IntegrationAdapter {
 
     return Boolean(
       resolved.baseUrl &&
-        resolved.appToken &&
-        (resolved.userToken || (resolved.username && resolved.password)),
+      resolved.appToken &&
+      (resolved.userToken || (resolved.username && resolved.password)),
     );
   }
 
@@ -222,13 +227,17 @@ export class GlpiAdapter implements IntegrationAdapter {
         throw new Error('GLPI configuration incomplete');
       }
 
-      this.client = new GlpiApiClient({
-        baseUrl: resolved.baseUrl,
-        appToken: resolved.appToken,
-        userToken: resolved.userToken,
-        username: resolved.username,
-        password: resolved.password,
-      });
+      this.client = new GlpiApiClient(
+        {
+          baseUrl: resolved.baseUrl,
+          appToken: resolved.appToken,
+          userToken: resolved.userToken,
+          username: resolved.username,
+          password: resolved.password,
+        },
+        this.resilience,
+        'glpi',
+      );
     }
 
     return this.client;
@@ -243,7 +252,9 @@ export class GlpiAdapter implements IntegrationAdapter {
   } {
     return {
       baseUrl: this.normalizeString(this.config.baseUrl ?? this.config.apiUrl),
-      appToken: this.normalizeString(this.config.appToken ?? this.config.apiKey),
+      appToken: this.normalizeString(
+        this.config.appToken ?? this.config.apiKey,
+      ),
       userToken: this.normalizeString(this.config.userToken),
       username: this.normalizeString(this.config.username),
       password: this.normalizeString(this.config.password),

@@ -19,8 +19,12 @@ type TemplateWritePayload = Readonly<{
   defaultValues?: Readonly<Record<string, string>>;
 }>;
 
-type TemplateStoreByKind = Readonly<Record<ImportEntityKind, ImportMappingTemplate[]>>;
-type LastUsedTemplateByKind = Readonly<Partial<Record<ImportEntityKind, string>>>;
+type TemplateStoreByKind = Readonly<
+  Record<ImportEntityKind, ImportMappingTemplate[]>
+>;
+type LastUsedTemplateByKind = Readonly<
+  Partial<Record<ImportEntityKind, string>>
+>;
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
@@ -38,6 +42,8 @@ const DEFAULT_TEMPLATE_STORE: TemplateStoreByKind = {
   clients: [],
   projects: [],
   users: [],
+  tasks: [],
+  leads: [],
 };
 
 const cleanText = (value: string): string => value.trim().replace(/\s+/g, " ");
@@ -75,12 +81,14 @@ export class ImportPersonalizationService {
   }
 
   list(kind: ImportEntityKind): ImportMappingTemplate[] {
-    return this.readTemplateStore()[kind].slice().sort((left, right) => {
-      if (right.usageCount !== left.usageCount) {
-        return right.usageCount - left.usageCount;
-      }
-      return right.updatedAt.localeCompare(left.updatedAt);
-    });
+    return this.readTemplateStore()
+      [kind].slice()
+      .sort((left, right) => {
+        if (right.usageCount !== left.usageCount) {
+          return right.usageCount - left.usageCount;
+        }
+        return right.updatedAt.localeCompare(left.updatedAt);
+      });
   }
 
   save(payload: TemplateWritePayload): ImportMappingTemplate {
@@ -144,7 +152,9 @@ export class ImportPersonalizationService {
     const targetId = cleanText(templateId);
     if (!targetId) return;
     const store = this.readTemplateStore();
-    const templates = store[kind].filter((template) => template.id !== targetId);
+    const templates = store[kind].filter(
+      (template) => template.id !== targetId,
+    );
     this.writeTemplateStore({
       ...store,
       [kind]: templates,
@@ -158,7 +168,10 @@ export class ImportPersonalizationService {
     }
   }
 
-  markAsUsed(kind: ImportEntityKind, templateId: string): ImportMappingTemplate | null {
+  markAsUsed(
+    kind: ImportEntityKind,
+    templateId: string,
+  ): ImportMappingTemplate | null {
     const targetId = cleanText(templateId);
     if (!targetId) return null;
 
@@ -198,7 +211,9 @@ export class ImportPersonalizationService {
       {},
     );
     const value = store[kind];
-    return typeof value === "string" && cleanText(value) ? cleanText(value) : null;
+    return typeof value === "string" && cleanText(value)
+      ? cleanText(value)
+      : null;
   }
 
   setLastUsedServerTemplateId(
@@ -237,7 +252,9 @@ export class ImportPersonalizationService {
     const templates = this.list(kind);
     const names = templates.map((template) => template.name);
     if (!needle) return names.slice(0, limit);
-    return names.filter((name) => name.toLowerCase().includes(needle)).slice(0, limit);
+    return names
+      .filter((name) => name.toLowerCase().includes(needle))
+      .slice(0, limit);
   }
 
   private readTemplateStore(): TemplateStoreByKind {
@@ -249,6 +266,8 @@ export class ImportPersonalizationService {
       clients: this.normalizeTemplates(parsed.clients, "clients"),
       projects: this.normalizeTemplates(parsed.projects, "projects"),
       users: this.normalizeTemplates(parsed.users, "users"),
+      tasks: this.normalizeTemplates(parsed.tasks, "tasks"),
+      leads: this.normalizeTemplates(parsed.leads, "leads"),
     };
   }
 

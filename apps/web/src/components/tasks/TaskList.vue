@@ -6,7 +6,7 @@ const { rows, busy, showCreate, load } = useTaskList();
 </script>
 
 <template>
-  <section class="card" aria-label="Tasks">
+  <section class="card" aria-label="Tarefas">
     <div class="card-head">
       <h3 class="card-title section-title">
         <svg
@@ -22,15 +22,15 @@ const { rows, busy, showCreate, load } = useTaskList();
           <path d="M8 12l3 3 5-6" />
           <path d="M5 5h14v14H5z" />
         </svg>
-        Tasks
+        Tarefas
       </h3>
       <button class="btn btn-primary" type="button" @click="showCreate = true">
-        New
+        Nova
       </button>
     </div>
 
     <div v-if="busy" class="skeleton" aria-busy="true" aria-live="polite">
-      Loading…
+      Carregando…
     </div>
 
     <ul v-else class="list" role="list">

@@ -41,6 +41,20 @@ export type {
   ProjectImportDraft,
   ProjectImportPayload,
 } from "./blueprints/ProjectImportBlueprint";
+export { TaskImportBlueprint } from "./blueprints/TaskImportBlueprint";
+export type {
+  TaskImportDraft,
+  TaskImportPayload,
+  TaskPriority,
+  TaskStatus,
+} from "./blueprints/TaskImportBlueprint";
+export { LeadImportBlueprint } from "./blueprints/LeadImportBlueprint";
+export type {
+  LeadImportDraft,
+  LeadImportPayload,
+  LeadSource,
+  LeadStatus,
+} from "./blueprints/LeadImportBlueprint";
 export { UserImportBlueprint } from "./blueprints/UserImportBlueprint";
 export type {
   UserImportDraft,

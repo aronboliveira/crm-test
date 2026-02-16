@@ -15,6 +15,13 @@ import { useNavigation } from "@react-navigation/native";
 import AlertService from "../services/AlertService";
 import AuthService from "../services/AuthService";
 import AuthRecoveryService from "../services/AuthRecoveryService";
+import OAuthService from "../services/OAuthService";
+import { NAV_ROUTES } from "../constants";
+import type {
+  OAuthProvider,
+  OAuthProviderAvailability,
+  LoginResult,
+} from "../types/auth.types";
 
 const FORM_ID = "auth_login_form";
 const PERSIST_KEY = `form.${FORM_ID}`;
@@ -30,6 +37,11 @@ export default function AuthLoginScreen() {
   const nav = useNavigation<any>();
 
   const [busy, setBusy] = useState(false);
+  const [oauthBusyProvider, setOauthBusyProvider] =
+    useState<OAuthProvider | null>(null);
+  const [oauthProviders, setOauthProviders] = useState<
+    OAuthProviderAvailability[]
+  >([]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -74,36 +86,68 @@ export default function AuthLoginScreen() {
       const p = (password || "").trim();
 
       if (!e) {
-        await AlertService.error("Login failed", "Email is required");
+        await AlertService.error("Falha no login", "E-mail é obrigatório");
         return;
       }
       if (!looksLikeEmail(e)) {
-        await AlertService.error("Login failed", "Enter a valid email");
+        await AlertService.error("Falha no login", "Informe um e-mail válido");
         return;
       }
       if (!p) {
-        await AlertService.error("Login failed", "Password is required");
+        await AlertService.error("Falha no login", "Senha é obrigatória");
         return;
       }
 
-      await AuthService.login(e, p);
+      const result = (await AuthService.login(e, p)) as LoginResult;
+
+      if ((result as any)?.requiresTwoFactor) {
+        const twoFactorToken = (result as any).twoFactorToken;
+        nav.replace(NAV_ROUTES.AUTH.TWO_FACTOR, {
+          token: twoFactorToken,
+          email: (result as any).email || e,
+        });
+        return;
+      }
 
       if (!AuthService.isAuthed()) {
-        await AlertService.error("Login failed", "Token not received");
+        await AlertService.error("Falha no login", "Token não recebido");
         return;
       }
 
       // Optional: you may want to clear password persistence on success
       // await persist({ password: "" });
 
-      nav.replace("Home"); // map to "/"
+      nav.replace(NAV_ROUTES.DASHBOARD.HOME);
     } catch (err) {
       console.error("[AuthLoginScreen] submit failed:", err);
-      await AlertService.error("Login failed", err);
+      await AlertService.error("Falha no login", err);
     } finally {
       setBusy(false);
     }
   }, [busy, email, password, nav]);
+
+  const startOAuth = useCallback(
+    async (provider: OAuthProvider) => {
+      if (busy || oauthBusyProvider) return;
+
+      const current = oauthProviders.find((item) => item.provider === provider);
+      if (current && !current.enabled) {
+        await AlertService.error(
+          "SSO indisponível",
+          current.reason || "Provedor não configurado",
+        );
+        return;
+      }
+
+      try {
+        setOauthBusyProvider(provider);
+        await OAuthService.initiateLogin(provider);
+      } finally {
+        setOauthBusyProvider(null);
+      }
+    },
+    [busy, oauthBusyProvider, oauthProviders],
+  );
 
   useEffect(() => {
     (async () => {
@@ -121,6 +165,21 @@ export default function AuthLoginScreen() {
           if (!email && saved.email) setEmail(saved.email);
           if (!password && saved.password) setPassword(saved.password);
         }
+
+        try {
+          const availability = await OAuthService.getProviderAvailability();
+          setOauthProviders(availability);
+        } catch (error) {
+          console.error(
+            "[AuthLoginScreen] provider availability failed:",
+            error,
+          );
+          setOauthProviders([
+            { provider: "google", enabled: true },
+            { provider: "microsoft", enabled: true },
+            { provider: "nextcloud", enabled: true },
+          ]);
+        }
       } catch (e) {
         console.error("[AuthLoginScreen] mount failed:", e);
       }
@@ -133,12 +192,12 @@ export default function AuthLoginScreen() {
       style={styles.page}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.card} accessibilityLabel="Authentication">
+      <View style={styles.card} accessibilityLabel="Autenticação">
         <View style={styles.cardHead}>
-          <Text style={styles.title}>Sign in</Text>
+          <Text style={styles.title}>Entrar</Text>
         </View>
 
-        <View style={styles.form} accessibilityLabel="Login form">
+        <View style={styles.form} accessibilityLabel="Formulário de login">
           <View style={styles.field}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -161,7 +220,7 @@ export default function AuthLoginScreen() {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>Senha</Text>
             <TextInput
               ref={(r) => (passRef.current = r)}
               value={password}
@@ -170,7 +229,7 @@ export default function AuthLoginScreen() {
                 void persist({ password: v });
               }}
               placeholder="Admin#123"
-              accessibilityLabel="Password"
+              accessibilityLabel="Senha"
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -186,7 +245,11 @@ export default function AuthLoginScreen() {
             <Pressable
               onPress={() => void submit()}
               disabled={busy}
-              accessibilityLabel="Sign in"
+              accessibilityLabel="Entrar"
+              accessibilityHint={
+                // ! DEV ONLY
+                "Usuários de teste: admin@corp.local / Admin#123, manager@corp.local / Manager#123, member@corp.local / Member#123, viewer@corp.local / Viewer#123"
+              }
               style={({ pressed }) => [
                 styles.btnPrimary,
                 busy && styles.btnDisabled,
@@ -196,10 +259,10 @@ export default function AuthLoginScreen() {
               {busy ? (
                 <View style={styles.busyInline}>
                   <ActivityIndicator />
-                  <Text style={styles.btnText}>Signing in…</Text>
+                  <Text style={styles.btnText}>Entrando…</Text>
                 </View>
               ) : (
-                <Text style={styles.btnText}>Sign in</Text>
+                <Text style={styles.btnText}>Entrar</Text>
               )}
             </Pressable>
           </View>
@@ -207,20 +270,70 @@ export default function AuthLoginScreen() {
           <View style={styles.links}>
             <Pressable
               onPress={() => nav.navigate("ForgotPassword")}
-              accessibilityLabel="Forgot your password"
+              accessibilityLabel="Esqueceu sua senha"
               disabled={busy}
             >
               <Text style={[styles.link, busy && styles.btnDisabled]}>
-                Forgot your password?
+                Esqueceu sua senha?
               </Text>
             </Pressable>
           </View>
 
-          <Text style={styles.hint}>
-            Mock users (seed): admin@corp.local / Admin#123, manager@corp.local
-            / Manager#123, member@corp.local / Member#123, viewer@corp.local /
-            Viewer#123
-          </Text>
+          <View style={styles.ssoDivider}>
+            <View style={styles.ssoDividerLine} />
+            <Text style={styles.ssoDividerText}>ou continue com</Text>
+            <View style={styles.ssoDividerLine} />
+          </View>
+
+          <View
+            style={styles.ssoButtons}
+            accessible
+            accessibilityLabel="Login com provedores externos"
+          >
+            {(
+              [
+                { provider: "google", label: "Google" },
+                { provider: "microsoft", label: "Microsoft" },
+                { provider: "nextcloud", label: "NextCloud" },
+              ] as const
+            ).map((item) => {
+              const availability = oauthProviders.find(
+                (p) => p.provider === item.provider,
+              );
+              const enabled = availability ? availability.enabled : true;
+              const isBusy = oauthBusyProvider === item.provider;
+              const disabled = busy || oauthBusyProvider !== null || !enabled;
+
+              return (
+                <Pressable
+                  key={item.provider}
+                  onPress={() => void startOAuth(item.provider)}
+                  disabled={disabled}
+                  accessibilityLabel={
+                    enabled
+                      ? `Entrar com ${item.label}`
+                      : `${item.label} indisponível`
+                  }
+                  accessibilityHint={
+                    enabled
+                      ? `Abrir autenticação de ${item.label} no navegador`
+                      : availability?.reason || "Provedor indisponível"
+                  }
+                  style={({ pressed }) => [
+                    styles.ssoBtn,
+                    isBusy && styles.ssoBtnActive,
+                    !enabled && styles.ssoBtnDisabled,
+                    pressed && styles.btnPressed,
+                  ]}
+                >
+                  <Text style={styles.ssoBtnText}>{item.label}</Text>
+                  {isBusy ? (
+                    <ActivityIndicator size="small" style={styles.ssoSpinner} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -283,5 +396,35 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
 
-  hint: { opacity: 0.75, fontSize: 12, lineHeight: 16, paddingTop: 4 },
+  ssoDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+  ssoDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  ssoDividerText: { opacity: 0.75, fontSize: 12, fontWeight: "600" },
+  ssoButtons: { gap: 8 },
+  ssoBtn: {
+    minHeight: 42,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    paddingHorizontal: 12,
+  },
+  ssoBtnActive: {
+    borderColor: "rgba(66,133,244,0.9)",
+    backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  ssoBtnDisabled: { opacity: 0.55 },
+  ssoBtnText: { fontWeight: "700" },
+  ssoSpinner: { marginLeft: 4 },
 });

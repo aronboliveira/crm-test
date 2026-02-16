@@ -1,4 +1,14 @@
-import type { MMKV } from "react-native-mmkv";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { MMKV: MMKVClass } = require("react-native-mmkv") as {
+  MMKV: new (opts: { id: string }) => {
+    getString(key: string): string | undefined;
+    set(key: string, value: string): void;
+    delete(key: string): void;
+    clearAll(): void;
+  };
+};
+
+type MMKVInstance = InstanceType<typeof MMKVClass>;
 
 type Store = {
   getItem(key: string): string | null;
@@ -8,9 +18,9 @@ type Store = {
 };
 
 class MMKVStore implements Store {
-  #kv: MMKV;
+  #kv: MMKVInstance;
 
-  constructor(kv: MMKV) {
+  constructor(kv: MMKVInstance) {
     this.#kv = kv;
   }
 
@@ -98,8 +108,8 @@ class StorageFacade {
 }
 
 // Separate stores (RN doesn’t have “sessionStorage”; this is just a second namespace).
-const localKV = new MMKV({ id: "corp.admin.local" });
-const sessionKV = new MMKV({ id: "corp.admin.session" });
+const localKV = new MMKVClass({ id: "corp.admin.local" });
+const sessionKV = new MMKVClass({ id: "corp.admin.session" });
 
 export default class StorageService {
   static local = new StorageFacade(new MMKVStore(localKV), "corp.admin.");

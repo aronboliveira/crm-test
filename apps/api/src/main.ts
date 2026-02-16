@@ -1,9 +1,11 @@
 import 'reflect-metadata';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { AssistantWsService } from './modules/assistant/assistant-ws.service';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   try {
     const app = await NestFactory.create(AppModule, { cors: false });
     const assistantWs = app.get(AssistantWsService, { strict: false });
@@ -11,7 +13,7 @@ async function bootstrap() {
     const origin = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
     if (!origin) {
-      console.warn('[api] bootstrap: CORS_ORIGIN not set, using default');
+      logger.warn('CORS_ORIGIN not set, using default');
     }
 
     app.enableCors({
@@ -28,14 +30,16 @@ async function bootstrap() {
 
     await app.listen(port);
     assistantWs.bind(app.getHttpServer());
-    console.log(`[api] Application listening on port ${port}`);
+    logger.log(`Application listening on port ${port}`);
   } catch (e) {
-    console.error('[api] bootstrap failed:', e);
+    const logger = new Logger('Bootstrap');
+    logger.error('Bootstrap failed', e instanceof Error ? e.stack : e);
     throw e;
   }
 }
 
 bootstrap().catch((e) => {
-  console.error('[api] bootstrap unhandled error:', e);
+  const logger = new Logger('Bootstrap');
+  logger.error('Unhandled bootstrap error', e instanceof Error ? e.stack : e);
   process.exit(1);
 });

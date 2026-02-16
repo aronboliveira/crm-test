@@ -1,0 +1,18 @@
+{
+  "admin": {
+    "email": "admin@corp.local",
+    "password": "Admin#123"
+  },
+  "manager": {
+    "email": "manager@corp.local",
+    "password": "Manager#123"
+  },
+  "member": {
+    "email": "member@corp.local",
+    "password": "Member#123"
+  },
+  "viewer": {
+    "email": "viewer@corp.local",
+    "password": "Viewer#123"
+  }
+}

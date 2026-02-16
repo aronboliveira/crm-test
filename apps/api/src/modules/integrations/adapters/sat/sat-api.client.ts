@@ -18,6 +18,7 @@ import type {
   SatCreateCustomerPayload,
   SatCreateOrderPayload,
 } from './sat.types';
+import type { IntegrationResilienceService } from '../../integration-resilience.service';
 
 /**
  * SAT ERP API Client
@@ -34,13 +35,41 @@ export class SatApiClient {
   private accessToken: string | null = null;
   private tokenExpiry: Date | null = null;
   private refreshToken: string | null = null;
+  private readonly integrationId: string;
+  private readonly resilience?: IntegrationResilienceService;
 
   constructor(
     private readonly httpService: HttpService,
     private readonly baseUrl: string,
     private readonly clientId: string,
     private readonly clientSecret: string,
-  ) {}
+    resilience?: IntegrationResilienceService,
+    integrationId = 'sat',
+  ) {
+    this.resilience = resilience;
+    this.integrationId = integrationId;
+  }
+
+  private async executeResilient<T>(
+    operation: string,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    if (!this.resilience) {
+      return action();
+    }
+
+    return this.resilience.execute(
+      {
+        integrationId: this.integrationId,
+        operation,
+        timeoutMs: 25_000,
+        maxRetries: 2,
+        baseDelayMs: 400,
+        maxDelayMs: 8_000,
+      },
+      action,
+    );
+  }
 
   // ===========================================================================
   // AUTHENTICATION
@@ -53,28 +82,30 @@ export class SatApiClient {
     this.logger.log('Authenticating with SAT API');
 
     try {
-      const response = await firstValueFrom(
-        this.httpService
-          .post<SatAuthResponse>(
-            `${this.baseUrl}/oauth/token`,
-            {
-              grant_type: 'client_credentials',
-              client_id: this.clientId,
-              client_secret: this.clientSecret,
-              scope: 'read write',
-            },
-            {
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+      const response = await this.executeResilient('authenticate', () =>
+        firstValueFrom(
+          this.httpService
+            .post<SatAuthResponse>(
+              `${this.baseUrl}/oauth/token`,
+              {
+                grant_type: 'client_credentials',
+                client_id: this.clientId,
+                client_secret: this.clientSecret,
+                scope: 'read write',
               },
-            },
-          )
-          .pipe(
-            catchError((error) => {
-              this.logger.error('SAT authentication failed', error.message);
-              return of(null);
-            }),
-          ),
+              {
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                },
+              },
+            )
+            .pipe(
+              catchError((error) => {
+                this.logger.error('SAT authentication failed', error.message);
+                return of(null);
+              }),
+            ),
+        ),
       );
 
       if (response?.data) {
@@ -128,16 +159,18 @@ export class SatApiClient {
     try {
       await this.ensureAuthenticated();
 
-      const response = await firstValueFrom(
-        this.httpService
-          .get(`${this.baseUrl}/health`, {
-            headers: this.getHeaders(),
-          })
-          .pipe(
-            catchError(() => {
-              return of(null);
-            }),
-          ),
+      const response = await this.executeResilient('testConnection', () =>
+        firstValueFrom(
+          this.httpService
+            .get(`${this.baseUrl}/health`, {
+              headers: this.getHeaders(),
+            })
+            .pipe(
+              catchError(() => {
+                return of(null);
+              }),
+            ),
+        ),
       );
 
       return !!response?.data;
@@ -159,13 +192,15 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug('Fetching SAT invoices', params);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatPaginatedResponse<SatInvoice>>(
-        `${this.baseUrl}/invoices`,
-        {
-          headers: this.getHeaders(),
-          params: this.buildQueryParams(params),
-        },
+    const response = await this.executeResilient('getInvoices', () =>
+      firstValueFrom(
+        this.httpService.get<SatPaginatedResponse<SatInvoice>>(
+          `${this.baseUrl}/invoices`,
+          {
+            headers: this.getHeaders(),
+            params: this.buildQueryParams(params),
+          },
+        ),
       ),
     );
 
@@ -179,10 +214,12 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug(`Fetching SAT invoice ${id}`);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatInvoice>(`${this.baseUrl}/invoices/${id}`, {
-        headers: this.getHeaders(),
-      }),
+    const response = await this.executeResilient('getInvoice', () =>
+      firstValueFrom(
+        this.httpService.get<SatInvoice>(`${this.baseUrl}/invoices/${id}`, {
+          headers: this.getHeaders(),
+        }),
+      ),
     );
 
     return response.data;
@@ -195,10 +232,12 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.log('Creating SAT invoice');
 
-    const response = await firstValueFrom(
-      this.httpService.post<SatInvoice>(`${this.baseUrl}/invoices`, payload, {
-        headers: this.getHeaders(),
-      }),
+    const response = await this.executeResilient('createInvoice', () =>
+      firstValueFrom(
+        this.httpService.post<SatInvoice>(`${this.baseUrl}/invoices`, payload, {
+          headers: this.getHeaders(),
+        }),
+      ),
     );
 
     return response.data;
@@ -211,11 +250,13 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.log(`Cancelling SAT invoice ${id}`);
 
-    const response = await firstValueFrom(
-      this.httpService.post<SatInvoice>(
-        `${this.baseUrl}/invoices/${id}/cancel`,
-        { reason },
-        { headers: this.getHeaders() },
+    const response = await this.executeResilient('cancelInvoice', () =>
+      firstValueFrom(
+        this.httpService.post<SatInvoice>(
+          `${this.baseUrl}/invoices/${id}/cancel`,
+          { reason },
+          { headers: this.getHeaders() },
+        ),
       ),
     );
 
@@ -235,13 +276,15 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug('Fetching SAT customers', params);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatPaginatedResponse<SatCustomer>>(
-        `${this.baseUrl}/customers`,
-        {
-          headers: this.getHeaders(),
-          params: this.buildQueryParams(params),
-        },
+    const response = await this.executeResilient('getCustomers', () =>
+      firstValueFrom(
+        this.httpService.get<SatPaginatedResponse<SatCustomer>>(
+          `${this.baseUrl}/customers`,
+          {
+            headers: this.getHeaders(),
+            params: this.buildQueryParams(params),
+          },
+        ),
       ),
     );
 
@@ -255,10 +298,12 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug(`Fetching SAT customer ${id}`);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatCustomer>(`${this.baseUrl}/customers/${id}`, {
-        headers: this.getHeaders(),
-      }),
+    const response = await this.executeResilient('getCustomer', () =>
+      firstValueFrom(
+        this.httpService.get<SatCustomer>(`${this.baseUrl}/customers/${id}`, {
+          headers: this.getHeaders(),
+        }),
+      ),
     );
 
     return response.data;
@@ -273,10 +318,16 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.log('Creating SAT customer');
 
-    const response = await firstValueFrom(
-      this.httpService.post<SatCustomer>(`${this.baseUrl}/customers`, payload, {
-        headers: this.getHeaders(),
-      }),
+    const response = await this.executeResilient('createCustomer', () =>
+      firstValueFrom(
+        this.httpService.post<SatCustomer>(
+          `${this.baseUrl}/customers`,
+          payload,
+          {
+            headers: this.getHeaders(),
+          },
+        ),
+      ),
     );
 
     return response.data;
@@ -292,11 +343,13 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.log(`Updating SAT customer ${id}`);
 
-    const response = await firstValueFrom(
-      this.httpService.patch<SatCustomer>(
-        `${this.baseUrl}/customers/${id}`,
-        payload,
-        { headers: this.getHeaders() },
+    const response = await this.executeResilient('updateCustomer', () =>
+      firstValueFrom(
+        this.httpService.patch<SatCustomer>(
+          `${this.baseUrl}/customers/${id}`,
+          payload,
+          { headers: this.getHeaders() },
+        ),
       ),
     );
 
@@ -316,13 +369,15 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug('Fetching SAT products', params);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatPaginatedResponse<SatProduct>>(
-        `${this.baseUrl}/products`,
-        {
-          headers: this.getHeaders(),
-          params: this.buildQueryParams(params),
-        },
+    const response = await this.executeResilient('getProducts', () =>
+      firstValueFrom(
+        this.httpService.get<SatPaginatedResponse<SatProduct>>(
+          `${this.baseUrl}/products`,
+          {
+            headers: this.getHeaders(),
+            params: this.buildQueryParams(params),
+          },
+        ),
       ),
     );
 
@@ -336,10 +391,12 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug(`Fetching SAT product ${id}`);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatProduct>(`${this.baseUrl}/products/${id}`, {
-        headers: this.getHeaders(),
-      }),
+    const response = await this.executeResilient('getProduct', () =>
+      firstValueFrom(
+        this.httpService.get<SatProduct>(`${this.baseUrl}/products/${id}`, {
+          headers: this.getHeaders(),
+        }),
+      ),
     );
 
     return response.data;
@@ -365,13 +422,15 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug('Fetching SAT orders', params);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatPaginatedResponse<SatOrder>>(
-        `${this.baseUrl}/orders`,
-        {
-          headers: this.getHeaders(),
-          params: this.buildQueryParams(params),
-        },
+    const response = await this.executeResilient('getOrders', () =>
+      firstValueFrom(
+        this.httpService.get<SatPaginatedResponse<SatOrder>>(
+          `${this.baseUrl}/orders`,
+          {
+            headers: this.getHeaders(),
+            params: this.buildQueryParams(params),
+          },
+        ),
       ),
     );
 
@@ -385,10 +444,12 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug(`Fetching SAT order ${id}`);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatOrder>(`${this.baseUrl}/orders/${id}`, {
-        headers: this.getHeaders(),
-      }),
+    const response = await this.executeResilient('getOrder', () =>
+      firstValueFrom(
+        this.httpService.get<SatOrder>(`${this.baseUrl}/orders/${id}`, {
+          headers: this.getHeaders(),
+        }),
+      ),
     );
 
     return response.data;
@@ -401,10 +462,12 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.log('Creating SAT order');
 
-    const response = await firstValueFrom(
-      this.httpService.post<SatOrder>(`${this.baseUrl}/orders`, payload, {
-        headers: this.getHeaders(),
-      }),
+    const response = await this.executeResilient('createOrder', () =>
+      firstValueFrom(
+        this.httpService.post<SatOrder>(`${this.baseUrl}/orders`, payload, {
+          headers: this.getHeaders(),
+        }),
+      ),
     );
 
     return response.data;
@@ -417,11 +480,13 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.log(`Converting SAT quote ${quoteId} to order`);
 
-    const response = await firstValueFrom(
-      this.httpService.post<SatOrder>(
-        `${this.baseUrl}/orders/${quoteId}/convert`,
-        {},
-        { headers: this.getHeaders() },
+    const response = await this.executeResilient('convertQuoteToOrder', () =>
+      firstValueFrom(
+        this.httpService.post<SatOrder>(
+          `${this.baseUrl}/orders/${quoteId}/convert`,
+          {},
+          { headers: this.getHeaders() },
+        ),
       ),
     );
 
@@ -439,10 +504,12 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug(`Fetching payments for SAT invoice ${invoiceId}`);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatPayment[]>(
-        `${this.baseUrl}/invoices/${invoiceId}/payments`,
-        { headers: this.getHeaders() },
+    const response = await this.executeResilient('getInvoicePayments', () =>
+      firstValueFrom(
+        this.httpService.get<SatPayment[]>(
+          `${this.baseUrl}/invoices/${invoiceId}/payments`,
+          { headers: this.getHeaders() },
+        ),
       ),
     );
 
@@ -462,11 +529,13 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.log(`Recording payment for SAT invoice ${invoiceId}`);
 
-    const response = await firstValueFrom(
-      this.httpService.post<SatPayment>(
-        `${this.baseUrl}/invoices/${invoiceId}/payments`,
-        payment,
-        { headers: this.getHeaders() },
+    const response = await this.executeResilient('recordPayment', () =>
+      firstValueFrom(
+        this.httpService.post<SatPayment>(
+          `${this.baseUrl}/invoices/${invoiceId}/payments`,
+          payment,
+          { headers: this.getHeaders() },
+        ),
       ),
     );
 
@@ -487,13 +556,15 @@ export class SatApiClient {
     await this.ensureAuthenticated();
     this.logger.debug(`Fetching stock movements for product ${productId}`);
 
-    const response = await firstValueFrom(
-      this.httpService.get<SatPaginatedResponse<SatStockMovement>>(
-        `${this.baseUrl}/products/${productId}/stock-movements`,
-        {
-          headers: this.getHeaders(),
-          params: this.buildQueryParams(params),
-        },
+    const response = await this.executeResilient('getStockMovements', () =>
+      firstValueFrom(
+        this.httpService.get<SatPaginatedResponse<SatStockMovement>>(
+          `${this.baseUrl}/products/${productId}/stock-movements`,
+          {
+            headers: this.getHeaders(),
+            params: this.buildQueryParams(params),
+          },
+        ),
       ),
     );
 

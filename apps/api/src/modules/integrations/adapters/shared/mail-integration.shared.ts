@@ -101,20 +101,21 @@ export class MailSmtpProfileFactory {
       profile: 'zimbra' | 'outlook';
     },
   ): MailSmtpProfile | null {
-    const host = IntegrationValueSanitizer.normalizeString(config.smtpHost)
-      ?? IntegrationValueSanitizer.normalizeString(options.fallbackHost);
+    const host =
+      IntegrationValueSanitizer.normalizeString(config.smtpHost) ??
+      IntegrationValueSanitizer.normalizeString(options.fallbackHost);
     if (!host) {
       return null;
     }
 
     const port =
-      IntegrationValueSanitizer.normalizePort(config.smtpPort)
-      ?? options.fallbackPort
-      ?? MAIL_DEFAULTS.smtpPort;
+      IntegrationValueSanitizer.normalizePort(config.smtpPort) ??
+      options.fallbackPort ??
+      MAIL_DEFAULTS.smtpPort;
     const secure =
-      IntegrationValueSanitizer.normalizeBoolean(config.smtpSecure)
-      ?? options.fallbackSecure
-      ?? MAIL_DEFAULTS.smtpSecure;
+      IntegrationValueSanitizer.normalizeBoolean(config.smtpSecure) ??
+      options.fallbackSecure ??
+      MAIL_DEFAULTS.smtpSecure;
 
     return {
       host,

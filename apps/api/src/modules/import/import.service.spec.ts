@@ -133,9 +133,7 @@ describe('ImportService', () => {
   });
 
   it('skips duplicates when strategy is skip-duplicates', async () => {
-    mockProjectRepo.find.mockResolvedValue([
-      { _id: 'p1', code: 'PROJ-1' },
-    ]);
+    mockProjectRepo.find.mockResolvedValue([{ _id: 'p1', code: 'PROJ-1' }]);
     const json = JSON.stringify([
       { type: 'project', name: 'Proj 1', code: 'PROJ-1', status: 'active' },
       { type: 'task', title: 'Task 1', status: 'todo', priority: 3 },
@@ -155,9 +153,7 @@ describe('ImportService', () => {
   });
 
   it('updates duplicates when strategy is update-on-match', async () => {
-    mockProjectRepo.find.mockResolvedValue([
-      { _id: 'p1', code: 'PROJ-1' },
-    ]);
+    mockProjectRepo.find.mockResolvedValue([{ _id: 'p1', code: 'PROJ-1' }]);
     const json = JSON.stringify([
       {
         type: 'project',

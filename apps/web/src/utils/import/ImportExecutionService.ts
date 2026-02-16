@@ -1,7 +1,9 @@
 import ApiClientService from "../../services/ApiClientService";
 import AdminApiService from "../../services/AdminApiService";
 import type { ClientImportPayload } from "./blueprints/ClientImportBlueprint";
+import type { LeadImportPayload } from "./blueprints/LeadImportBlueprint";
 import type { ProjectImportPayload } from "./blueprints/ProjectImportBlueprint";
+import type { TaskImportPayload } from "./blueprints/TaskImportBlueprint";
 import type { UserImportPayload } from "./blueprints/UserImportBlueprint";
 import type { ImportEntityKind, ImportExecutionResult } from "./ImportTypes";
 
@@ -9,6 +11,8 @@ export interface ImportSubmitGateway {
   createClient(payload: ClientImportPayload): Promise<unknown>;
   createProject(payload: ProjectImportPayload): Promise<unknown>;
   createUser(payload: UserImportPayload): Promise<unknown>;
+  createTask(payload: TaskImportPayload): Promise<unknown>;
+  createLead(payload: LeadImportPayload): Promise<unknown>;
 }
 
 export class ApiImportSubmitGateway implements ImportSubmitGateway {
@@ -23,12 +27,22 @@ export class ApiImportSubmitGateway implements ImportSubmitGateway {
   async createUser(payload: UserImportPayload): Promise<unknown> {
     return AdminApiService.userCreate(payload);
   }
+
+  async createTask(payload: TaskImportPayload): Promise<unknown> {
+    return ApiClientService.tasks.create(payload as Record<string, unknown>);
+  }
+
+  async createLead(payload: LeadImportPayload): Promise<unknown> {
+    return ApiClientService.leads.create(payload as Record<string, unknown>);
+  }
 }
 
 type ImportPayloadByKind = {
   clients: ClientImportPayload;
   projects: ProjectImportPayload;
   users: UserImportPayload;
+  tasks: TaskImportPayload;
+  leads: LeadImportPayload;
 };
 
 export class ImportExecutionService {
@@ -51,6 +65,10 @@ export class ImportExecutionService {
           await this.gateway.createClient(payload as ClientImportPayload);
         } else if (kind === "projects") {
           await this.gateway.createProject(payload as ProjectImportPayload);
+        } else if (kind === "tasks") {
+          await this.gateway.createTask(payload as TaskImportPayload);
+        } else if (kind === "leads") {
+          await this.gateway.createLead(payload as LeadImportPayload);
         } else {
           await this.gateway.createUser(payload as UserImportPayload);
         }

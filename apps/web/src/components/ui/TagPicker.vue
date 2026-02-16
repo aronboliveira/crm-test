@@ -60,7 +60,7 @@ function remove(key: string) {
 </script>
 
 <template>
-  <div class="tag-picker" aria-label="Tag picker">
+  <div class="tag-picker" aria-label="Seletor de tags">
     <!-- selected tags -->
     <div class="flex flex-wrap gap-1 mb-1">
       <span
@@ -74,7 +74,7 @@ function remove(key: string) {
           type="button"
           class="ml-1 opacity-60 hover:opacity-100"
           @click="remove(tag.key)"
-          :aria-label="`Remove tag ${tag.label}`"
+          :aria-label="`Remover tag ${tag.label}`"
         >
           ×
         </button>
@@ -87,8 +87,8 @@ function remove(key: string) {
         v-model="search"
         class="tag-search-input"
         type="text"
-        placeholder="Add tag…"
-        aria-label="Search tags"
+        placeholder="Adicionar tag…"
+        aria-label="Buscar tags"
         autocomplete="off"
       />
       <ul v-if="search && filtered.length" class="tag-dropdown" role="listbox">

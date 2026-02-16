@@ -43,7 +43,7 @@ function safeStringifyMeta(meta: unknown): string {
   try {
     return meta ? JSON.stringify(meta) : "-";
   } catch {
-    return "[unserializable]";
+    return "[não serializável]";
   }
 }
 
@@ -122,12 +122,24 @@ export default function AdminAuditScreen() {
           stRef.current = effectiveState;
         }
 
-        const r = await AdminApiService.auditList({
-          q: effectiveState.q.trim() || undefined,
-          kind: effectiveState.kind.trim() || undefined,
-          cursor: effectiveState.cursor || undefined,
+        const query: {
+          q?: string;
+          kind?: string;
+          cursor?: string;
+          limit?: number;
+        } = {
           limit: effectiveState.limit,
-        });
+        };
+
+        const q = effectiveState.q.trim();
+        const kind = effectiveState.kind.trim();
+        const cursor = effectiveState.cursor || "";
+
+        if (q) query.q = q;
+        if (kind) query.kind = kind;
+        if (cursor) query.cursor = cursor;
+
+        const r = await AdminApiService.auditList(query);
 
         const newCursor = r.nextCursor || null;
 
@@ -141,7 +153,7 @@ export default function AdminAuditScreen() {
         await saveState(newState);
       } catch (e) {
         console.error("[AdminAuditScreen] load failed:", e);
-        await AlertService.error("Failed to load audit events", e);
+        await AlertService.error("Falha ao carregar eventos de auditoria", e);
       } finally {
         setBusy(false);
       }
@@ -173,8 +185,8 @@ export default function AdminAuditScreen() {
 
   if (!can) {
     return (
-      <View style={styles.denied} accessibilityLabel="Access denied">
-        <Text style={styles.deniedText}>Access denied.</Text>
+      <View style={styles.denied} accessibilityLabel="Acesso negado">
+        <Text style={styles.deniedText}>Acesso negado.</Text>
       </View>
     );
   }
@@ -192,25 +204,27 @@ export default function AdminAuditScreen() {
   ];
 
   return (
-    <View style={styles.root} accessibilityLabel="Admin audit">
+    <View style={styles.root} accessibilityLabel="Auditoria administrativa">
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleWrap}>
-          <Text style={styles.h1}>Audit</Text>
-          <Text style={styles.subtitle}>Authentication and admin events.</Text>
+          <Text style={styles.h1}>Auditoria</Text>
+          <Text style={styles.subtitle}>
+            Eventos de autenticação e administração.
+          </Text>
         </View>
 
         <View style={styles.filters}>
           <View style={styles.filterRow}>
             <View style={styles.field}>
-              <Text style={styles.label}>Search</Text>
+              <Text style={styles.label}>Busca</Text>
               <TextInput
                 value={st.q}
                 onChangeText={(v) => setSt((p) => ({ ...p, q: v }))}
-                placeholder="type full email (exact) or masked fragment (e.g. ad***@c***)"
+                placeholder="digite e-mail completo (exato) ou fragmento mascarado (ex.: ad***@c***)"
                 autoCapitalize="none"
                 autoCorrect={false}
-                accessibilityLabel="Search by email"
+                accessibilityLabel="Buscar por e-mail"
                 style={styles.input}
                 returnKeyType="search"
                 onSubmitEditing={() => void load(true)}
@@ -218,7 +232,7 @@ export default function AdminAuditScreen() {
             </View>
 
             <View style={[styles.field, styles.fieldRight]}>
-              <Text style={styles.label}>Kind</Text>
+              <Text style={styles.label}>Tipo</Text>
               <View style={styles.pickerWrap}>
                 <Picker
                   selectedValue={st.kind}
@@ -226,12 +240,12 @@ export default function AdminAuditScreen() {
                     setSt((p) => ({ ...p, kind: String(v) }));
                     void load(true);
                   }}
-                  accessibilityLabel="Kind filter"
+                  accessibilityLabel="Filtro por tipo"
                 >
                   {kinds.map((k) => (
                     <Picker.Item
                       key={k || "all"}
-                      label={k || "all"}
+                      label={k || "todos"}
                       value={k}
                     />
                   ))}
@@ -244,25 +258,29 @@ export default function AdminAuditScreen() {
             <Pressable
               onPress={() => void load(true)}
               disabled={busy}
-              accessibilityLabel="Refresh"
+              accessibilityLabel="Atualizar"
               style={({ pressed }) => [
                 styles.btnGhost,
                 busy && styles.btnDisabled,
                 pressed && styles.btnPressed,
               ]}
             >
-              <Text style={styles.btnText}>Refresh</Text>
+              <Text style={styles.btnText}>Atualizar</Text>
             </Pressable>
           </View>
         </View>
       </View>
 
       {/* List (table-like) */}
-      <View style={styles.card} accessibilityLabel="Audit table" role="region">
+      <View
+        style={styles.card}
+        accessibilityLabel="Tabela de auditoria"
+        role="region"
+      >
         {busy ? (
           <View style={styles.busyRow}>
             <ActivityIndicator />
-            <Text style={styles.busyText}>Loading…</Text>
+            <Text style={styles.busyText}>Carregando…</Text>
           </View>
         ) : null}
 
@@ -270,10 +288,10 @@ export default function AdminAuditScreen() {
           <View style={styles.table}>
             {/* Header row */}
             <View style={[styles.tr, styles.thRow]}>
-              <Text style={[styles.th, styles.colAt]}>At</Text>
-              <Text style={[styles.th, styles.colKind]}>Kind</Text>
-              <Text style={[styles.th, styles.colActor]}>Actor</Text>
-              <Text style={[styles.th, styles.colTarget]}>Target</Text>
+              <Text style={[styles.th, styles.colAt]}>Em</Text>
+              <Text style={[styles.th, styles.colKind]}>Tipo</Text>
+              <Text style={[styles.th, styles.colActor]}>Ator</Text>
+              <Text style={[styles.th, styles.colTarget]}>Alvo</Text>
               <Text style={[styles.th, styles.colMeta]}>Meta</Text>
             </View>
 
@@ -321,7 +339,7 @@ export default function AdminAuditScreen() {
               ListEmptyComponent={
                 !busy ? (
                   <View style={styles.empty}>
-                    <Text style={styles.emptyText}>No events.</Text>
+                    <Text style={styles.emptyText}>Nenhum evento.</Text>
                   </View>
                 ) : null
               }
@@ -335,14 +353,14 @@ export default function AdminAuditScreen() {
         <Pressable
           onPress={() => void load(false)}
           disabled={busy || !nextCursor}
-          accessibilityLabel="Load more"
+          accessibilityLabel="Carregar mais"
           style={({ pressed }) => [
             styles.btnPrimary,
             (busy || !nextCursor) && styles.btnDisabled,
             pressed && styles.btnPressed,
           ]}
         >
-          <Text style={styles.btnText}>Load more</Text>
+          <Text style={styles.btnText}>Carregar mais</Text>
         </Pressable>
       </View>
     </View>

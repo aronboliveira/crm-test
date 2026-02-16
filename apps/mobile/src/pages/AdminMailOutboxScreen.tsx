@@ -37,7 +37,7 @@ function safeJsonPretty(v: unknown): string {
   try {
     return v ? JSON.stringify(v, null, 2) : "-";
   } catch {
-    return "[unserializable]";
+    return "[não serializável]";
   }
 }
 
@@ -84,19 +84,31 @@ export default function AdminMailOutboxScreen() {
         stRef.current = effectiveState;
       }
 
-      const r = await AdminApiService.mailOutboxList({
-        q: effectiveState.q || undefined,
-        kind: effectiveState.kind || undefined,
-        cursor: effectiveState.cursor || undefined,
+      const query: {
+        q?: string;
+        kind?: string;
+        cursor?: string;
+        limit?: number;
+      } = {
         limit: effectiveState.limit,
-      });
+      };
+
+      const q = effectiveState.q.trim();
+      const kind = effectiveState.kind.trim();
+      const cursor = effectiveState.cursor.trim();
+
+      if (q) query.q = q;
+      if (kind) query.kind = kind;
+      if (cursor) query.cursor = cursor;
+
+      const r = await AdminApiService.mailOutboxList(query);
 
       const rows = Array.isArray(r?.items) ? r.items : [];
       setItems((prev) => (reset ? rows : [...prev, ...rows]));
       setNextCursor(r?.nextCursor || null);
     } catch (e) {
       console.error("[AdminMailOutboxScreen] load failed:", e);
-      await AlertService.error("Failed to load outbox", e);
+      await AlertService.error("Falha ao carregar caixa de saída", e);
     } finally {
       setBusy(false);
     }
@@ -132,7 +144,7 @@ export default function AdminMailOutboxScreen() {
       setSelectedOpen(true);
     } catch (e) {
       console.error("[AdminMailOutboxScreen] openRow failed:", e);
-      await AlertService.error("Failed to read message", e);
+      await AlertService.error("Falha ao abrir mensagem", e);
     }
   }, []);
 
@@ -153,13 +165,14 @@ export default function AdminMailOutboxScreen() {
   const kinds = useMemo(() => ["", "password_invite", "generic"], []);
 
   return (
-    <View style={styles.root} accessibilityLabel="Mock Mail Outbox">
+    <View style={styles.root} accessibilityLabel="Caixa de saída mock">
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleWrap}>
-          <Text style={styles.h1}>Mock Mail Outbox</Text>
+          <Text style={styles.h1}>Caixa de saída mock</Text>
           <Text style={styles.subtitle}>
-            Messages written by the mock gateway (use to copy reset URLs).
+            Mensagens gravadas pelo gateway mock (use para copiar URLs de
+            redefinição).
           </Text>
         </View>
 
@@ -167,8 +180,8 @@ export default function AdminMailOutboxScreen() {
           <TextInput
             value={st.q}
             onChangeText={(v) => setSt((p) => ({ ...p, q: v }))}
-            placeholder="search by email/subject"
-            accessibilityLabel="Search mail outbox"
+            placeholder="buscar por e-mail/assunto"
+            accessibilityLabel="Buscar na caixa de saída"
             autoCapitalize="none"
             autoCorrect={false}
             style={[styles.input, styles.inputWide]}
@@ -189,10 +202,10 @@ export default function AdminMailOutboxScreen() {
                 stRef.current = newState;
                 void load(true);
               }}
-              accessibilityLabel="Filter by kind"
+              accessibilityLabel="Filtrar por tipo"
             >
               {kinds.map((k) => (
-                <Picker.Item key={k || "all"} label={k || "all"} value={k} />
+                <Picker.Item key={k || "all"} label={k || "todos"} value={k} />
               ))}
             </Picker>
           </View>
@@ -200,35 +213,39 @@ export default function AdminMailOutboxScreen() {
           <Pressable
             onPress={() => void load(true)}
             disabled={busy}
-            accessibilityLabel="Reload"
+            accessibilityLabel="Recarregar"
             style={({ pressed }) => [
               styles.btnPrimary,
               busy && styles.btnDisabled,
               pressed && styles.btnPressed,
             ]}
           >
-            <Text style={styles.btnText}>Reload</Text>
+            <Text style={styles.btnText}>Recarregar</Text>
           </Pressable>
         </View>
       </View>
 
       {/* Card + "table" */}
-      <View style={styles.card} accessibilityLabel="Outbox table" role="region">
+      <View
+        style={styles.card}
+        accessibilityLabel="Tabela da caixa de saída"
+        role="region"
+      >
         {busy ? (
           <View style={styles.busyRow}>
             <ActivityIndicator />
-            <Text style={styles.busyText}>Loading…</Text>
+            <Text style={styles.busyText}>Carregando…</Text>
           </View>
         ) : null}
 
         <ScrollView horizontal contentContainerStyle={styles.tableMinWidth}>
           <View style={styles.table}>
             <View style={[styles.tr, styles.thRow]}>
-              <Text style={[styles.th, styles.colAt]}>At</Text>
-              <Text style={[styles.th, styles.colTo]}>To</Text>
-              <Text style={[styles.th, styles.colKind]}>Kind</Text>
-              <Text style={[styles.th, styles.colSubject]}>Subject</Text>
-              <Text style={[styles.th, styles.colActions]}>Actions</Text>
+              <Text style={[styles.th, styles.colAt]}>Em</Text>
+              <Text style={[styles.th, styles.colTo]}>Para</Text>
+              <Text style={[styles.th, styles.colKind]}>Tipo</Text>
+              <Text style={[styles.th, styles.colSubject]}>Assunto</Text>
+              <Text style={[styles.th, styles.colActions]}>Ações</Text>
             </View>
 
             {items.map((m) => {
@@ -259,13 +276,13 @@ export default function AdminMailOutboxScreen() {
                   <View style={[styles.td, styles.colActions]}>
                     <Pressable
                       onPress={() => void openRow(m)}
-                      accessibilityLabel="Open message"
+                      accessibilityLabel="Abrir mensagem"
                       style={({ pressed }) => [
                         styles.btnGhostSm,
                         pressed && styles.btnPressed,
                       ]}
                     >
-                      <Text style={styles.btnText}>Open</Text>
+                      <Text style={styles.btnText}>Abrir</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -274,7 +291,7 @@ export default function AdminMailOutboxScreen() {
 
             {!items.length && !busy ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>No messages.</Text>
+                <Text style={styles.emptyText}>Nenhuma mensagem.</Text>
               </View>
             ) : null}
           </View>
@@ -286,14 +303,14 @@ export default function AdminMailOutboxScreen() {
         <Pressable
           onPress={() => void more()}
           disabled={!nextCursor || busy}
-          accessibilityLabel="Load more"
+          accessibilityLabel="Carregar mais"
           style={({ pressed }) => [
             styles.btnGhost,
             (!nextCursor || busy) && styles.btnDisabled,
             pressed && styles.btnPressed,
           ]}
         >
-          <Text style={styles.btnText}>Load more</Text>
+          <Text style={styles.btnText}>Carregar mais</Text>
         </Pressable>
       </View>
 
@@ -308,7 +325,7 @@ export default function AdminMailOutboxScreen() {
         <Pressable
           style={styles.overlay}
           onPress={close}
-          accessibilityLabel="Message details"
+          accessibilityLabel="Detalhes da mensagem"
         >
           <Animated.View
             style={[
@@ -332,7 +349,7 @@ export default function AdminMailOutboxScreen() {
             >
               <View style={styles.modalHead}>
                 <View style={styles.modalTitleWrap}>
-                  <Text style={styles.h2}>Message</Text>
+                  <Text style={styles.h2}>Mensagem</Text>
                   <Text style={styles.modalSubtitle} numberOfLines={2}>
                     {String(selected?.to ?? "-")} ·{" "}
                     {String(selected?.subject ?? "-")}
@@ -341,16 +358,16 @@ export default function AdminMailOutboxScreen() {
 
                 <Pressable
                   onPress={close}
-                  accessibilityLabel="Close"
+                  accessibilityLabel="Fechar"
                   style={styles.btnGhost}
                 >
-                  <Text style={styles.btnText}>Close</Text>
+                  <Text style={styles.btnText}>Fechar</Text>
                 </Pressable>
               </View>
 
               <View style={styles.modalBody}>
                 <View style={styles.block}>
-                  <Text style={styles.blockLabel}>Text</Text>
+                  <Text style={styles.blockLabel}>Texto</Text>
                   <ScrollView
                     style={styles.pre}
                     contentContainerStyle={styles.preInner}

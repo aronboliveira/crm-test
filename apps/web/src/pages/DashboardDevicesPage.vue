@@ -1,12 +1,25 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import BarChart from "../components/charts/BarChart.vue";
 import DonutChart from "../components/charts/DonutChart.vue";
+import { useAuthStore } from "../pinia/stores/auth.store";
 import { useDashboardDevicesPage } from "../assets/scripts/pages/useDashboardDevicesPage";
 import DeviceAnalyticsService from "../services/DeviceAnalyticsService";
 import ApiClientService from "../services/ApiClientService";
 import DeviceQueryStateService from "../services/DeviceQueryStateService";
+import DevicesCustomerCriteriaService, {
+  DEVICES_CUSTOMER_CRITERIA_UPDATED_EVENT,
+  type CustomerDeviceCriteria,
+} from "../services/DevicesCustomerCriteriaService";
 import SmartAutocompleteService from "../services/SmartAutocompleteService";
 import AlertService from "../services/AlertService";
 import FormValidationStateService from "../services/FormValidationStateService";
@@ -36,6 +49,7 @@ import type {
 const DashboardTableExportModal = defineAsyncComponent(
   () => import("../components/dashboard/DashboardTableExportModal.vue"),
 );
+const authStore = useAuthStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -67,6 +81,9 @@ const tagsInput = ref("");
 const analyticsLoading = ref(false);
 const analyticsError = ref<string | null>(null);
 const analyticsSnapshot = ref<DeviceAnalyticsResponse | null>(null);
+const customerCriteria = ref<CustomerDeviceCriteria>(
+  DevicesCustomerCriteriaService.load(),
+);
 const exporting = ref(false);
 let analyticsRequestSequence = 0;
 const ANALYTICS_DAYS_WINDOW = 30;
@@ -153,7 +170,9 @@ const modelSuggestions = ref<string[]>([]);
 const hostSuggestions = ref<string[]>([]);
 const serialSuggestions = ref<string[]>([]);
 
-const searchAutocomplete = new SmartAutocompleteService("devices-filter-search");
+const searchAutocomplete = new SmartAutocompleteService(
+  "devices-filter-search",
+);
 const nameAutocomplete = new SmartAutocompleteService("devices-form-name");
 const vendorAutocomplete = new SmartAutocompleteService("devices-form-vendor");
 const modelAutocomplete = new SmartAutocompleteService("devices-form-model");
@@ -200,7 +219,10 @@ const buildBaseFilterQuery = (): Pick<
 });
 
 const requestAnalyticsSnapshot = async (
-  query: Pick<DeviceAnalyticsQuery, "q" | "status" | "kind"> = buildBaseFilterQuery(),
+  query: Pick<
+    DeviceAnalyticsQuery,
+    "q" | "status" | "kind"
+  > = buildBaseFilterQuery(),
 ): Promise<void> => {
   const requestId = analyticsRequestSequence + 1;
   analyticsRequestSequence = requestId;
@@ -302,8 +324,18 @@ const syncRouteQuery = (): void => {
   }
   const nextQuery = DeviceQueryStateService.toQuery(state);
   void router.replace({ query: nextQuery }).catch((caughtError) => {
-    console.error("[DashboardDevicesPage] failed to sync route query:", caughtError);
+    console.error(
+      "[DashboardDevicesPage] failed to sync route query:",
+      caughtError,
+    );
   });
+};
+
+const handleCustomerCriteriaUpdated = (event: Event): void => {
+  const customEvent = event as CustomEvent<CustomerDeviceCriteria>;
+  customerCriteria.value = DevicesCustomerCriteriaService.save(
+    customEvent.detail,
+  );
 };
 
 onBeforeUnmount(() => {
@@ -315,6 +347,12 @@ onBeforeUnmount(() => {
   modelAutocomplete.cancel();
   hostAutocomplete.cancel();
   serialAutocomplete.cancel();
+  if (typeof window !== "undefined") {
+    window.removeEventListener(
+      DEVICES_CUSTOMER_CRITERIA_UPDATED_EVENT,
+      handleCustomerCriteriaUpdated,
+    );
+  }
 });
 
 const handleSearchInput = (): void => {
@@ -353,8 +391,7 @@ const goToNextPage = (): void => {
   page.value += 1;
   requestServerList();
 };
-const handleNameInput = (): void =>
-{
+const handleNameInput = (): void => {
   formValidation.handleInput("name", form.name);
   updateSmartSuggestions(form.name, nameAutocomplete, nameSuggestions);
 };
@@ -433,7 +470,9 @@ const chartDatasetTotal = computed(() =>
 );
 const statusChartSlices = computed(() =>
   analyticsSnapshot.value
-    ? DeviceAnalyticsService.statusSlicesFromTotals(analyticsSnapshot.value.status)
+    ? DeviceAnalyticsService.statusSlicesFromTotals(
+        analyticsSnapshot.value.status,
+      )
     : DeviceAnalyticsService.statusSlices(chartRows.value),
 );
 const kindChartSlices = computed(() =>
@@ -455,7 +494,10 @@ const operatingSystemChartBars = computed(() =>
         analyticsSnapshot.value.topOperatingSystems,
         DeviceAnalyticsService.osPalette(),
       )
-    : DeviceAnalyticsService.topOperatingSystems(chartRows.value, ANALYTICS_TOP_LIMIT),
+    : DeviceAnalyticsService.topOperatingSystems(
+        chartRows.value,
+        ANALYTICS_TOP_LIMIT,
+      ),
 );
 const tagChartBars = computed(() =>
   analyticsSnapshot.value
@@ -470,17 +512,94 @@ const activityChartBars = computed(() =>
     ? DeviceAnalyticsService.activityByDayFromSeries(
         analyticsSnapshot.value.activityByDay,
       )
-    : DeviceAnalyticsService.activityByDay(chartRows.value, ANALYTICS_DAYS_WINDOW),
+    : DeviceAnalyticsService.activityByDay(
+        chartRows.value,
+        ANALYTICS_DAYS_WINDOW,
+      ),
 );
-const hasChartData = computed(() =>
-  chartDatasetTotal.value > 0 || chartRows.value.length > 0,
+const hasChartData = computed(
+  () => chartDatasetTotal.value > 0 || chartRows.value.length > 0,
 );
-const shouldRenderActivityTrend = computed(
-  () =>
-    DeviceAnalyticsService.shouldRenderTrend(activityChartBars.value, {
-      minBars: 10,
-      minNonZeroBars: 5,
-    }),
+const userEmail = computed(() => {
+  const email = authStore.me?.email;
+  return typeof email === "string" ? email.trim().toLowerCase() : "";
+});
+
+const userEmailDomain = computed(() => {
+  const email = userEmail.value;
+  const atIndex = email.indexOf("@");
+  if (atIndex <= 0 || atIndex >= email.length - 1) {
+    return "";
+  }
+  return email.slice(atIndex + 1);
+});
+
+const customerCriteriaLabel = computed(() => {
+  const option = DevicesCustomerCriteriaService.options().find(
+    (item) => item.value === customerCriteria.value,
+  );
+  return option?.label ?? "Mesmo domínio de e-mail";
+});
+
+const customerRows = computed<DeviceRow[]>(() => {
+  const sourceRows = rows.value;
+  const currentEmail = userEmail.value;
+  const domain = userEmailDomain.value;
+
+  if (!sourceRows.length || !currentEmail) {
+    return [];
+  }
+
+  if (customerCriteria.value === "exclude-self") {
+    return sourceRows.filter((row) => row.ownerEmail !== currentEmail);
+  }
+
+  if (!domain) {
+    return [];
+  }
+
+  return sourceRows.filter((row) => {
+    const ownerEmail = String(row.ownerEmail || "")
+      .trim()
+      .toLowerCase();
+    const ownerDomain = ownerEmail.includes("@")
+      ? ownerEmail.slice(ownerEmail.indexOf("@") + 1)
+      : "";
+    return ownerDomain === domain;
+  });
+});
+
+const customerStats = computed(() => {
+  const subset = customerRows.value;
+  const total = subset.length;
+  const online = subset.filter((row) => row.status === "online").length;
+  const virtual = subset.filter((row) => row.kind === "virtual").length;
+  return {
+    total,
+    online,
+    virtual,
+    physical: Math.max(0, total - virtual),
+  };
+});
+
+const customerStatusChartSlices = computed(() =>
+  DeviceAnalyticsService.statusSlices(customerRows.value),
+);
+
+const customerKindChartSlices = computed(() =>
+  DeviceAnalyticsService.kindSlices(customerRows.value),
+);
+
+const customerVendorChartBars = computed(() =>
+  DeviceAnalyticsService.topVendors(customerRows.value, ANALYTICS_TOP_LIMIT),
+);
+
+const customerRowsPreview = computed(() => customerRows.value.slice(0, 12));
+const shouldRenderActivityTrend = computed(() =>
+  DeviceAnalyticsService.shouldRenderTrend(activityChartBars.value, {
+    minBars: 10,
+    minNonZeroBars: 5,
+  }),
 );
 
 watch(storePage, (value) => {
@@ -501,12 +620,9 @@ watch(totalItems, () => {
   }
 });
 
-watch(
-  [q, statusFilter, kindFilter, page, pageSize, sortBy, sortDir],
-  () => {
-    syncRouteQuery();
-  },
-);
+watch([q, statusFilter, kindFilter, page, pageSize, sortBy, sortDir], () => {
+  syncRouteQuery();
+});
 
 watch(
   () => route.query,
@@ -519,6 +635,12 @@ watch(
 );
 
 onMounted(() => {
+  if (typeof window !== "undefined") {
+    window.addEventListener(
+      DEVICES_CUSTOMER_CRITERIA_UPDATED_EVENT,
+      handleCustomerCriteriaUpdated,
+    );
+  }
   applyRouteState(route.query);
   syncRouteQuery();
   requestServerList(0, true);
@@ -560,16 +682,20 @@ const normalizeExportRow = (item: any, index: number): DeviceRow | null => {
   }
 
   const rawId = item.id ?? item._id;
-  const id = typeof rawId === "string"
-    ? rawId
-    : rawId && typeof rawId.toString === "function"
-      ? String(rawId.toString())
-      : `export-device-${index}`;
+  const id =
+    typeof rawId === "string"
+      ? rawId
+      : rawId && typeof rawId.toString === "function"
+        ? String(rawId.toString())
+        : `export-device-${index}`;
 
   const kind = item.kind === "virtual" ? "virtual" : "physical";
-  const status = item.status === "online" || item.status === "maintenance" || item.status === "offline"
-    ? item.status
-    : "offline";
+  const status =
+    item.status === "online" ||
+    item.status === "maintenance" ||
+    item.status === "offline"
+      ? item.status
+      : "offline";
 
   return {
     id,
@@ -578,17 +704,20 @@ const normalizeExportRow = (item: any, index: number): DeviceRow | null => {
     kind,
     vendor: typeof item.vendor === "string" ? item.vendor : undefined,
     model: typeof item.model === "string" ? item.model : undefined,
-    operatingSystem: typeof item.operatingSystem === "string"
-      ? item.operatingSystem
-      : undefined,
+    operatingSystem:
+      typeof item.operatingSystem === "string"
+        ? item.operatingSystem
+        : undefined,
     host: typeof item.host === "string" ? item.host : undefined,
     ipAddress: typeof item.ipAddress === "string" ? item.ipAddress : undefined,
-    serialNumber: typeof item.serialNumber === "string" ? item.serialNumber : undefined,
+    serialNumber:
+      typeof item.serialNumber === "string" ? item.serialNumber : undefined,
     status,
     tags: Array.isArray(item.tags)
       ? item.tags.filter((entry: unknown) => typeof entry === "string")
       : [],
-    lastSeenAt: typeof item.lastSeenAt === "string" ? item.lastSeenAt : undefined,
+    lastSeenAt:
+      typeof item.lastSeenAt === "string" ? item.lastSeenAt : undefined,
     createdAt: String(item.createdAt || ""),
     updatedAt: String(item.updatedAt || ""),
   };
@@ -604,7 +733,9 @@ const fetchAllFilteredRowsForExport = async (): Promise<DeviceRow[]> => {
     sortDir: sortDir.value,
   });
 
-  const rawRows: any[] = Array.isArray(firstPage?.items) ? [...firstPage.items] : [];
+  const rawRows: any[] = Array.isArray(firstPage?.items)
+    ? [...firstPage.items]
+    : [];
   const total = Number.isFinite(firstPage?.total)
     ? Math.max(0, Math.trunc(Number(firstPage.total)))
     : rawRows.length;
@@ -640,7 +771,9 @@ const fetchAllFilteredRowsForExport = async (): Promise<DeviceRow[]> => {
   return [...byId.values()];
 };
 
-const buildExportRows = (sourceRows: readonly DeviceRow[]): DashboardDevicesExportRow[] =>
+const buildExportRows = (
+  sourceRows: readonly DeviceRow[],
+): DashboardDevicesExportRow[] =>
   sourceRows.map((row) => ({
     nome: toExportValue(row.name),
     tipo: kindLabelMap[row.kind] || EMPTY_EXPORT_VALUE,
@@ -651,9 +784,10 @@ const buildExportRows = (sourceRows: readonly DeviceRow[]): DashboardDevicesExpo
     host: toExportValue(row.host),
     ip: toExportValue(row.ipAddress),
     serial: toExportValue(row.serialNumber),
-    tags: Array.isArray(row.tags) && row.tags.length
-      ? row.tags.join(", ")
-      : EMPTY_EXPORT_VALUE,
+    tags:
+      Array.isArray(row.tags) && row.tags.length
+        ? row.tags.join(", ")
+        : EMPTY_EXPORT_VALUE,
     ultimaAtividade: prettyDate(row.lastSeenAt || row.updatedAt),
   }));
 
@@ -723,7 +857,10 @@ const submitForm = async (): Promise<void> => {
   const payload = toPayload();
   if (!payload.name) {
     formValidation.markSubmitted();
-    await AlertService.error("Validação", "O nome do dispositivo é obrigatório.");
+    await AlertService.error(
+      "Validação",
+      "O nome do dispositivo é obrigatório.",
+    );
     return;
   }
   try {
@@ -800,7 +937,12 @@ const refreshList = (): void => {
         </p>
       </div>
       <div class="devices-header__actions">
-        <button class="btn btn-ghost" type="button" :disabled="loading" @click="refreshList">
+        <button
+          class="btn btn-ghost"
+          type="button"
+          :disabled="loading"
+          @click="refreshList"
+        >
           Recarregar
         </button>
         <button
@@ -834,10 +976,15 @@ const refreshList = (): void => {
     </section>
 
     <section class="devices-charts" aria-label="Gráficos dos dispositivos">
-      <article class="card devices-chart-card" aria-label="Distribuição por status">
+      <article
+        class="card devices-chart-card"
+        aria-label="Distribuição por status"
+      >
         <header class="devices-chart-card__head">
           <h2 class="text-lg font-bold">Status no Filtro</h2>
-          <span class="devices-chart-card__meta">{{ chartDatasetTotal }} itens</span>
+          <span class="devices-chart-card__meta"
+            >{{ chartDatasetTotal }} itens</span
+          >
         </header>
         <DonutChart
           v-if="hasChartData && statusChartSlices.length"
@@ -852,7 +999,10 @@ const refreshList = (): void => {
         </p>
       </article>
 
-      <article class="card devices-chart-card" aria-label="Distribuição por tipo">
+      <article
+        class="card devices-chart-card"
+        aria-label="Distribuição por tipo"
+      >
         <header class="devices-chart-card__head">
           <h2 class="text-lg font-bold">Tipos de Dispositivo</h2>
           <span class="devices-chart-card__meta">Físico x Virtual</span>
@@ -870,10 +1020,15 @@ const refreshList = (): void => {
         </p>
       </article>
 
-      <article class="card devices-chart-card devices-chart-card--ranking" aria-label="Fabricantes mais usados">
+      <article
+        class="card devices-chart-card devices-chart-card--ranking"
+        aria-label="Fabricantes mais usados"
+      >
         <header class="devices-chart-card__head">
           <h2 class="text-lg font-bold">Fabricantes Mais Registrados</h2>
-          <span class="devices-chart-card__meta">Top {{ ANALYTICS_TOP_LIMIT }} no filtro</span>
+          <span class="devices-chart-card__meta"
+            >Top {{ ANALYTICS_TOP_LIMIT }} no filtro</span
+          >
         </header>
         <BarChart
           v-if="hasChartData && vendorChartBars.length"
@@ -889,10 +1044,15 @@ const refreshList = (): void => {
         </p>
       </article>
 
-      <article class="card devices-chart-card devices-chart-card--ranking" aria-label="Sistemas operacionais mais usados">
+      <article
+        class="card devices-chart-card devices-chart-card--ranking"
+        aria-label="Sistemas operacionais mais usados"
+      >
         <header class="devices-chart-card__head">
           <h2 class="text-lg font-bold">Sistemas Operacionais</h2>
-          <span class="devices-chart-card__meta">Top {{ ANALYTICS_TOP_LIMIT }} no filtro</span>
+          <span class="devices-chart-card__meta"
+            >Top {{ ANALYTICS_TOP_LIMIT }} no filtro</span
+          >
         </header>
         <BarChart
           v-if="hasChartData && operatingSystemChartBars.length"
@@ -908,10 +1068,15 @@ const refreshList = (): void => {
         </p>
       </article>
 
-      <article class="card devices-chart-card devices-chart-card--ranking" aria-label="Tags mais frequentes">
+      <article
+        class="card devices-chart-card devices-chart-card--ranking"
+        aria-label="Tags mais frequentes"
+      >
         <header class="devices-chart-card__head">
           <h2 class="text-lg font-bold">Tags Mais Frequentes</h2>
-          <span class="devices-chart-card__meta">Top {{ ANALYTICS_TOP_LIMIT }} no filtro</span>
+          <span class="devices-chart-card__meta"
+            >Top {{ ANALYTICS_TOP_LIMIT }} no filtro</span
+          >
         </header>
         <BarChart
           v-if="hasChartData && tagChartBars.length"
@@ -927,10 +1092,16 @@ const refreshList = (): void => {
         </p>
       </article>
 
-      <article class="card devices-chart-card devices-chart-card--wide devices-chart-card--activity">
+      <article
+        class="card devices-chart-card devices-chart-card--wide devices-chart-card--activity"
+      >
         <header class="devices-chart-card__head">
-          <h2 class="text-lg font-bold">Atividade nos Últimos {{ ANALYTICS_DAYS_WINDOW }} Dias</h2>
-          <span class="devices-chart-card__meta">Com base em ultimo update/seen</span>
+          <h2 class="text-lg font-bold">
+            Atividade nos Últimos {{ ANALYTICS_DAYS_WINDOW }} Dias
+          </h2>
+          <span class="devices-chart-card__meta"
+            >Com base em ultimo update/seen</span
+          >
         </header>
         <BarChart
           v-if="hasChartData && activityChartBars.length"
@@ -984,7 +1155,11 @@ const refreshList = (): void => {
 
           <label class="devices-field">
             <span class="devices-label">Status</span>
-            <select v-model="statusFilter" class="table-search-input" @change="handleFilterChange">
+            <select
+              v-model="statusFilter"
+              class="table-search-input"
+              @change="handleFilterChange"
+            >
               <option value="all">Todos</option>
               <option value="online">Online</option>
               <option value="offline">Offline</option>
@@ -994,7 +1169,11 @@ const refreshList = (): void => {
 
           <label class="devices-field">
             <span class="devices-label">Tipo</span>
-            <select v-model="kindFilter" class="table-search-input" @change="handleFilterChange">
+            <select
+              v-model="kindFilter"
+              class="table-search-input"
+              @change="handleFilterChange"
+            >
               <option value="all">Todos</option>
               <option value="physical">Físico</option>
               <option value="virtual">Virtual</option>
@@ -1004,7 +1183,10 @@ const refreshList = (): void => {
       </fieldset>
     </section>
 
-    <section class="card devices-form-card" aria-label="Formulário de dispositivo">
+    <section
+      class="card devices-form-card"
+      aria-label="Formulário de dispositivo"
+    >
       <header class="devices-form-card__head">
         <h2 class="text-lg font-bold">
           {{ editingId ? "Editar dispositivo" : "Novo dispositivo" }}
@@ -1192,7 +1374,10 @@ const refreshList = (): void => {
       </form>
     </section>
 
-    <section class="card devices-table-card" aria-label="Tabela de dispositivos">
+    <section
+      class="card devices-table-card"
+      aria-label="Tabela de dispositivos"
+    >
       <header class="devices-table-card__head">
         <h2 class="text-lg font-bold">Dispositivos registrados</h2>
         <div class="devices-table-summary">
@@ -1208,7 +1393,11 @@ const refreshList = (): void => {
       <div class="devices-table-controls">
         <label class="devices-field">
           <span class="devices-label">Ordenar por</span>
-          <select v-model="sortBy" class="table-search-input" @change="handleSortChange">
+          <select
+            v-model="sortBy"
+            class="table-search-input"
+            @change="handleSortChange"
+          >
             <option value="updatedAt">Atualização</option>
             <option value="lastSeenAt">Último acesso</option>
             <option value="name">Nome</option>
@@ -1220,7 +1409,11 @@ const refreshList = (): void => {
 
         <label class="devices-field">
           <span class="devices-label">Direção</span>
-          <select v-model="sortDir" class="table-search-input" @change="handleSortChange">
+          <select
+            v-model="sortDir"
+            class="table-search-input"
+            @change="handleSortChange"
+          >
             <option value="desc">Mais recente</option>
             <option value="asc">Mais antigo</option>
           </select>
@@ -1228,14 +1421,22 @@ const refreshList = (): void => {
 
         <label class="devices-field">
           <span class="devices-label">Itens por página</span>
-          <select v-model.number="pageSize" class="table-search-input" @change="handlePageSizeChange">
+          <select
+            v-model.number="pageSize"
+            class="table-search-input"
+            @change="handlePageSizeChange"
+          >
             <option :value="10">10</option>
             <option :value="20">20</option>
             <option :value="50">50</option>
           </select>
         </label>
 
-        <div class="devices-pagination" role="navigation" aria-label="Paginação de dispositivos">
+        <div
+          class="devices-pagination"
+          role="navigation"
+          aria-label="Paginação de dispositivos"
+        >
           <button
             class="btn btn-ghost btn-sm"
             type="button"
@@ -1256,7 +1457,11 @@ const refreshList = (): void => {
         </div>
       </div>
 
-      <div class="devices-table-wrap" role="region" aria-label="Lista de dispositivos">
+      <div
+        class="devices-table-wrap"
+        role="region"
+        aria-label="Lista de dispositivos"
+      >
         <table class="devices-table" role="table" aria-label="Dispositivos">
           <thead>
             <tr>
@@ -1290,10 +1495,18 @@ const refreshList = (): void => {
               </td>
               <td>{{ prettyDate(row.lastSeenAt || row.updatedAt) }}</td>
               <td class="devices-actions">
-                <button class="btn btn-ghost btn-sm" type="button" @click="startEdit(row)">
+                <button
+                  class="btn btn-ghost btn-sm"
+                  type="button"
+                  @click="startEdit(row)"
+                >
                   Editar
                 </button>
-                <button class="btn btn-ghost btn-sm" type="button" @click="removeRow(row)">
+                <button
+                  class="btn btn-ghost btn-sm"
+                  type="button"
+                  @click="removeRow(row)"
+                >
                   Excluir
                 </button>
               </td>
@@ -1302,6 +1515,153 @@ const refreshList = (): void => {
             <tr v-if="!loading && !rows.length">
               <td colspan="7" class="devices-empty">
                 Nenhum dispositivo encontrado para os filtros atuais.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section
+      class="card devices-customers"
+      aria-label="Dispositivos de clientes"
+      data-testid="devices-customers-section"
+    >
+      <header class="devices-customers__head">
+        <div class="grid gap-1">
+          <h2 class="text-lg font-bold">Dispositivos de clientes</h2>
+          <p class="opacity-70">
+            Critério atual: <strong>{{ customerCriteriaLabel }}</strong>
+          </p>
+        </div>
+        <RouterLink class="btn btn-ghost btn-sm" to="/dashboard/settings">
+          Configurar critério
+        </RouterLink>
+      </header>
+
+      <section
+        class="devices-customers__stats"
+        aria-label="Resumo de dispositivos de clientes"
+      >
+        <article class="devices-customer-stat">
+          <span class="devices-customer-stat__label">Total</span>
+          <strong class="devices-customer-stat__value">{{
+            customerStats.total
+          }}</strong>
+        </article>
+        <article class="devices-customer-stat">
+          <span class="devices-customer-stat__label">Online</span>
+          <strong class="devices-customer-stat__value">{{
+            customerStats.online
+          }}</strong>
+        </article>
+        <article class="devices-customer-stat">
+          <span class="devices-customer-stat__label">Virtuais</span>
+          <strong class="devices-customer-stat__value">{{
+            customerStats.virtual
+          }}</strong>
+        </article>
+        <article class="devices-customer-stat">
+          <span class="devices-customer-stat__label">Físicos</span>
+          <strong class="devices-customer-stat__value">{{
+            customerStats.physical
+          }}</strong>
+        </article>
+      </section>
+
+      <section
+        class="devices-customers__charts"
+        aria-label="Gráficos de dispositivos de clientes"
+      >
+        <article class="devices-customers-chart-card">
+          <h3 class="text-base font-bold">Status</h3>
+          <DonutChart
+            v-if="customerRows.length && customerStatusChartSlices.length"
+            :slices="customerStatusChartSlices"
+            :center-value="customerStats.total"
+            center-label="Clientes"
+            :size="160"
+            :stroke-width="24"
+          />
+          <p v-else class="devices-chart-empty">
+            Sem dados de status para clientes.
+          </p>
+        </article>
+
+        <article class="devices-customers-chart-card">
+          <h3 class="text-base font-bold">Tipos</h3>
+          <DonutChart
+            v-if="customerRows.length && customerKindChartSlices.length"
+            :slices="customerKindChartSlices"
+            :center-value="customerStats.total"
+            center-label="Clientes"
+            :size="160"
+            :stroke-width="24"
+          />
+          <p v-else class="devices-chart-empty">
+            Sem dados de tipo para clientes.
+          </p>
+        </article>
+
+        <article
+          class="devices-customers-chart-card devices-customers-chart-card--wide"
+        >
+          <h3 class="text-base font-bold">Fabricantes mais frequentes</h3>
+          <BarChart
+            v-if="customerRows.length && customerVendorChartBars.length"
+            :bars="customerVendorChartBars"
+            :horizontal="true"
+            :show-axis-labels="false"
+            :show-values="true"
+            :height="180"
+            :max-bar-width="18"
+          />
+          <p v-else class="devices-chart-empty">
+            Sem dados de fabricante para clientes.
+          </p>
+        </article>
+      </section>
+
+      <div
+        class="devices-customers__table-wrap"
+        role="region"
+        aria-label="Tabela de dispositivos de clientes"
+      >
+        <table
+          class="devices-table"
+          role="table"
+          aria-label="Dispositivos de clientes"
+        >
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail dono</th>
+              <th>Tipo</th>
+              <th>Status</th>
+              <th>Host / IP</th>
+              <th>Última atividade</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in customerRowsPreview"
+              :key="`customer-device-${row.id}`"
+            >
+              <td>{{ row.name }}</td>
+              <td>{{ row.ownerEmail }}</td>
+              <td>{{ kindLabelMap[row.kind] }}</td>
+              <td>
+                <span class="devices-status" :data-status="row.status">
+                  {{ statusLabelMap[row.status] }}
+                </span>
+              </td>
+              <td>{{ row.host || "—" }} / {{ row.ipAddress || "—" }}</td>
+              <td>{{ prettyDate(row.lastSeenAt || row.updatedAt) }}</td>
+            </tr>
+
+            <tr v-if="!customerRowsPreview.length">
+              <td colspan="6" class="devices-empty">
+                Nenhum dispositivo de cliente encontrado com o critério atual.
               </td>
             </tr>
           </tbody>
@@ -1374,7 +1734,7 @@ const refreshList = (): void => {
   display: grid;
   gap: 0.75rem;
   min-height: 15.5rem;
-  padding: 1.08rem 1.15rem 1.15rem;
+  padding: 1.08rem 1.15rem 1.15rem 2.3rem;
 }
 
 .devices-chart-card__head {
@@ -1554,7 +1914,7 @@ const refreshList = (): void => {
 .devices-table-card {
   display: grid;
   gap: 0.8rem;
-  padding: 1rem;
+  padding: 1rem 2rem;
 }
 
 .devices-table-card__head {
@@ -1654,6 +2014,69 @@ const refreshList = (): void => {
   opacity: 0.7;
 }
 
+.devices-customers {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem 2rem;
+}
+
+.devices-customers__head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: space-between;
+}
+
+.devices-customers__stats {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+}
+
+.devices-customer-stat {
+  border: 1px solid var(--border-1);
+  border-radius: 0.7rem;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+}
+
+.devices-customer-stat__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  opacity: 0.72;
+  text-transform: uppercase;
+}
+
+.devices-customer-stat__value {
+  font-size: 1.25rem;
+}
+
+.devices-customers__charts {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.devices-customers-chart-card {
+  border: 1px solid var(--border-1);
+  border-radius: 0.7rem;
+  display: grid;
+  gap: 0.6rem;
+  min-height: 13.5rem;
+  padding: 0.85rem;
+}
+
+.devices-customers-chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+.devices-customers__table-wrap {
+  overflow: auto;
+}
+
 .devices-error {
   color: #ef4444;
   font-weight: 600;
@@ -1662,7 +2085,8 @@ const refreshList = (): void => {
 @media (max-width: 960px) {
   .devices-form-card__head,
   .devices-table-card__head,
-  .devices-chart-card__head {
+  .devices-chart-card__head,
+  .devices-customers__head {
     align-items: flex-start;
     flex-direction: column;
   }

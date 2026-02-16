@@ -14,6 +14,15 @@ const TagPicker = defineAsyncComponent(() => import("../ui/TagPicker.vue"));
 
 interface Props {
   project?: ProjectRow;
+  draft?: Partial<{
+    name: string;
+    code: string;
+    status: ProjectStatus;
+    dueAt: string;
+    deadlineAt: string;
+    ownerEmail: string;
+    tags: string[] | string;
+  }>;
 }
 
 const props = defineProps<Props>();
@@ -37,12 +46,30 @@ const nameSuggestions = ref<string[]>([]);
 const showSuggestions = ref(false);
 
 // Form state
-const name = ref(props.project?.name ?? "");
-const code = ref(props.project?.code ?? "");
-const status = ref<ProjectStatus>(props.project?.status ?? "planned");
-const dueAt = ref(props.project?.dueAt?.split("T")[0] ?? "");
-const deadlineAt = ref((props.project as any)?.deadlineAt?.split("T")[0] ?? "");
-const tags = ref<string[]>((props.project as any)?.tags ?? []);
+const name = ref(props.project?.name ?? props.draft?.name ?? "");
+const code = ref(props.project?.code ?? props.draft?.code ?? "");
+const status = ref<ProjectStatus>(
+  props.project?.status ?? props.draft?.status ?? "planned",
+);
+const dueAt = ref(
+  props.project?.dueAt?.split("T")[0] ??
+    props.draft?.dueAt?.split("T")[0] ??
+    "",
+);
+const deadlineAt = ref(
+  (props.project as any)?.deadlineAt?.split("T")[0] ??
+    props.draft?.deadlineAt?.split("T")[0] ??
+    "",
+);
+const tags = ref<string[]>(
+  (props.project as any)?.tags ??
+    (Array.isArray(props.draft?.tags)
+      ? props.draft.tags
+      : String(props.draft?.tags ?? "")
+          .split(/[,;|]/)
+          .map((item) => item.trim())
+          .filter(Boolean)),
+);
 const templateKey = ref((props.project as any)?.templateKey ?? "");
 
 // Code validation state

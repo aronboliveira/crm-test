@@ -27,6 +27,9 @@ const filterStatus = ref<LeadStatus | "">("");
 const LeadFormModal = defineAsyncComponent(
   () => import("../components/forms/LeadFormModal.vue"),
 );
+const GenericImportModal = defineAsyncComponent(
+  () => import("../components/import/GenericImportModal.vue"),
+);
 const CtaSuggestionsPanel = defineAsyncComponent(
   () => import("../components/leads/CtaSuggestionsPanel.vue"),
 );
@@ -78,6 +81,57 @@ const openCreateLead = async () => {
     size: "lg",
   });
   if (result) await load();
+};
+
+const openMassImportModal = async () => {
+  const LeadImportService = (await import("../services/LeadImportService"))
+    .default;
+  const result = await ModalService.open<{
+    shouldRefresh: boolean;
+    draft?: Record<string, unknown>;
+  }>(GenericImportModal, {
+    title: "Importar Leads em Massa",
+    size: "lg",
+    data: {
+      mode: "mass",
+      service: new LeadImportService(),
+      entityLabel: "Leads",
+      displayField: "name",
+      singleParseMethod: "parseForSingleLead",
+    },
+  });
+
+  if (result?.shouldRefresh) {
+    await load();
+  }
+};
+
+const openSingleImportModal = async () => {
+  const LeadImportService = (await import("../services/LeadImportService"))
+    .default;
+  const result = await ModalService.open<{
+    shouldRefresh: boolean;
+    draft?: Record<string, unknown>;
+  }>(GenericImportModal, {
+    title: "Importar Lead de Arquivo",
+    size: "md",
+    data: {
+      mode: "single",
+      service: new LeadImportService(),
+      entityLabel: "Leads",
+      displayField: "name",
+      singleParseMethod: "parseForSingleLead",
+    },
+  });
+
+  if (result?.draft) {
+    const created = await ModalService.open(LeadFormModal, {
+      title: "Novo Lead (Importado)",
+      size: "lg",
+      data: { draft: result.draft },
+    });
+    if (created) await load();
+  }
 };
 
 const openEditLead = async (lead: LeadRow) => {
@@ -174,6 +228,32 @@ const sortIndicator = (key: typeof sortKey.value) => {
         </p>
       </div>
       <div class="page-header__actions">
+        <div
+          class="btn-group"
+          role="group"
+          aria-label="Opções de importação de leads"
+        >
+          <button
+            class="btn btn-sm btn-ghost"
+            title="Importar leads em massa de arquivo CSV, JSON ou XML"
+            data-testid="dashboard-leads-mass-import-btn"
+            data-cy="mass-import-leads-button"
+            @click="openMassImportModal"
+          >
+            <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+            Importar em Massa
+          </button>
+          <button
+            class="btn btn-sm btn-ghost"
+            title="Carregar dados de lead de arquivo para formulário"
+            data-testid="dashboard-leads-single-import-btn"
+            data-cy="single-import-lead-button"
+            @click="openSingleImportModal"
+          >
+            <i class="bi bi-upload" aria-hidden="true"></i>
+            Importar para Formulário
+          </button>
+        </div>
         <button class="btn btn-primary" @click="openCreateLead">
           <span class="btn-icon">+</span> Novo Lead
         </button>

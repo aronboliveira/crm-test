@@ -87,6 +87,7 @@
 
 .mw-filter-shell {
   padding: clamp(1.08rem, 1.5vw, 1.28rem);
+  padding-left: 1.5rem;
   border-radius: var(--mw-card-radius);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -94,7 +95,11 @@
   gap: clamp(0.84rem, 1.1vw, 1.05rem);
   border: 1px solid var(--border-1);
   background:
-    radial-gradient(circle at 8% 0%, color-mix(in oklab, var(--primary-soft) 18%, transparent), transparent 44%),
+    radial-gradient(
+      circle at 8% 0%,
+      color-mix(in oklab, var(--primary-soft) 18%, transparent),
+      transparent 44%
+    ),
     var(--surface-1);
   animation: mwCardRise 360ms var(--easing-bounce, ease) both;
 }
@@ -254,7 +259,11 @@
 
 .mw-counter {
   border-radius: 999px;
-  background: color-mix(in oklab, var(--surface-2) 85%, var(--primary-soft) 15%);
+  background: color-mix(
+    in oklab,
+    var(--surface-2) 85%,
+    var(--primary-soft) 15%
+  );
   border: 1px solid color-mix(in oklab, var(--primary) 20%, transparent);
   color: var(--text-2);
   font-size: 0.68rem;
@@ -437,7 +446,8 @@
 
 .mw-table tbody tr {
   cursor: pointer;
-  transition: background var(--transition-fast, 140ms) var(--easing-standard, ease);
+  transition: background var(--transition-fast, 140ms)
+    var(--easing-standard, ease);
 }
 
 .mw-table tbody tr:hover {

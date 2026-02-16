@@ -12,7 +12,9 @@ const mockRepo = {
 };
 
 function createService() {
-  return new (ImportTemplatesService as any)(mockRepo) as ImportTemplatesService;
+  return new (ImportTemplatesService as any)(
+    mockRepo,
+  ) as ImportTemplatesService;
 }
 
 describe('ImportTemplatesService', () => {

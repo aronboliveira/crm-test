@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
+import {
+  computed,
+  defineAsyncComponent,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+} from "vue";
 import { useLayout } from "../../assets/scripts/shell/useLayout";
 import { useAuthStore } from "../../pinia/stores/auth.store";
 import AsideViewNav from "./AsideViewNav.vue";
@@ -54,13 +60,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell" role="application" aria-label="Admin dashboard">
+  <div class="app-shell" role="application" aria-label="Painel administrativo">
     <AsideViewNav />
 
     <div class="app-main">
       <TopBar @toggle-aside="toggleMobileOpen" />
 
-      <main class="app-content" role="main" aria-label="Main content">
+      <main class="app-content" role="main" aria-label="Conteúdo principal">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />

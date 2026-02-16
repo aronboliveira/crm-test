@@ -140,7 +140,12 @@ export class AssistantWsService implements OnModuleDestroy {
       }
 
       if (inbound.kind === 'user-message') {
-        void this.processUserMessage(client, identity, inbound.id, inbound.text);
+        void this.processUserMessage(
+          client,
+          identity,
+          inbound.id,
+          inbound.text,
+        );
         return;
       }
 
@@ -167,7 +172,10 @@ export class AssistantWsService implements OnModuleDestroy {
     }
   }
 
-  private async replayHistory(client: WebSocket, userId: string): Promise<void> {
+  private async replayHistory(
+    client: WebSocket,
+    userId: string,
+  ): Promise<void> {
     const history = await this.logService.listRecentByUser(userId, 25);
     if (history.length === 0) {
       return;
@@ -233,7 +241,10 @@ export class AssistantWsService implements OnModuleDestroy {
     if (!replyText) {
       this.send(
         client,
-        createAssistantErrorFrame('Assistant handler returned empty text', this.now()),
+        createAssistantErrorFrame(
+          'Assistant handler returned empty text',
+          this.now(),
+        ),
       );
       return;
     }
@@ -283,7 +294,11 @@ export class AssistantWsService implements OnModuleDestroy {
     return authHeader;
   }
 
-  private rejectUpgrade(socket: NetSocket, code: number, message: string): void {
+  private rejectUpgrade(
+    socket: NetSocket,
+    code: number,
+    message: string,
+  ): void {
     try {
       socket.write(
         `HTTP/1.1 ${code} ${message}\r\n` +

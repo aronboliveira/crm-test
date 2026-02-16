@@ -4,11 +4,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[T ][\d:.+-Z]*)?$/;
 
 const baseRowSchema = z.object({
   type: z.enum(['project', 'task']),
-  name: z
-    .string()
-    .trim()
-    .min(1, 'name is required')
-    .max(180, 'name too long'),
+  name: z.string().trim().min(1, 'name is required').max(180, 'name too long'),
   description: z.string().trim().max(4000).optional().default(''),
   status: z.string().trim().min(1).max(40),
   priority: z.coerce.number().int().min(1).max(5).default(3),
@@ -20,10 +16,7 @@ const baseRowSchema = z.object({
     .refine((value) => !value || DATE_RE.test(value), {
       message: 'dueAt must be an ISO-like date',
     }),
-  tags: z
-    .array(z.string().trim().min(1).max(64))
-    .max(30)
-    .default([]),
+  tags: z.array(z.string().trim().min(1).max(64)).max(30).default([]),
   projectId: z.string().trim().max(128).optional().default(''),
   code: z.string().trim().max(64).optional().default(''),
 });

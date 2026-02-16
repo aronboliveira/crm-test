@@ -6,6 +6,7 @@ import type {
   IntegrationSyncDataset,
   IntegrationStatus,
 } from '../../types';
+import { IntegrationResilienceService } from '../../integration-resilience.service';
 import { SatApiClient } from './sat-api.client';
 import {
   SatDataMapper,
@@ -46,7 +47,10 @@ export class SatAdapter implements IntegrationAdapter {
   private lastSyncAt?: string;
   private lastError?: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly resilience: IntegrationResilienceService,
+  ) {}
 
   // ===========================================================================
   // INTEGRATION ADAPTER INTERFACE
@@ -444,6 +448,8 @@ export class SatAdapter implements IntegrationAdapter {
         resolved.baseUrl,
         resolved.clientId,
         resolved.clientSecret,
+        this.resilience,
+        'sat',
       );
     }
 

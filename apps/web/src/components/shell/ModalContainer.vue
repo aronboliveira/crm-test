@@ -51,7 +51,7 @@ watch(isOpen, (open) => {
         class="modal-backdrop"
         role="dialog"
         aria-modal="true"
-        :aria-label="options.title || 'Modal dialog'"
+        :aria-label="options.title || 'Caixa de diálogo'"
         @click.self="handleBackdropClick"
       >
         <div class="modal-container" :class="sizeClass">
@@ -67,7 +67,7 @@ watch(isOpen, (open) => {
               v-if="options.closable !== false"
               class="modal-close btn btn-ghost"
               type="button"
-              aria-label="Close modal"
+              aria-label="Fechar modal"
               @click="ModalService.cancel()"
             >
               <svg

@@ -12,15 +12,11 @@ export type EventKey = "projects:changed" | "tasks:changed";
  *  AppEventsService.emit("projects:changed");
  */
 export default class AppEventsService {
-  static #emitter = new EventEmitter();
-
-  /**
-   * If you expect many listeners, you can raise this.
-   * Keep it explicit to avoid memory leak warnings.
-   */
-  static {
-    AppEventsService.#emitter.setMaxListeners(50);
-  }
+  static #emitter = (() => {
+    const emitter = new EventEmitter();
+    emitter.setMaxListeners(50);
+    return emitter;
+  })();
 
   static emit(key: EventKey): void {
     AppEventsService.#emitter.emit(key);

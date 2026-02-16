@@ -7,7 +7,9 @@ import DashboardController from './dashboard.controller';
 import DashboardService from './dashboard.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProjectEntity, TaskEntity, ClientEntity])],
+  imports: [
+    TypeOrmModule.forFeature([ProjectEntity, TaskEntity, ClientEntity]),
+  ],
   controllers: [DashboardController],
   providers: [DashboardService],
   exports: [DashboardService],

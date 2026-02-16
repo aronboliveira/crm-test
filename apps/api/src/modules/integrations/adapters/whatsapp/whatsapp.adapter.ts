@@ -21,6 +21,7 @@ import type {
   IntegrationSyncDataset,
   IntegrationStatus,
 } from '../../types';
+import { IntegrationResilienceService } from '../../integration-resilience.service';
 import { IntegrationValueSanitizer } from '../shared/mail-integration.shared';
 import { WhatsAppApiClient } from './whatsapp-api.client';
 import {
@@ -77,7 +78,10 @@ export class WhatsAppAdapter implements IntegrationAdapter {
   private templateFolders: Map<string, TemplateFolder> = new Map();
   private usageLogs: TemplateUsageLog[] = [];
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly resilience: IntegrationResilienceService,
+  ) {}
 
   // ===========================================================================
   // INTEGRATION ADAPTER INTERFACE
@@ -146,11 +150,14 @@ export class WhatsAppAdapter implements IntegrationAdapter {
   async configure(config: IntegrationConfig): Promise<void> {
     this.logger.log('Configuring WhatsApp integration');
 
-    // TODO(user): production setup should inject Meta credentials from a secret manager.
     this.config = this.normalizeConfig(config);
 
     if (this.isConfigured()) {
-      this.client = new WhatsAppApiClient(this.httpService);
+      this.client = new WhatsAppApiClient(
+        this.httpService,
+        this.resilience,
+        'whatsapp',
+      );
       this.client.configure({
         accessToken: this.config.accessToken!,
         businessAccountId: this.config.businessAccountId!,
@@ -250,14 +257,18 @@ export class WhatsAppAdapter implements IntegrationAdapter {
     const setupReady = missingRequired.length === 0;
     const configState = {
       configured: this.isConfigured(),
-      hasAccessToken: IntegrationValueSanitizer.hasString(this.config.accessToken),
+      hasAccessToken: IntegrationValueSanitizer.hasString(
+        this.config.accessToken,
+      ),
       hasBusinessAccountId: IntegrationValueSanitizer.hasString(
         this.config.businessAccountId,
       ),
-      hasPhoneNumberId: IntegrationValueSanitizer.hasString(this.config.phoneNumberId),
+      hasPhoneNumberId: IntegrationValueSanitizer.hasString(
+        this.config.phoneNumberId,
+      ),
       apiVersion:
-        IntegrationValueSanitizer.normalizeString(this.config.apiVersion)
-        ?? WhatsAppAdapter.DEFAULT_API_VERSION,
+        IntegrationValueSanitizer.normalizeString(this.config.apiVersion) ??
+        WhatsAppAdapter.DEFAULT_API_VERSION,
       localTemplates: this.localTemplates.size,
       connected: this.isConnected,
       lastSyncAt: this.lastSyncAt,
@@ -284,10 +295,9 @@ export class WhatsAppAdapter implements IntegrationAdapter {
         accountName: business.accountName,
         phoneNumbers: business.phoneNumbers.length,
         issues: business.issues,
-        nextStep:
-          business.healthy
-            ? 'Connection is healthy. Run sync jobs to refresh templates and analytics datasets.'
-            : 'Fix account issues reported by Meta and retest connectivity.',
+        nextStep: business.healthy
+          ? 'Connection is healthy. Run sync jobs to refresh templates and analytics datasets.'
+          : 'Fix account issues reported by Meta and retest connectivity.',
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -308,15 +318,17 @@ export class WhatsAppAdapter implements IntegrationAdapter {
 
   private isConfigured(): boolean {
     return (
-      IntegrationValueSanitizer.hasString(this.config.accessToken)
-      && IntegrationValueSanitizer.hasString(this.config.businessAccountId)
+      IntegrationValueSanitizer.hasString(this.config.accessToken) &&
+      IntegrationValueSanitizer.hasString(this.config.businessAccountId)
     );
   }
 
   private normalizeConfig(config: IntegrationConfig): IntegrationConfig {
     return {
       ...config,
-      accessToken: IntegrationValueSanitizer.normalizeString(config.accessToken),
+      accessToken: IntegrationValueSanitizer.normalizeString(
+        config.accessToken,
+      ),
       businessAccountId: IntegrationValueSanitizer.normalizeString(
         config.businessAccountId,
       ),
@@ -324,8 +336,8 @@ export class WhatsAppAdapter implements IntegrationAdapter {
         config.phoneNumberId,
       ),
       apiVersion:
-        IntegrationValueSanitizer.normalizeString(config.apiVersion)
-        ?? WhatsAppAdapter.DEFAULT_API_VERSION,
+        IntegrationValueSanitizer.normalizeString(config.apiVersion) ??
+        WhatsAppAdapter.DEFAULT_API_VERSION,
     };
   }
 
@@ -341,7 +353,9 @@ export class WhatsAppAdapter implements IntegrationAdapter {
         key: 'businessAccountId',
         label: 'WhatsApp Business Account ID',
         required: true,
-        present: IntegrationValueSanitizer.hasString(this.config.businessAccountId),
+        present: IntegrationValueSanitizer.hasString(
+          this.config.businessAccountId,
+        ),
       },
       {
         key: 'phoneNumberId',
@@ -701,9 +715,7 @@ export class WhatsAppAdapter implements IntegrationAdapter {
   /**
    * Get template performance analytics
    */
-  async getTemplatePerformance(
-    params: WhatsAppAnalyticsQueryParams,
-  ): Promise<
+  async getTemplatePerformance(params: WhatsAppAnalyticsQueryParams): Promise<
     Array<{
       name: string;
       sent: number;

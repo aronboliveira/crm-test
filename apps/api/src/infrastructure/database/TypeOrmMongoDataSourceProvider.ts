@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import TaskEntity from '../../modules/tasks/task.entity';
@@ -6,6 +6,7 @@ import { ProjectEntity } from '../../modules/projects/project.entity';
 
 @Injectable()
 export default class TypeOrmMongoDataSourceProvider {
+  private readonly logger = new Logger(TypeOrmMongoDataSourceProvider.name);
   readonly dataSource: DataSource;
   #ready = false;
 
@@ -16,9 +17,7 @@ export default class TypeOrmMongoDataSourceProvider {
         'mongodb://localhost:27017/corp_admin';
 
       if (!url) {
-        console.warn(
-          '[TypeOrmMongoDataSourceProvider] No MONGODB_URL, using default',
-        );
+        this.logger.warn('No MONGODB_URL, using default');
       }
 
       this.dataSource = new DataSource({
@@ -28,9 +27,9 @@ export default class TypeOrmMongoDataSourceProvider {
         synchronize: true,
       } as any);
 
-      console.log('[TypeOrmMongoDataSourceProvider] DataSource created');
+      this.logger.log('DataSource created');
     } catch (e) {
-      console.error('[TypeOrmMongoDataSourceProvider] constructor failed:', e);
+      this.logger.error('Constructor failed', e instanceof Error ? e.stack : e);
       throw e;
     }
   }
@@ -38,16 +37,14 @@ export default class TypeOrmMongoDataSourceProvider {
   async ensureReady(): Promise<DataSource> {
     try {
       if (!this.#ready) {
-        console.log(
-          '[TypeOrmMongoDataSourceProvider] Initializing DataSource...',
-        );
+        this.logger.log('Initializing DataSource...');
         await this.dataSource.initialize();
         this.#ready = true;
-        console.log('[TypeOrmMongoDataSourceProvider] DataSource initialized');
+        this.logger.log('DataSource initialized');
       }
       return this.dataSource;
     } catch (e) {
-      console.error('[TypeOrmMongoDataSourceProvider] ensureReady failed:', e);
+      this.logger.error('ensureReady failed', e instanceof Error ? e.stack : e);
       throw e;
     }
   }

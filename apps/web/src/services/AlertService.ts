@@ -78,6 +78,46 @@ export default class AlertService {
     }
   }
 
+  static async info(title: string, text?: string): Promise<void> {
+    try {
+      if (!title || typeof title !== "string") {
+        title = "Informação";
+      }
+      const detail = typeof text === "string" && text.trim() ? text : undefined;
+      const Swal = await AlertService.#swal();
+      await Swal.fire({
+        icon: "info",
+        title,
+        text: detail,
+        timer: 1300,
+        showConfirmButton: false,
+        ...getThemeConfig(),
+      });
+    } catch (error) {
+      console.error("[AlertService] Failed to show info alert:", error);
+    }
+  }
+
+  static async warning(title: string, text?: string): Promise<void> {
+    try {
+      if (!title || typeof title !== "string") {
+        title = "Aviso";
+      }
+      const detail = typeof text === "string" && text.trim() ? text : undefined;
+      const Swal = await AlertService.#swal();
+      await Swal.fire({
+        icon: "warning",
+        title,
+        text: detail,
+        timer: detail ? undefined : 1800,
+        showConfirmButton: !!detail,
+        ...getThemeConfig(),
+      });
+    } catch (error) {
+      console.error("[AlertService] Failed to show warning alert:", error);
+    }
+  }
+
   static async confirm(title: string, text: string): Promise<boolean> {
     try {
       if (!title || typeof title !== "string") {

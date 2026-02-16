@@ -1,5 +1,6 @@
 import ApiClientService from "./ApiClientService";
 import StorageService from "./StorageService";
+import { STORAGE_KEYS } from "../constants";
 
 type RecoverResp = Readonly<{
   ok?: boolean;
@@ -9,29 +10,39 @@ type RecoverResp = Readonly<{
 type ValidateResp = Readonly<{ ok?: boolean; email?: string }>;
 type ResetResp = Readonly<{ ok?: boolean; message?: string }>;
 
+/**
+ * AuthRecoveryService
+ *
+ * Handles password recovery flows including:
+ * - Request password reset email
+ * - Validate reset tokens
+ * - Reset password with token
+ *
+ * Includes retry logic for transient failures.
+ */
 export default class AuthRecoveryService {
-  static #LAST_EMAIL = "auth.recovery.last_email";
-  static #LAST_TOKEN = "auth.recovery.last_token";
-
+  /**
+   * Retrieve last email used for password recovery
+   */
   static lastEmail(): string {
-    const v = StorageService.session.getStr(
-      AuthRecoveryService.#LAST_EMAIL,
-      "",
-    );
+    const v = StorageService.session.getStr(STORAGE_KEYS.AUTH.LAST_EMAIL, "");
     return v ? v : "";
   }
 
+  /**
+   * Store email for password recovery
+   */
   static setLastEmail(email: string): void {
     const e = (email || "").trim().toLowerCase();
     e
-      ? StorageService.session.setStr(AuthRecoveryService.#LAST_EMAIL, e)
-      : StorageService.session.del(AuthRecoveryService.#LAST_EMAIL);
+      ? StorageService.session.setStr(STORAGE_KEYS.AUTH.LAST_EMAIL, e)
+      : StorageService.session.del(STORAGE_KEYS.AUTH.LAST_EMAIL);
   }
 
   static async requestReset(email: string): Promise<RecoverResp> {
     const e = (email || "").trim().toLowerCase();
     if (!AuthRecoveryService.#isEmail(e))
-      return { ok: false, message: "Invalid email" };
+      return { ok: false, message: "E-mail inválido" };
 
     AuthRecoveryService.setLastEmail(e);
 
@@ -46,21 +57,28 @@ export default class AuthRecoveryService {
       return st === 404
         ? {
             ok: true,
-            message: "Password reset is not enabled on this environment yet.",
+            message:
+              "A redefinição de senha ainda não está habilitada neste ambiente.",
           }
-        : { ok: false, message: "Failed to request password reset." };
+        : { ok: false, message: "Falha ao solicitar redefinição de senha." };
     }
   }
 
+  /**
+   * Retrieve last password reset token (DEV only)
+   */
   static lastToken(): string {
-    return StorageService.session.getStr(AuthRecoveryService.#LAST_TOKEN, "");
+    return StorageService.session.getStr(STORAGE_KEYS.AUTH.LAST_TOKEN, "");
   }
 
+  /**
+   * Store password reset token (DEV only)
+   */
   static setLastToken(token: string): void {
     const t = (token || "").trim();
     t
-      ? StorageService.session.setStr(AuthRecoveryService.#LAST_TOKEN, t)
-      : StorageService.session.del(AuthRecoveryService.#LAST_TOKEN);
+      ? StorageService.session.setStr(STORAGE_KEYS.AUTH.LAST_TOKEN, t)
+      : StorageService.session.del(STORAGE_KEYS.AUTH.LAST_TOKEN);
   }
 
   static async validateToken(token: string): Promise<ValidateResp> {
@@ -87,7 +105,7 @@ export default class AuthRecoveryService {
     confirm: string,
   ): Promise<ResetResp> {
     const t = (token || "").trim();
-    if (!t) return { ok: false, message: "Missing token" };
+    if (!t) return { ok: false, message: "Token ausente" };
 
     const doPost = async () =>
       (
@@ -102,7 +120,7 @@ export default class AuthRecoveryService {
       return await AuthRecoveryService.#retry(doPost, 4, 160);
     } catch (e: any) {
       const msg = String(
-        e?.response?.data?.message || "Failed to reset password",
+        e?.response?.data?.message || "Falha ao redefinir senha",
       );
       return { ok: false, message: msg };
     }
@@ -123,7 +141,7 @@ export default class AuthRecoveryService {
               throw e;
             })()
           : void 0;
-        await new Promise((r) => setTimeout(r, intervalMs));
+        await new Promise<void>((r) => setTimeout(r, intervalMs));
       }
       i += 1;
     }

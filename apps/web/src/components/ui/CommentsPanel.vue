@@ -47,14 +47,14 @@ async function submit() {
     await load();
   } catch (e) {
     console.error("[CommentsPanel] create failed:", e);
-    await AlertService.error("Error", "Failed to post comment.");
+    await AlertService.error("Erro", "Falha ao publicar comentário.");
   }
 }
 
 async function remove(id: string) {
   const ok = await AlertService.confirm(
-    "Delete Comment",
-    "Delete this comment?",
+    "Excluir comentário",
+    "Deseja excluir este comentário?",
   );
   if (!ok) return;
   try {
@@ -69,12 +69,12 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="comments-panel" aria-label="Comments">
+  <section class="comments-panel" aria-label="Comentários">
     <h3 class="text-sm font-bold mb-2 opacity-80">
-      💬 Comments ({{ items.length }})
+      💬 Comentários ({{ items.length }})
     </h3>
 
-    <div v-if="loading" class="text-xs opacity-50 mb-2">Loading…</div>
+    <div v-if="loading" class="text-xs opacity-50 mb-2">Carregando…</div>
 
     <ul class="comment-list" v-if="items.length">
       <li v-for="c in items" :key="c.id" class="comment-item">
@@ -99,15 +99,15 @@ onMounted(load);
       <input
         v-model="newBody"
         class="flex-1 text-sm px-2 py-1 rounded border border-white/10 bg-transparent"
-        placeholder="Write a comment…"
-        aria-label="New comment"
+        placeholder="Escreva um comentário…"
+        aria-label="Novo comentário"
       />
       <button
         type="submit"
         class="btn btn-primary btn-sm"
         :disabled="!newBody.trim()"
       >
-        Post
+        Publicar
       </button>
     </form>
   </section>

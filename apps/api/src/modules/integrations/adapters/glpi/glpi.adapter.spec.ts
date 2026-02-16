@@ -4,9 +4,15 @@ import type { GlpiTicket, GlpiUser, GlpiEntity } from './glpi.types';
 
 describe('GlpiAdapter', () => {
   let adapter: GlpiAdapter;
+  const resilience = {
+    execute: jest.fn(async (_options: unknown, run: () => Promise<unknown>) =>
+      run(),
+    ),
+    getIntegrationSnapshot: jest.fn().mockReturnValue([]),
+  };
 
   beforeEach(() => {
-    adapter = new GlpiAdapter();
+    adapter = new GlpiAdapter(resilience as never);
   });
 
   describe('getStatus', () => {

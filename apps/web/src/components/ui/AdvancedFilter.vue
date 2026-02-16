@@ -71,13 +71,13 @@ watch([status, priority, assignee, tag, dueBefore, dueAfter], apply);
 </script>
 
 <template>
-  <div class="adv-filter" aria-label="Advanced filters">
+  <div class="adv-filter" aria-label="Filtros avançados">
     <button
       type="button"
       class="btn btn-ghost btn-sm"
       @click="expanded = !expanded"
     >
-      🔍 Filters
+      🔍 Filtros
       <span v-if="activeCount" class="filter-badge">{{ activeCount }}</span>
     </button>
 
@@ -88,10 +88,10 @@ watch([status, priority, assignee, tag, dueBefore, dueAfter], apply);
         <select
           v-model="status"
           class="filter-select"
-          aria-label="Status filter"
+          aria-label="Filtro de status"
         >
-          <option value="">All</option>
-          <optgroup label="Active">
+          <option value="">Todos</option>
+          <optgroup label="Ativos">
             <option
               v-for="o in statusOptions.filter((s) =>
                 ['active', 'todo', 'doing'].includes(s.value),
@@ -102,7 +102,7 @@ watch([status, priority, assignee, tag, dueBefore, dueAfter], apply);
               {{ o.label }}
             </option>
           </optgroup>
-          <optgroup label="Closed">
+          <optgroup label="Encerrados">
             <option
               v-for="o in statusOptions.filter((s) =>
                 ['done', 'archived', 'blocked'].includes(s.value),
@@ -118,14 +118,14 @@ watch([status, priority, assignee, tag, dueBefore, dueAfter], apply);
 
       <!-- Priority -->
       <div v-if="priorityOptions" class="filter-field">
-        <label class="filter-label">Priority</label>
+        <label class="filter-label">Prioridade</label>
         <select
           v-model="priority"
           class="filter-select"
-          aria-label="Priority filter"
+          aria-label="Filtro de prioridade"
         >
-          <option value="">All</option>
-          <optgroup label="Priorities">
+          <option value="">Todos</option>
+          <optgroup label="Prioridades">
             <option
               v-for="o in priorityOptions"
               :key="o.value"
@@ -140,8 +140,8 @@ watch([status, priority, assignee, tag, dueBefore, dueAfter], apply);
       <!-- Tag -->
       <div v-if="tagOptions?.length" class="filter-field">
         <label class="filter-label">Tag</label>
-        <select v-model="tag" class="filter-select" aria-label="Tag filter">
-          <option value="">All</option>
+        <select v-model="tag" class="filter-select" aria-label="Filtro por tag">
+          <option value="">Todas</option>
           <optgroup label="Tags">
             <option v-for="o in tagOptions" :key="o.value" :value="o.value">
               {{ o.label }}
@@ -150,37 +150,37 @@ watch([status, priority, assignee, tag, dueBefore, dueAfter], apply);
         </select>
       </div>
 
-      <!-- Assignee (text input) -->
+      <!-- Responsável (campo de texto) -->
       <div v-if="showAssignee" class="filter-field">
-        <label class="filter-label">Assignee</label>
+        <label class="filter-label">Responsável</label>
         <input
           v-model="assignee"
           class="filter-input"
           type="text"
-          placeholder="email"
-          aria-label="Assignee filter"
+          placeholder="responsavel@empresa.com"
+          aria-label="Filtro por responsável"
           list="filter-assignee-list"
         />
       </div>
 
-      <!-- Due date range -->
+      <!-- Intervalo de vencimento -->
       <div class="filter-field">
-        <label class="filter-label">Due after</label>
+        <label class="filter-label">Vence após</label>
         <input
           v-model="dueAfter"
           class="filter-input"
           type="date"
-          aria-label="Due after"
+          aria-label="Vence após"
         />
       </div>
 
       <div class="filter-field">
-        <label class="filter-label">Due before</label>
+        <label class="filter-label">Vence antes</label>
         <input
           v-model="dueBefore"
           class="filter-input"
           type="date"
-          aria-label="Due before"
+          aria-label="Vence antes"
         />
       </div>
 
@@ -191,7 +191,7 @@ watch([status, priority, assignee, tag, dueBefore, dueAfter], apply);
           @click="reset"
           :disabled="activeCount === 0"
         >
-          Clear
+          Limpar
         </button>
       </div>
     </div>

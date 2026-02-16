@@ -8,11 +8,18 @@ module.exports = {
     "^.+\\.tsx?$": [
       "ts-jest",
       {
-        useESM: true,
+        tsconfig: {
+          module: "commonjs",
+          moduleResolution: "node",
+          esModuleInterop: true,
+          target: "ES2020",
+          strict: true,
+          skipLibCheck: true,
+        },
+        diagnostics: false,
       },
     ],
   },
-  extensionsToTreatAsEsm: [".ts"],
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },

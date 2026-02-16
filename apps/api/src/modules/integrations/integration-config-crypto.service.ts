@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'crypto';
 
 const ENCRYPTED_PREFIX = 'enc:v1';
 const AES_256_GCM = 'aes-256-gcm';
@@ -26,7 +31,9 @@ export class IntegrationConfigCryptoService {
     }
 
     const keyMaterial =
-      integrationKey ?? jwtSecret ?? 'dev_secret_change_me_integration_fallback';
+      integrationKey ??
+      jwtSecret ??
+      'dev_secret_change_me_integration_fallback';
 
     this.key = createHash('sha256').update(keyMaterial).digest();
   }

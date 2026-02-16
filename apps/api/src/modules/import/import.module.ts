@@ -28,6 +28,10 @@ import ImportFieldSuggestionsService from './import-field-suggestions.service';
     ]),
   ],
   controllers: [ImportController, ImportTemplatesController],
-  providers: [ImportService, ImportTemplatesService, ImportFieldSuggestionsService],
+  providers: [
+    ImportService,
+    ImportTemplatesService,
+    ImportFieldSuggestionsService,
+  ],
 })
 export default class ImportModule {}

@@ -92,14 +92,14 @@ export class ClientsService {
     const safeId = typeof id === 'string' ? id.trim() : '';
     if (!safeId) throw new BadRequestException('Invalid id');
 
-    let item = (await this.repo.findOne({
+    let item = await this.repo.findOne({
       where: { id: safeId } as any,
-    })) as ClientEntity | null;
+    });
 
     if (!item && ObjectId.isValid(safeId)) {
-      item = (await this.repo.findOne({
+      item = await this.repo.findOne({
         where: { _id: new ObjectId(safeId) } as any,
-      })) as ClientEntity | null;
+      });
     }
 
     if (!item) throw new NotFoundException('Not found');
@@ -203,20 +203,20 @@ export class ClientsService {
     cnpj?: string;
   }): Promise<ClientEntity | null> {
     if (input.cnpj) {
-      const existingByCnpj = (await this.repo.findOne({
+      const existingByCnpj = await this.repo.findOne({
         where: { cnpj: input.cnpj } as any,
-      })) as ClientEntity | null;
+      });
       if (existingByCnpj) return existingByCnpj;
     }
 
     if (input.email) {
-      const existingByEmail = (await this.repo.findOne({
+      const existingByEmail = await this.repo.findOne({
         where: {
           email: {
             $regex: new RegExp(`^${escapeRegex(input.email)}$`, 'i'),
           },
         } as any,
-      })) as ClientEntity | null;
+      });
       if (existingByEmail) return existingByEmail;
     }
 
@@ -232,9 +232,9 @@ export class ClientsService {
       };
     }
 
-    const existingByIdentity = (await this.repo.findOne({
+    const existingByIdentity = await this.repo.findOne({
       where: where as any,
-    })) as ClientEntity | null;
+    });
     return existingByIdentity;
   }
 

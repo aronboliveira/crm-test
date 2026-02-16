@@ -49,30 +49,50 @@ What it verifies:
    - admin users export fetches all filtered rows via API cursor pagination (`fetchAllFilteredRowsForExport`)
    - admin audit export fetches all filtered rows via API cursor pagination and reapplies local search/sort over full fetched set
 10. Devices seed/chart rebalance checks exist:
-   - backend seeds at least `72` devices globally and tops up at least `18` for `admin@corp.local`
-   - weighted admin vendor/status distribution is present
-   - devices API list supports server-side pagination/sort query and metadata (`page/pageSize/sortBy/sortDir`, `findAndCount`, `nextCursor`)
-   - devices API exposes aggregated chart endpoint (`GET /devices/analytics`) with shared filter builder and top/day aggregates
-   - devices page has sort/page-size/pagination controls wired to server requests
-   - chart readability guards exist (`shouldRenderActivityTrend`, subtle `trend-line-color`, `trend-line-width="1"`, non-scaling stroke, dynamic chart height vars)
-   - required-field invalid state is driven by reusable helper (`FormValidationStateService`, `is-touched/is-dirty/is-submitted`, `devices-validated-input`)
+
+- backend seeds at least `72` devices globally and tops up at least `18` for `admin@corp.local`
+- weighted admin vendor/status distribution is present
+- devices API list supports server-side pagination/sort query and metadata (`page/pageSize/sortBy/sortDir`, `findAndCount`, `nextCursor`)
+- devices API exposes aggregated chart endpoint (`GET /devices/analytics`) with shared filter builder and top/day aggregates
+- devices page has sort/page-size/pagination controls wired to server requests
+- chart readability guards exist (`shouldRenderActivityTrend`, subtle `trend-line-color`, `trend-line-width="1"`, non-scaling stroke, dynamic chart height vars)
+- required-field invalid state is driven by reusable helper (`FormValidationStateService`, `is-touched/is-dirty/is-submitted`, `devices-validated-input`)
+
 11. Utility abstractions for JSON/storage/input lists are present and reusable:
-   - `SafeJsonService`, `StorageFacade`, `InputSuggestionListService`, `IdleTaskScheduler`.
+
+- `SafeJsonService`, `StorageFacade`, `InputSuggestionListService`, `IdleTaskScheduler`.
+
 12. Global smart autocomplete constraints are enforced:
-   - 5-second idle persistence
-   - max 5 visible suggestions
+
+- 5-second idle persistence
+- max 5 visible suggestions
+
 13. API unit test for `DevicesService` passes.
 14. API TypeScript check passes with `--noEmit --incremental false`.
 15. Targeted web tests for chart/export/store/autocomplete/json/storage utilities pass.
-   - includes `FormValidationStateService.test.ts`.
-   - includes `DeviceQueryStateService.test.ts`.
-   - includes `AdminUsersQueryStateService.test.ts`.
-   - includes `AdminAuditQueryStateService.test.ts`.
-   - includes `AdminMailOutboxQueryStateService.test.ts`.
-   - includes `TableExportPreferencesService.test.ts`.
-   - includes `TableExportFlowOrchestrator.test.ts`.
+
+- includes `FormValidationStateService.test.ts`.
+- includes `DeviceQueryStateService.test.ts`.
+- includes `AdminUsersQueryStateService.test.ts`.
+- includes `AdminAuditQueryStateService.test.ts`.
+- includes `AdminMailOutboxQueryStateService.test.ts`.
+- includes `TableExportPreferencesService.test.ts`.
+- includes `TableExportFlowOrchestrator.test.ts`.
+
 16. Full web unit test suite passes.
 17. Optional: `vue-tsc` run for web (`--with-web-types`).
+18. Customer devices intelligence is configurable and surfaced in dashboard:
+    - new settings page route (`/dashboard/settings`) exposes a fieldset/selector for customer device criteria.
+    - criteria persisted in local storage key `devices.customer.criteria.v1` and propagated via event `devices:customer-criteria:updated`.
+    - sidebar includes a dedicated `Configurações` navigation entry to the settings dashboard.
+    - `Meus dispositivos` includes an end-section "Dispositivos de clientes" with:
+      - criterion badge/label
+      - summary cards (total/online/virtual/físicos)
+      - charts (status, tipo, top fabricantes)
+      - preview table for customer devices.
+    - customer criteria options currently supported:
+      - same email domain as logged-in user
+      - any owner email different from logged-in user email
 
 Notes:
 

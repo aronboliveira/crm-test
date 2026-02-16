@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rows>
+  <row>
+    <baseUrl>https://glpi.example.com</baseUrl>
+    <appToken>abc123token</appToken>
+    <userToken>usr456token</userToken>
+    <username>admin</username>
+    <password>secret</password>
+  </row>
+</rows>

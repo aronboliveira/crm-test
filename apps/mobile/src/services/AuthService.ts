@@ -1,6 +1,10 @@
 import StorageService from "./StorageService";
 import ApiClientService from "./ApiClientService";
-import type { SessionUser, LoginResponse } from "../types/auth.types";
+import type {
+  SessionUser,
+  LoginResponse,
+  LoginResult,
+} from "../types/auth.types";
 
 export default class AuthService {
   static #TK = "auth.token";
@@ -49,7 +53,11 @@ export default class AuthService {
     }
   }
 
-  static async login(email: string, password: string): Promise<void> {
+  static async login(
+    email: string,
+    password: string,
+    twoFactorCode?: string,
+  ): Promise<LoginResult> {
     try {
       if (!email || typeof email !== "string") {
         throw new Error("Email is required");
@@ -58,13 +66,24 @@ export default class AuthService {
         throw new Error("Password is required");
       }
 
-      const body = { email: email.trim().toLowerCase(), password };
+      const body = {
+        email: email.trim().toLowerCase(),
+        password,
+        twoFactorCode: (twoFactorCode || "").trim() || undefined,
+      };
 
-      const resp = await ApiClientService.raw.post<LoginResponse>(
+      const resp = await ApiClientService.raw.post<LoginResult>(
         "/auth/login",
         body,
       );
-      const tok = resp.data?.accessToken;
+
+      if ("requiresTwoFactor" in resp.data && resp.data.requiresTwoFactor) {
+        return resp.data;
+      }
+
+      const loginData =
+        resp.data as import("../types/auth.types").LoginResponse;
+      const tok = loginData.accessToken;
 
       if (!tok) {
         throw new Error("No access token received from server");
@@ -72,14 +91,60 @@ export default class AuthService {
 
       StorageService.session.setStr(AuthService.#TK, tok);
 
-      if (resp.data?.user) {
-        StorageService.session.setJson(AuthService.#ME, resp.data.user);
+      if (loginData.user) {
+        StorageService.session.setJson(AuthService.#ME, loginData.user);
       } else {
         console.warn("[AuthService] No user data received in login response");
         StorageService.session.del(AuthService.#ME);
       }
+
+      return resp.data;
     } catch (error) {
       console.error("[AuthService] Login failed:", error);
+      StorageService.session.del(AuthService.#TK);
+      StorageService.session.del(AuthService.#ME);
+      throw error;
+    }
+  }
+
+  static async verifyTwoFactor(
+    twoFactorToken: string,
+    code: string,
+  ): Promise<LoginResponse> {
+    try {
+      const token = String(twoFactorToken || "").trim();
+      const normalizedCode = String(code || "").trim();
+
+      if (!token) {
+        throw new Error("Two-factor token is required");
+      }
+      if (!normalizedCode) {
+        throw new Error("Two-factor code is required");
+      }
+
+      const resp = await ApiClientService.raw.post<LoginResponse>(
+        "/auth/verify-2fa",
+        {
+          twoFactorToken: token,
+          code: normalizedCode,
+        },
+      );
+
+      const tok = resp.data?.accessToken;
+      if (!tok) {
+        throw new Error("No access token received from server");
+      }
+
+      StorageService.session.setStr(AuthService.#TK, tok);
+      if (resp.data?.user) {
+        StorageService.session.setJson(AuthService.#ME, resp.data.user);
+      } else {
+        StorageService.session.del(AuthService.#ME);
+      }
+
+      return resp.data;
+    } catch (error) {
+      console.error("[AuthService] verifyTwoFactor failed:", error);
       StorageService.session.del(AuthService.#TK);
       StorageService.session.del(AuthService.#ME);
       throw error;

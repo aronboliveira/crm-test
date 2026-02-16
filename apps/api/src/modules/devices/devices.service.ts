@@ -298,14 +298,12 @@ export class DevicesService {
 
     items.forEach((item) => {
       const normalizedStatus: DeviceStatus = VALID_DEVICE_STATUSES.includes(
-        item.status as DeviceStatus,
+        item.status,
       )
-        ? (item.status as DeviceStatus)
+        ? item.status
         : 'offline';
-      const normalizedKind: DeviceKind = VALID_DEVICE_KINDS.includes(
-        item.kind as DeviceKind,
-      )
-        ? (item.kind as DeviceKind)
+      const normalizedKind: DeviceKind = VALID_DEVICE_KINDS.includes(item.kind)
+        ? item.kind
         : 'physical';
 
       status[normalizedStatus] += 1;
@@ -415,7 +413,11 @@ export class DevicesService {
     } as any);
   }
 
-  async update(id: string, ownerEmail: string, dto: any): Promise<DeviceEntity> {
+  async update(
+    id: string,
+    ownerEmail: string,
+    dto: any,
+  ): Promise<DeviceEntity> {
     const current = await this.findOne(id, ownerEmail);
 
     const patch: Record<string, unknown> = {

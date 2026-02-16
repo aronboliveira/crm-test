@@ -30,6 +30,7 @@ import type {
   WhatsAppAnalyticsQueryParams,
   MetaApiPaginatedResponse,
 } from './whatsapp.types';
+import type { IntegrationResilienceService } from '../../integration-resilience.service';
 
 /** Default API version for Meta Graph API */
 const DEFAULT_API_VERSION = 'v18.0';
@@ -39,8 +40,38 @@ const META_GRAPH_API_BASE = 'https://graph.facebook.com';
 export class WhatsAppApiClient {
   private readonly logger = new Logger(WhatsAppApiClient.name);
   private config: WhatsAppConfig | null = null;
+  private readonly resilience?: IntegrationResilienceService;
+  private readonly integrationId: string;
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    resilience?: IntegrationResilienceService,
+    integrationId = 'whatsapp',
+  ) {
+    this.resilience = resilience;
+    this.integrationId = integrationId;
+  }
+
+  private async executeResilient<T>(
+    operation: string,
+    action: () => Promise<T>,
+  ): Promise<T> {
+    if (!this.resilience) {
+      return action();
+    }
+
+    return this.resilience.execute(
+      {
+        integrationId: this.integrationId,
+        operation,
+        timeoutMs: 20_000,
+        maxRetries: 2,
+        baseDelayMs: 350,
+        maxDelayMs: 7_000,
+      },
+      action,
+    );
+  }
 
   // ===========================================================================
   // CONFIGURATION
@@ -88,11 +119,13 @@ export class WhatsAppApiClient {
     };
 
     const response: AxiosResponse<WhatsAppBusinessAccount> =
-      await firstValueFrom(
-        this.httpService.get(url, {
-          headers: this.getHeaders(),
-          params,
-        }),
+      await this.executeResilient('getBusinessAccount', () =>
+        firstValueFrom(
+          this.httpService.get(url, {
+            headers: this.getHeaders(),
+            params,
+          }),
+        ),
       );
 
     return response.data;
@@ -112,11 +145,13 @@ export class WhatsAppApiClient {
 
     const response: AxiosResponse<
       MetaApiPaginatedResponse<WhatsAppPhoneNumberInfo>
-    > = await firstValueFrom(
-      this.httpService.get(url, {
-        headers: this.getHeaders(),
-        params,
-      }),
+    > = await this.executeResilient('getPhoneNumbers', () =>
+      firstValueFrom(
+        this.httpService.get(url, {
+          headers: this.getHeaders(),
+          params,
+        }),
+      ),
     );
 
     return response.data.data;
@@ -150,11 +185,13 @@ export class WhatsAppApiClient {
     if (queryParams?.before) params.before = queryParams.before;
 
     const response: AxiosResponse<MetaApiPaginatedResponse<WhatsAppTemplate>> =
-      await firstValueFrom(
-        this.httpService.get(url, {
-          headers: this.getHeaders(),
-          params,
-        }),
+      await this.executeResilient('listTemplates', () =>
+        firstValueFrom(
+          this.httpService.get(url, {
+            headers: this.getHeaders(),
+            params,
+          }),
+        ),
       );
 
     return response.data;
@@ -172,12 +209,15 @@ export class WhatsAppApiClient {
         'id,name,language,status,category,components,quality_score,rejected_reason,previous_category',
     };
 
-    const response: AxiosResponse<WhatsAppTemplate> = await firstValueFrom(
-      this.httpService.get(url, {
-        headers: this.getHeaders(),
-        params,
-      }),
-    );
+    const response: AxiosResponse<WhatsAppTemplate> =
+      await this.executeResilient('getTemplate', () =>
+        firstValueFrom(
+          this.httpService.get(url, {
+            headers: this.getHeaders(),
+            params,
+          }),
+        ),
+      );
 
     return response.data;
   }
@@ -223,11 +263,13 @@ export class WhatsAppApiClient {
 
     const response: AxiosResponse<{
       data: { data_points: WhatsAppConversationAnalytics[] }[];
-    }> = await firstValueFrom(
-      this.httpService.get(url, {
-        headers: this.getHeaders(),
-        params: queryParams,
-      }),
+    }> = await this.executeResilient('getConversationAnalytics', () =>
+      firstValueFrom(
+        this.httpService.get(url, {
+          headers: this.getHeaders(),
+          params: queryParams,
+        }),
+      ),
     );
 
     return response.data.data[0]?.data_points || [];
@@ -260,11 +302,13 @@ export class WhatsAppApiClient {
 
     const response: AxiosResponse<{
       analytics: { data_points: WhatsAppMessageAnalytics[] };
-    }> = await firstValueFrom(
-      this.httpService.get(url, {
-        headers: this.getHeaders(),
-        params: queryParams,
-      }),
+    }> = await this.executeResilient('getMessageAnalytics', () =>
+      firstValueFrom(
+        this.httpService.get(url, {
+          headers: this.getHeaders(),
+          params: queryParams,
+        }),
+      ),
     );
 
     return (response.data as any).analytics?.data_points || [];
@@ -289,11 +333,13 @@ export class WhatsAppApiClient {
 
     const response: AxiosResponse<{
       data: WhatsAppTemplateAnalytics[];
-    }> = await firstValueFrom(
-      this.httpService.get(url, {
-        headers: this.getHeaders(),
-        params: queryParams,
-      }),
+    }> = await this.executeResilient('getTemplateAnalytics', () =>
+      firstValueFrom(
+        this.httpService.get(url, {
+          headers: this.getHeaders(),
+          params: queryParams,
+        }),
+      ),
     );
 
     return response.data.data || [];

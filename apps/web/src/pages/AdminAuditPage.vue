@@ -9,6 +9,7 @@ import {
 } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import BarChart from "../components/charts/BarChart.vue";
+import DonutChart from "../components/charts/DonutChart.vue";
 import { useAdminAuditPage } from "../assets/scripts/pages/useAdminAuditPage";
 import AdminApiService from "../services/AdminApiService";
 import SafeJsonService from "../services/SafeJsonService";
@@ -48,6 +49,24 @@ const sortDirection = ref<"asc" | "desc">("desc");
 const localSearchSuggestions = ref<string[]>([]);
 const emailSearchSuggestions = ref<string[]>([]);
 
+// Date range filters
+const dateFrom = ref("");
+const dateTo = ref("");
+const datePreset = ref<string>("");
+
+// Column visibility
+const visibleColumns = ref({
+  createdAt: true,
+  kind: true,
+  actorEmailMasked: true,
+  targetEmailMasked: true,
+  meta: true,
+});
+
+// Actor filter
+const actorFilter = ref("");
+const actorFilterSuggestions = ref<string[]>([]);
+
 const localSearchDatalistId = "audit-local-search-suggestions";
 const emailSearchDatalistId = "audit-email-search-suggestions";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -79,8 +98,60 @@ const handleClearFilters = (): void => {
   localSearch.value = "";
   st.value.q = "";
   st.value.kind = "";
+  actorFilter.value = "";
+  dateFrom.value = "";
+  dateTo.value = "";
+  datePreset.value = "";
   localSearchSuggestions.value = [];
   emailSearchSuggestions.value = [];
+  actorFilterSuggestions.value = [];
+};
+
+const applyDatePreset = (preset: string): void => {
+  datePreset.value = preset;
+  const today = new Date();
+  const formatDate = (d: Date): string => d.toISOString().split("T")[0] ?? "";
+
+  switch (preset) {
+    case "today":
+      dateFrom.value = formatDate(today);
+      dateTo.value = formatDate(today);
+      break;
+    case "last7":
+      const last7 = new Date(today);
+      last7.setDate(today.getDate() - 7);
+      dateFrom.value = formatDate(last7);
+      dateTo.value = formatDate(today);
+      break;
+    case "last30":
+      const last30 = new Date(today);
+      last30.setDate(today.getDate() - 30);
+      dateFrom.value = formatDate(last30);
+      dateTo.value = formatDate(today);
+      break;
+    case "thisMonth":
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      dateFrom.value = formatDate(firstDay);
+      dateTo.value = formatDate(today);
+      break;
+    default:
+      dateFrom.value = "";
+      dateTo.value = "";
+  }
+};
+
+const handleActorFilterInput = (): void => {
+  const uniqueActors = [
+    ...new Set(
+      rows.value
+        .map((r) => r.actorEmailMasked || r.actorEmail)
+        .filter((v): v is string => Boolean(v)),
+    ),
+  ];
+  const input = actorFilter.value.toLowerCase();
+  actorFilterSuggestions.value = uniqueActors
+    .filter((actor) => actor.toLowerCase().includes(input))
+    .slice(0, 10);
 };
 
 onBeforeUnmount(() => {
@@ -111,6 +182,29 @@ const applyLocalFiltersAndSort = (
           .toLowerCase()
           .includes(search)
       );
+    });
+  }
+
+  // Date range filter
+  if (dateFrom.value) {
+    result = result.filter((row) => {
+      const rowDate = row.createdAt?.split("T")[0] || "";
+      return rowDate >= dateFrom.value;
+    });
+  }
+  if (dateTo.value) {
+    result = result.filter((row) => {
+      const rowDate = row.createdAt?.split("T")[0] || "";
+      return rowDate <= dateTo.value;
+    });
+  }
+
+  // Actor filter
+  if (actorFilter.value.trim()) {
+    const actorSearch = actorFilter.value.toLowerCase();
+    result = result.filter((row) => {
+      const actor = row.actorEmailMasked || row.actorEmail || "";
+      return actor.toLowerCase().includes(actorSearch);
     });
   }
 
@@ -200,6 +294,47 @@ const topActors = computed(() => {
     .slice(0, 10);
 });
 
+// Computed: Events by hour (0-23)
+const eventsByHour = computed(() => {
+  const byHour: Record<number, number> = {};
+  for (let i = 0; i < 24; i++) byHour[i] = 0;
+
+  rows.value.forEach((row) => {
+    if (!row.createdAt) return;
+    const hour = parseInt(
+      row.createdAt.split("T")[1]?.split(":")[0] || "0",
+      10,
+    );
+    if (!isNaN(hour) && hour >= 0 && hour < 24) {
+      byHour[hour] = (byHour[hour] ?? 0) + 1;
+    }
+  });
+
+  return Object.entries(byHour)
+    .map(([hour, count]) => ({ hour: parseInt(hour, 10), count }))
+    .sort((a, b) => a.hour - b.hour);
+});
+
+// Computed: Success/Failure Donut slices
+const successFailureSlices = computed(() => {
+  const stats = successFailureStats.value;
+  const total = stats.success + stats.failure;
+  if (total === 0) return [];
+
+  return [
+    {
+      label: "Sucesso",
+      value: stats.success,
+      color: "#22c55e",
+    },
+    {
+      label: "Falha",
+      value: stats.failure,
+      color: "#ef4444",
+    },
+  ].filter((s) => s.value > 0);
+});
+
 const hasAuditData = computed(() => rows.value.length > 0);
 
 const truncateLabel = (label: string, maxLength = 28): string => {
@@ -231,6 +366,14 @@ const eventsByDateBars = computed(() =>
   })),
 );
 
+const eventsByHourBars = computed(() =>
+  eventsByHour.value.map((hourData) => ({
+    label: `${hourData.hour}h`,
+    value: hourData.count,
+    color: "#f59e0b",
+  })),
+);
+
 type DashboardTableExportDialogResult = {
   formats: SpreadsheetExportFormat[];
   columnKeys: string[];
@@ -248,7 +391,8 @@ const auditExporter = new SpreadsheetExporter<
   fileNamePrefix: "auditoria-admin",
   sheetName: "Auditoria",
   defaultColumnKeys: DEFAULT_EXPORT_COLUMN_KEYS,
-  buildBlueprint: (columnKeys) => new AdminAuditCsvBlueprint({ columns: columnKeys }),
+  buildBlueprint: (columnKeys) =>
+    new AdminAuditCsvBlueprint({ columns: columnKeys }),
   columnWidthByKey: ADMIN_AUDIT_EXPORT_COLUMN_WIDTHS,
   centeredColumnKeys: ADMIN_AUDIT_EXPORT_CENTERED_COLUMNS,
   resolveCellStyle: ({ columnKey, record }) => {
@@ -285,7 +429,9 @@ const buildAuditExportRows = (
       meta: stringifyAuditMetaPretty(row.meta || {}),
     }));
 
-const fetchAllFilteredRowsForExport = async (): Promise<AdminAuditSliceRow[]> => {
+const fetchAllFilteredRowsForExport = async (): Promise<
+  AdminAuditSliceRow[]
+> => {
   const deduped = new Map<string, AdminAuditSliceRow>();
   let cursor: string | undefined;
 
@@ -309,7 +455,9 @@ const fetchAllFilteredRowsForExport = async (): Promise<AdminAuditSliceRow[]> =>
     if (!pageRows.length) break;
 
     pageRows.forEach((row, rowIndex) => {
-      const id = String(row.id || row._id || `${row.createdAt || ""}-${rowIndex}`);
+      const id = String(
+        row.id || row._id || `${row.createdAt || ""}-${rowIndex}`,
+      );
       deduped.set(id, row);
     });
 
@@ -390,12 +538,9 @@ const syncRouteQuery = (): void => {
 
 applyRouteState(route.query);
 
-watch(
-  [() => st.value.q, () => st.value.kind],
-  () => {
-    syncRouteQuery();
-  },
-);
+watch([() => st.value.q, () => st.value.kind], () => {
+  syncRouteQuery();
+});
 
 watch(
   () => route.query,
@@ -525,6 +670,41 @@ onMounted(() => {
               Sem eventos para construir série temporal.
             </p>
           </article>
+
+          <article class="card audit-chart-card">
+            <h3 class="font-semibold mb-3">Sucesso vs Falha</h3>
+            <div
+              v-if="successFailureSlices.length"
+              class="flex justify-center py-4"
+            >
+              <DonutChart
+                :slices="successFailureSlices"
+                :size="200"
+                :stroke-width="35"
+                :center-value="rows.length.toString()"
+                center-label="Total"
+              />
+            </div>
+            <p v-else class="audit-empty-state">
+              Sem dados suficientes para proporção sucesso/falha.
+            </p>
+          </article>
+
+          <article class="card audit-chart-card">
+            <h3 class="font-semibold mb-3">Distribuição por Hora</h3>
+            <BarChart
+              v-if="eventsByHourBars.length"
+              :bars="eventsByHourBars"
+              :show-axis-labels="false"
+              :show-values="false"
+              :height="220"
+              :max-bar-width="16"
+              default-color="#f59e0b"
+            />
+            <p v-else class="audit-empty-state">
+              Sem dados horários disponíveis.
+            </p>
+          </article>
         </div>
 
         <p v-else class="audit-empty-state">
@@ -535,9 +715,9 @@ onMounted(() => {
 
     <!-- Filters Section -->
     <section v-if="showFilters" class="card audit-filters-card">
-      <h2 class="text-lg font-bold">Filtros</h2>
+      <h2 class="text-lg font-bold mb-4">Filtros</h2>
 
-      <div class="grid gap-3 md:grid-cols-3">
+      <div class="grid gap-3 md:grid-cols-3 mb-4">
         <label class="grid gap-1">
           <span class="font-semibold">Busca Global (Local)</span>
           <input
@@ -582,6 +762,38 @@ onMounted(() => {
         </label>
 
         <label class="grid gap-1">
+          <span class="font-semibold">Filtrar por Ator</span>
+          <input
+            class="table-search-input audit-filter-input audit-filter-input--email"
+            v-model="actorFilter"
+            placeholder="Email do ator..."
+            @input="handleActorFilterInput"
+          />
+        </label>
+      </div>
+
+      <div class="grid gap-3 md:grid-cols-3 mb-4">
+        <label class="grid gap-1">
+          <span class="font-semibold">Data Inicial</span>
+          <input
+            type="date"
+            class="table-search-input"
+            v-model="dateFrom"
+            aria-label="Data inicial"
+          />
+        </label>
+
+        <label class="grid gap-1">
+          <span class="font-semibold">Data Final</span>
+          <input
+            type="date"
+            class="table-search-input"
+            v-model="dateTo"
+            aria-label="Data final"
+          />
+        </label>
+
+        <label class="grid gap-1">
           <span class="font-semibold">Tipo de Evento</span>
           <select
             class="table-search-input"
@@ -610,12 +822,40 @@ onMounted(() => {
         </label>
       </div>
 
-      <div class="flex gap-2 justify-end">
+      <div class="flex gap-2 mb-4 flex-wrap">
+        <span class="font-semibold flex items-center">Períodos rápidos:</span>
         <button
-          class="btn btn-ghost"
+          class="btn btn-sm btn-ghost"
           type="button"
-          @click="handleClearFilters"
+          @click="applyDatePreset('today')"
         >
+          Hoje
+        </button>
+        <button
+          class="btn btn-sm btn-ghost"
+          type="button"
+          @click="applyDatePreset('last7')"
+        >
+          Últimos 7 dias
+        </button>
+        <button
+          class="btn btn-sm btn-ghost"
+          type="button"
+          @click="applyDatePreset('last30')"
+        >
+          Últimos 30 dias
+        </button>
+        <button
+          class="btn btn-sm btn-ghost"
+          type="button"
+          @click="applyDatePreset('thisMonth')"
+        >
+          Este mês
+        </button>
+      </div>
+
+      <div class="flex gap-2 justify-end">
+        <button class="btn btn-ghost" type="button" @click="handleClearFilters">
           Limpar Filtros
         </button>
         <button
@@ -631,14 +871,67 @@ onMounted(() => {
     </section>
 
     <!-- Data Table Section -->
-    <div class="card audit-table-card overflow-auto" role="region" aria-label="Tabela de auditoria">
-      <div class="mb-2 flex justify-between items-center">
+    <div
+      class="card audit-table-card overflow-auto"
+      role="region"
+      aria-label="Tabela de auditoria"
+    >
+      <div class="mb-3 flex justify-between items-center flex-wrap gap-2">
         <span class="text-sm opacity-70">
           Mostrando {{ filteredRows.length }} de {{ rows.length }} eventos
         </span>
-        <span v-if="sortColumn" class="text-sm opacity-70">
-          Ordenado por: {{ sortColumn }} {{ getSortIcon(sortColumn) }}
-        </span>
+        <div class="flex gap-2">
+          <details class="relative">
+            <summary class="btn btn-sm btn-ghost cursor-pointer">
+              Colunas Visíveis ▾
+            </summary>
+            <div
+              class="absolute right-0 mt-1 p-3 bg-gray-800 border border-white/10 rounded shadow-lg z-10 min-w-52"
+            >
+              <div class="grid gap-2">
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input type="checkbox" v-model="visibleColumns.createdAt" />
+                  <span>Data</span>
+                </label>
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input type="checkbox" v-model="visibleColumns.kind" />
+                  <span>Tipo</span>
+                </label>
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input
+                    type="checkbox"
+                    v-model="visibleColumns.actorEmailMasked"
+                  />
+                  <span>Ator</span>
+                </label>
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input
+                    type="checkbox"
+                    v-model="visibleColumns.targetEmailMasked"
+                  />
+                  <span>Alvo</span>
+                </label>
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input type="checkbox" v-model="visibleColumns.meta" />
+                  <span>Metadados</span>
+                </label>
+              </div>
+            </div>
+          </details>
+          <span v-if="sortColumn" class="text-sm opacity-70 flex items-center">
+            Ordenado por: {{ sortColumn }} {{ getSortIcon(sortColumn) }}
+          </span>
+        </div>
       </div>
 
       <table
@@ -649,6 +942,7 @@ onMounted(() => {
         <thead>
           <tr class="text-left opacity-80">
             <th
+              v-if="visibleColumns.createdAt"
               class="py-2 pr-3 cursor-pointer hover:opacity-100 hover:bg-white/5 select-none transition-colors"
               @click="toggleSort('createdAt')"
               @keydown="(e) => handleSortKeydown(e, 'createdAt')"
@@ -665,6 +959,7 @@ onMounted(() => {
               Data {{ getSortIcon("createdAt") }}
             </th>
             <th
+              v-if="visibleColumns.kind"
               class="py-2 pr-3 cursor-pointer hover:opacity-100 hover:bg-white/5 select-none transition-colors"
               @click="toggleSort('kind')"
               @keydown="(e) => handleSortKeydown(e, 'kind')"
@@ -681,6 +976,7 @@ onMounted(() => {
               Tipo {{ getSortIcon("kind") }}
             </th>
             <th
+              v-if="visibleColumns.actorEmailMasked"
               class="py-2 pr-3 cursor-pointer hover:opacity-100 hover:bg-white/5 select-none transition-colors"
               @click="toggleSort('actorEmailMasked')"
               @keydown="(e) => handleSortKeydown(e, 'actorEmailMasked')"
@@ -697,6 +993,7 @@ onMounted(() => {
               Ator {{ getSortIcon("actorEmailMasked") }}
             </th>
             <th
+              v-if="visibleColumns.targetEmailMasked"
               class="py-2 pr-3 cursor-pointer hover:opacity-100 hover:bg-white/5 select-none transition-colors"
               @click="toggleSort('targetEmailMasked')"
               @keydown="(e) => handleSortKeydown(e, 'targetEmailMasked')"
@@ -712,7 +1009,7 @@ onMounted(() => {
             >
               Alvo {{ getSortIcon("targetEmailMasked") }}
             </th>
-            <th class="py-2 pr-3">Meta</th>
+            <th v-if="visibleColumns.meta" class="py-2 pr-3">Meta</th>
           </tr>
         </thead>
 
@@ -722,10 +1019,10 @@ onMounted(() => {
             :key="e._id"
             class="border-t border-white/10 hover:bg-white/5 transition-colors"
           >
-            <td class="py-2 pr-3">
+            <td v-if="visibleColumns.createdAt" class="py-2 pr-3">
               <span class="text-sm">{{ e.createdAt }}</span>
             </td>
-            <td class="py-2 pr-3">
+            <td v-if="visibleColumns.kind" class="py-2 pr-3">
               <span
                 class="inline-block px-2 py-1 rounded text-xs font-semibold"
                 :class="{
@@ -738,17 +1035,17 @@ onMounted(() => {
                 {{ e.kind }}
               </span>
             </td>
-            <td class="py-2 pr-3">
+            <td v-if="visibleColumns.actorEmailMasked" class="py-2 pr-3">
               <span class="font-mono text-sm">
                 {{ e.actorEmailMasked || e.actorEmail || "-" }}
               </span>
             </td>
-            <td class="py-2 pr-3">
+            <td v-if="visibleColumns.targetEmailMasked" class="py-2 pr-3">
               <span class="font-mono text-sm">
                 {{ e.targetEmailMasked || e.targetEmail || "-" }}
               </span>
             </td>
-            <td class="py-2 pr-3">
+            <td v-if="visibleColumns.meta" class="py-2 pr-3">
               <details v-if="e.meta" class="cursor-pointer">
                 <summary class="text-xs opacity-70 hover:opacity-100">
                   Ver detalhes
@@ -765,7 +1062,10 @@ onMounted(() => {
           </tr>
 
           <tr v-if="!filteredRows.length && !busy">
-            <td colspan="5" class="py-6 opacity-70 text-center">
+            <td
+              :colspan="Object.values(visibleColumns).filter(Boolean).length"
+              class="py-6 opacity-70 text-center"
+            >
               {{
                 localSearch.trim()
                   ? "Nenhum evento encontrado com os filtros aplicados."

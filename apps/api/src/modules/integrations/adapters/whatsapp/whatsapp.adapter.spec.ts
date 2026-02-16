@@ -2,9 +2,15 @@ import { WhatsAppAdapter } from './whatsapp.adapter';
 
 describe('WhatsAppAdapter', () => {
   let adapter: WhatsAppAdapter;
+  const resilience = {
+    execute: jest.fn(async (_options: unknown, run: () => Promise<unknown>) =>
+      run(),
+    ),
+    getIntegrationSnapshot: jest.fn().mockReturnValue([]),
+  };
 
   beforeEach(() => {
-    adapter = new WhatsAppAdapter({} as never);
+    adapter = new WhatsAppAdapter({} as never, resilience as never);
   });
 
   it('returns disconnected status when not configured', async () => {
@@ -82,7 +88,9 @@ describe('WhatsAppAdapter', () => {
         'WhatsApp Business Account ID',
       ]),
     );
-    expect((health as any).nextStep).toContain('Provide required Meta credentials');
+    expect((health as any).nextStep).toContain(
+      'Provide required Meta credentials',
+    );
   });
 
   it('builds sync snapshot datasets for template reconciliation', async () => {

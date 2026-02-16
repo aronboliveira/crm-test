@@ -25,6 +25,22 @@ export interface LoginResponse {
   user: SessionUser | UserProfile;
 }
 
+export interface TwoFactorChallengeResponse {
+  requiresTwoFactor: true;
+  twoFactorToken: string;
+  email: string;
+}
+
+export type LoginResult = LoginResponse | TwoFactorChallengeResponse;
+
+export type OAuthProvider = "google" | "microsoft" | "nextcloud";
+
+export interface OAuthProviderAvailability {
+  provider: OAuthProvider;
+  enabled: boolean;
+  reason?: string;
+}
+
 /**
  * Shared response shape for force-reset / invite endpoints.
  */
