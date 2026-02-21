@@ -2525,7 +2525,7 @@ onBeforeUnmount(() => {
             title="Abrir guia de ajuda para integracoes"
             aria-label="Abrir guia de ajuda para integracoes"
             data-help-target="integration-help-modal"
-            :data-integration-id="primaryHelpIntegrationId"
+            :data-help-integration-id="primaryHelpIntegrationId"
             data-help-scope="dashboard"
             @click="openIntegrationHelpFromTrigger"
           >

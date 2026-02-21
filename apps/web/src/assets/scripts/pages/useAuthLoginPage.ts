@@ -78,8 +78,6 @@ export function useAuthLoginPage() {
         return;
       }
 
-      await AlertService.success("Bem-vindo!", "Login realizado com sucesso");
-
       // Warm up the first dashboard route chunk to reduce first-mount stutter
       // right after authentication on slower/cold browser caches.
       await Promise.allSettled([

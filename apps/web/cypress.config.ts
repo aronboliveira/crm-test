@@ -4,9 +4,15 @@
  */
 import { defineConfig } from "cypress";
 
+const webPort = process.env.WEB_HOST_PORT ?? "5173";
+const apiPort = process.env.API_HOST_PORT ?? "3000";
+const baseUrl =
+  process.env.CYPRESS_BASE_URL ?? `http://localhost:${webPort}`;
+const apiUrl = process.env.CYPRESS_API_URL ?? `http://localhost:${apiPort}`;
+
 export default defineConfig({
   e2e: {
-    baseUrl: "http://localhost:5173",
+    baseUrl,
     specPattern: "cypress/e2e/**/*.cy.ts",
     supportFile: "cypress/support/e2e.ts",
     fixturesFolder: "cypress/fixtures",
@@ -18,7 +24,7 @@ export default defineConfig({
     video: false,
     screenshotOnRunFailure: true,
     env: {
-      apiUrl: "http://localhost:3000",
+      apiUrl,
     },
     setupNodeEvents(_on, _config) {
       // node event listeners can be added here

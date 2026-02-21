@@ -261,8 +261,8 @@ const emitHelp = (): void => {
             :title="`Abrir ajuda de ${integration.name}`"
             :aria-label="`Abrir ajuda da integração ${integration.name}`"
             :data-help-target="'integration-help-modal'"
-            :data-integration-id="integration.id"
-            :data-integration-name="integration.name"
+            :data-help-integration-id="integration.id"
+            :data-help-integration-name="integration.name"
             @click.stop="emitHelp"
           >
             <svg

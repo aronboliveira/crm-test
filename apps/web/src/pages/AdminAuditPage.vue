@@ -43,6 +43,7 @@ const EXPORT_MAX_PAGES = 100;
 // Local state for UI toggles and filters
 const showCharts = ref(true);
 const showFilters = ref(true);
+const showColumnVisibilityMenu = ref(false);
 const localSearch = ref("");
 const sortColumn = ref<string | null>(null);
 const sortDirection = ref<"asc" | "desc">("desc");
@@ -56,11 +57,11 @@ const datePreset = ref<string>("");
 
 // Column visibility
 const visibleColumns = ref({
-  createdAt: true,
-  kind: true,
-  actorEmailMasked: true,
-  targetEmailMasked: true,
-  meta: true,
+  timestamp: true,
+  eventType: true,
+  actor: true,
+  status: true,
+  details: true,
 });
 
 // Actor filter
@@ -130,7 +131,8 @@ const applyDatePreset = (preset: string): void => {
       dateTo.value = formatDate(today);
       break;
     case "thisMonth":
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const firstDay = new Date(today);
+      firstDay.setDate(1);
       dateFrom.value = formatDate(firstDay);
       dateTo.value = formatDate(today);
       break;
@@ -152,6 +154,17 @@ const handleActorFilterInput = (): void => {
   actorFilterSuggestions.value = uniqueActors
     .filter((actor) => actor.toLowerCase().includes(input))
     .slice(0, 10);
+};
+
+const toggleColumnVisibilityMenu = (): void => {
+  showColumnVisibilityMenu.value = !showColumnVisibilityMenu.value;
+};
+
+const resolveStatusLabel = (kind?: string): string => {
+  if (!kind) return "Informativo";
+  if (kind.includes("success")) return "Sucesso";
+  if (kind.includes("failure")) return "Falha";
+  return "Informativo";
 };
 
 onBeforeUnmount(() => {
@@ -591,10 +604,126 @@ onMounted(() => {
           >
             {{ showFilters ? "Ocultar" : "Mostrar" }} Filtros
           </button>
+          <input
+            type="date"
+            class="table-search-input audit-filter-input audit-filter-input--date-from audit-overview__quick-date"
+            v-model="dateFrom"
+            aria-label="Data inicial"
+          />
+          <input
+            type="date"
+            class="table-search-input audit-filter-input audit-filter-input--date-to audit-overview__quick-date"
+            v-model="dateTo"
+            aria-label="Data final"
+          />
+          <input
+            class="table-search-input audit-filter-input audit-filter-input--actor audit-overview__quick-actor"
+            v-model="actorFilter"
+            aria-label="Filtrar por ator"
+            placeholder="Ator..."
+            @input="handleActorFilterInput"
+          />
+          <button
+            class="btn btn-sm btn-ghost"
+            type="button"
+            @click="applyDatePreset('today')"
+          >
+            Hoje
+          </button>
+          <button
+            class="btn btn-sm btn-ghost"
+            type="button"
+            @click="applyDatePreset('last7')"
+          >
+            Últimos 7 dias
+          </button>
+          <button
+            class="btn btn-sm btn-ghost"
+            type="button"
+            @click="applyDatePreset('last30')"
+          >
+            Últimos 30 dias
+          </button>
+          <button
+            class="btn btn-sm btn-ghost"
+            type="button"
+            @click="applyDatePreset('thisMonth')"
+          >
+            Este mês
+          </button>
+          <div class="relative audit-column-visibility">
+            <button
+              class="btn btn-sm btn-ghost cursor-pointer audit-column-visibility__trigger"
+              type="button"
+              @click="toggleColumnVisibilityMenu"
+            >
+              Colunas Visíveis ▾
+            </button>
+            <div
+              v-show="showColumnVisibilityMenu"
+              class="absolute right-0 mt-1 p-3 bg-gray-800 border border-white/10 rounded shadow-lg z-10 min-w-52 audit-column-visibility__menu"
+            >
+              <div class="grid gap-2">
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input
+                    type="checkbox"
+                    data-col="timestamp"
+                    v-model="visibleColumns.timestamp"
+                  />
+                  <span>Data</span>
+                </label>
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input
+                    type="checkbox"
+                    data-col="eventType"
+                    v-model="visibleColumns.eventType"
+                  />
+                  <span>Tipo</span>
+                </label>
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input
+                    type="checkbox"
+                    data-col="actor"
+                    v-model="visibleColumns.actor"
+                  />
+                  <span>Ator</span>
+                </label>
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input
+                    type="checkbox"
+                    data-col="status"
+                    v-model="visibleColumns.status"
+                  />
+                  <span>Status</span>
+                </label>
+                <label
+                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
+                >
+                  <input
+                    type="checkbox"
+                    data-col="details"
+                    v-model="visibleColumns.details"
+                  />
+                  <span>Detalhes</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <section v-if="showCharts" class="audit-overview__content">
+      <section
+        v-if="showCharts"
+        class="audit-overview__content audit-charts-section"
+      >
         <h2 class="text-lg font-bold">Estatísticas</h2>
 
         <div class="audit-summary-grid">
@@ -624,54 +753,11 @@ onMounted(() => {
         </div>
 
         <div v-if="hasAuditData" class="audit-charts-grid">
-          <article class="card audit-chart-card">
-            <h3 class="font-semibold mb-3">Distribuição por Tipo</h3>
-            <BarChart
-              v-if="eventTypeBars.length"
-              :bars="eventTypeBars"
-              :horizontal="true"
-              :show-axis-labels="false"
-              :height="240"
-              :max-bar-width="28"
-            />
-            <p v-else class="audit-empty-state">
-              Sem dados suficientes para distribuir tipos.
-            </p>
-          </article>
-
-          <article class="card audit-chart-card">
-            <h3 class="font-semibold mb-3">Usuários Mais Ativos</h3>
-            <BarChart
-              v-if="topActorsBars.length"
-              :bars="topActorsBars"
-              :horizontal="true"
-              :show-axis-labels="false"
-              :height="240"
-              :max-bar-width="28"
-              default-color="#8b5cf6"
-            />
-            <p v-else class="audit-empty-state">
-              Sem dados suficientes para ranking de usuários.
-            </p>
-          </article>
-
-          <article class="card audit-chart-card audit-chart-card--wide">
-            <h3 class="font-semibold mb-3">Eventos por Data</h3>
-            <BarChart
-              v-if="eventsByDateBars.length"
-              :bars="eventsByDateBars"
-              :show-axis-labels="false"
-              :show-values="false"
-              :height="250"
-              :max-bar-width="32"
-              default-color="#22c55e"
-            />
-            <p v-else class="audit-empty-state">
-              Sem eventos para construir série temporal.
-            </p>
-          </article>
-
-          <article class="card audit-chart-card">
+          <article
+            id="audit-chart-success-failure"
+            class="card audit-chart-card"
+            aria-label="Gráfico de sucesso e falha"
+          >
             <h3 class="font-semibold mb-3">Sucesso vs Falha</h3>
             <div
               v-if="successFailureSlices.length"
@@ -690,7 +776,11 @@ onMounted(() => {
             </p>
           </article>
 
-          <article class="card audit-chart-card">
+          <article
+            id="audit-chart-hourly-activity"
+            class="card audit-chart-card"
+            aria-label="Gráfico de atividade por hora"
+          >
             <h3 class="font-semibold mb-3">Distribuição por Hora</h3>
             <BarChart
               v-if="eventsByHourBars.length"
@@ -766,6 +856,7 @@ onMounted(() => {
           <input
             class="table-search-input audit-filter-input audit-filter-input--email"
             v-model="actorFilter"
+            aria-label="Filtrar por ator"
             placeholder="Email do ator..."
             @input="handleActorFilterInput"
           />
@@ -822,38 +913,6 @@ onMounted(() => {
         </label>
       </div>
 
-      <div class="flex gap-2 mb-4 flex-wrap">
-        <span class="font-semibold flex items-center">Períodos rápidos:</span>
-        <button
-          class="btn btn-sm btn-ghost"
-          type="button"
-          @click="applyDatePreset('today')"
-        >
-          Hoje
-        </button>
-        <button
-          class="btn btn-sm btn-ghost"
-          type="button"
-          @click="applyDatePreset('last7')"
-        >
-          Últimos 7 dias
-        </button>
-        <button
-          class="btn btn-sm btn-ghost"
-          type="button"
-          @click="applyDatePreset('last30')"
-        >
-          Últimos 30 dias
-        </button>
-        <button
-          class="btn btn-sm btn-ghost"
-          type="button"
-          @click="applyDatePreset('thisMonth')"
-        >
-          Este mês
-        </button>
-      </div>
-
       <div class="flex gap-2 justify-end">
         <button class="btn btn-ghost" type="button" @click="handleClearFilters">
           Limpar Filtros
@@ -880,58 +939,9 @@ onMounted(() => {
         <span class="text-sm opacity-70">
           Mostrando {{ filteredRows.length }} de {{ rows.length }} eventos
         </span>
-        <div class="flex gap-2">
-          <details class="relative">
-            <summary class="btn btn-sm btn-ghost cursor-pointer">
-              Colunas Visíveis ▾
-            </summary>
-            <div
-              class="absolute right-0 mt-1 p-3 bg-gray-800 border border-white/10 rounded shadow-lg z-10 min-w-52"
-            >
-              <div class="grid gap-2">
-                <label
-                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                >
-                  <input type="checkbox" v-model="visibleColumns.createdAt" />
-                  <span>Data</span>
-                </label>
-                <label
-                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                >
-                  <input type="checkbox" v-model="visibleColumns.kind" />
-                  <span>Tipo</span>
-                </label>
-                <label
-                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                >
-                  <input
-                    type="checkbox"
-                    v-model="visibleColumns.actorEmailMasked"
-                  />
-                  <span>Ator</span>
-                </label>
-                <label
-                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                >
-                  <input
-                    type="checkbox"
-                    v-model="visibleColumns.targetEmailMasked"
-                  />
-                  <span>Alvo</span>
-                </label>
-                <label
-                  class="flex items-center gap-2 cursor-pointer hover:opacity-80"
-                >
-                  <input type="checkbox" v-model="visibleColumns.meta" />
-                  <span>Metadados</span>
-                </label>
-              </div>
-            </div>
-          </details>
-          <span v-if="sortColumn" class="text-sm opacity-70 flex items-center">
-            Ordenado por: {{ sortColumn }} {{ getSortIcon(sortColumn) }}
-          </span>
-        </div>
+        <span v-if="sortColumn" class="text-sm opacity-70 flex items-center">
+          Ordenado por: {{ sortColumn }} {{ getSortIcon(sortColumn) }}
+        </span>
       </div>
 
       <table
@@ -942,7 +952,7 @@ onMounted(() => {
         <thead>
           <tr class="text-left opacity-80">
             <th
-              v-if="visibleColumns.createdAt"
+              v-show="visibleColumns.timestamp"
               class="py-2 pr-3 cursor-pointer hover:opacity-100 hover:bg-white/5 select-none transition-colors"
               @click="toggleSort('createdAt')"
               @keydown="(e) => handleSortKeydown(e, 'createdAt')"
@@ -959,7 +969,7 @@ onMounted(() => {
               Data {{ getSortIcon("createdAt") }}
             </th>
             <th
-              v-if="visibleColumns.kind"
+              v-show="visibleColumns.eventType"
               class="py-2 pr-3 cursor-pointer hover:opacity-100 hover:bg-white/5 select-none transition-colors"
               @click="toggleSort('kind')"
               @keydown="(e) => handleSortKeydown(e, 'kind')"
@@ -976,7 +986,7 @@ onMounted(() => {
               Tipo {{ getSortIcon("kind") }}
             </th>
             <th
-              v-if="visibleColumns.actorEmailMasked"
+              v-show="visibleColumns.actor"
               class="py-2 pr-3 cursor-pointer hover:opacity-100 hover:bg-white/5 select-none transition-colors"
               @click="toggleSort('actorEmailMasked')"
               @keydown="(e) => handleSortKeydown(e, 'actorEmailMasked')"
@@ -993,23 +1003,12 @@ onMounted(() => {
               Ator {{ getSortIcon("actorEmailMasked") }}
             </th>
             <th
-              v-if="visibleColumns.targetEmailMasked"
-              class="py-2 pr-3 cursor-pointer hover:opacity-100 hover:bg-white/5 select-none transition-colors"
-              @click="toggleSort('targetEmailMasked')"
-              @keydown="(e) => handleSortKeydown(e, 'targetEmailMasked')"
-              role="button"
-              tabindex="0"
-              :aria-sort="
-                sortColumn === 'targetEmailMasked'
-                  ? sortDirection === 'asc'
-                    ? 'ascending'
-                    : 'descending'
-                  : 'none'
-              "
+              v-show="visibleColumns.status"
+              class="py-2 pr-3"
             >
-              Alvo {{ getSortIcon("targetEmailMasked") }}
+              Status
             </th>
-            <th v-if="visibleColumns.meta" class="py-2 pr-3">Meta</th>
+            <th v-show="visibleColumns.details" class="py-2 pr-3">Detalhes</th>
           </tr>
         </thead>
 
@@ -1019,10 +1018,10 @@ onMounted(() => {
             :key="e._id"
             class="border-t border-white/10 hover:bg-white/5 transition-colors"
           >
-            <td v-if="visibleColumns.createdAt" class="py-2 pr-3">
+            <td v-show="visibleColumns.timestamp" class="py-2 pr-3">
               <span class="text-sm">{{ e.createdAt }}</span>
             </td>
-            <td v-if="visibleColumns.kind" class="py-2 pr-3">
+            <td v-show="visibleColumns.eventType" class="py-2 pr-3">
               <span
                 class="inline-block px-2 py-1 rounded text-xs font-semibold"
                 :class="{
@@ -1035,17 +1034,25 @@ onMounted(() => {
                 {{ e.kind }}
               </span>
             </td>
-            <td v-if="visibleColumns.actorEmailMasked" class="py-2 pr-3">
+            <td v-show="visibleColumns.actor" class="py-2 pr-3">
               <span class="font-mono text-sm">
                 {{ e.actorEmailMasked || e.actorEmail || "-" }}
               </span>
             </td>
-            <td v-if="visibleColumns.targetEmailMasked" class="py-2 pr-3">
-              <span class="font-mono text-sm">
-                {{ e.targetEmailMasked || e.targetEmail || "-" }}
+            <td v-show="visibleColumns.status" class="py-2 pr-3">
+              <span
+                class="inline-block px-2 py-1 rounded text-xs font-semibold"
+                :class="{
+                  'bg-green-500/20 text-green-400': e.kind.includes('success'),
+                  'bg-red-500/20 text-red-400': e.kind.includes('failure'),
+                  'bg-blue-500/20 text-blue-400':
+                    !e.kind.includes('success') && !e.kind.includes('failure'),
+                }"
+              >
+                {{ resolveStatusLabel(e.kind) }}
               </span>
             </td>
-            <td v-if="visibleColumns.meta" class="py-2 pr-3">
+            <td v-show="visibleColumns.details" class="py-2 pr-3">
               <details v-if="e.meta" class="cursor-pointer">
                 <summary class="text-xs opacity-70 hover:opacity-100">
                   Ver detalhes
@@ -1151,6 +1158,14 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+.audit-overview__quick-date {
+  width: 10rem;
+}
+
+.audit-overview__quick-actor {
+  width: 11rem;
+}
+
 .audit-overview__content {
   display: grid;
   gap: 1.15rem;
@@ -1180,7 +1195,7 @@ onMounted(() => {
 }
 
 .audit-chart-card {
-  min-height: 20rem;
+  min-height: 14rem;
   padding: 1.2rem 1.3rem 1.35rem;
 }
 
