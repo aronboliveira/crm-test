@@ -1873,9 +1873,6 @@ export default class MockSeedService {
   /* ── Tags seed ──────────────────────────────────────────── */
 
   async #seedTags(): Promise<void> {
-    const existing = await this.tagsRepo.count();
-    if (existing > 0) return;
-
     const tags = [
       { key: 'frontend', label: 'Frontend', color: '#3b82f6' },
       { key: 'backend', label: 'Backend', color: '#10b981' },
@@ -1891,13 +1888,30 @@ export default class MockSeedService {
       { key: 'infrastructure', label: 'Infrastructure', color: '#a855f7' },
     ];
 
+    let created = 0;
     for (const t of tags) {
-      await this.tagsRepo.save({
-        ...t,
-        createdAt: new Date().toISOString(),
-      } as any);
+      const existing = await this.tagsRepo.findOne({
+        where: { key: t.key } as any,
+      });
+      if (existing) {
+        continue;
+      }
+
+      try {
+        await this.tagsRepo.save({
+          ...t,
+          createdAt: new Date().toISOString(),
+        } as any);
+        created += 1;
+      } catch (error) {
+        // When multiple bootstrap attempts race, ignore duplicate-key inserts.
+        if (String((error as Error).message || '').includes('E11000')) {
+          continue;
+        }
+        throw error;
+      }
     }
-    console.log(`[MockSeed] Created ${tags.length} tags`);
+    console.log(`[MockSeed] Created ${created} tags`);
   }
 
   /* ── Milestones seed ────────────────────────────────────── */
@@ -2004,9 +2018,6 @@ export default class MockSeedService {
   /* ── Project Templates seed ─────────────────────────────── */
 
   async #seedTemplates(): Promise<void> {
-    const existing = await this.templatesRepo.count();
-    if (existing > 0) return;
-
     const now = new Date().toISOString();
     const templates = [
       {
@@ -2130,18 +2141,35 @@ export default class MockSeedService {
       },
     ];
 
+    let created = 0;
     for (const tmpl of templates) {
-      await this.templatesRepo.save({
-        ...tmpl,
-        tasks: tmpl.tasks.map((t) => ({
-          ...t,
-          description: '',
-        })),
-        createdAt: now,
-        updatedAt: now,
-      } as any);
+      const exists = await this.templatesRepo.findOne({
+        where: { key: tmpl.key } as any,
+      });
+      if (exists) {
+        continue;
+      }
+
+      try {
+        await this.templatesRepo.save({
+          ...tmpl,
+          tasks: tmpl.tasks.map((t) => ({
+            ...t,
+            description: '',
+          })),
+          createdAt: now,
+          updatedAt: now,
+        } as any);
+        created += 1;
+      } catch (error) {
+        // When multiple bootstrap attempts race, ignore duplicate-key inserts.
+        if (String((error as Error).message || '').includes('E11000')) {
+          continue;
+        }
+        throw error;
+      }
     }
-    console.log(`[MockSeed] Created ${templates.length} project templates`);
+    console.log(`[MockSeed] Created ${created} project templates`);
   }
 
   async #seedMailOutbox(allEmails: string[]): Promise<void> {
