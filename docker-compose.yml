@@ -1,10 +1,12 @@
+name: crm-test
+
 services:
   mongodb:
     image: mongo:7.0
-    container_name: crm-mongodb
     restart: unless-stopped
-    network_mode: host
-    command: ["mongod", "--bind_ip", "127.0.0.1", "--port", "27017"]
+    command: ["mongod", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "${MONGO_HOST_PORT:-27017}:27017"
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
@@ -22,9 +24,9 @@ services:
       context: .
       dockerfile: Dockerfile.api
       target: development
-    container_name: crm-api
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "${API_HOST_PORT:-3000}:3000"
     volumes:
       - ./apps/api:/app/apps/api
       - ./packages:/app/packages
@@ -33,7 +35,7 @@ services:
       - crm_uploads:/app/uploads
     environment:
       - NODE_ENV=development
-      - MONGO_URL=mongodb://localhost:27017/corp_admin
+      - MONGO_URL=mongodb://host.docker.internal:${MONGO_HOST_PORT:-27017}/corp_admin
       - JWT_SECRET=change_me_in_production
       - JWT_EXPIRES=8h
       - TYPEORM_SYNC=1
@@ -41,8 +43,10 @@ services:
       - CORS_ORIGIN=http://localhost:${WEB_HOST_PORT:-5173}
       - PORT=3000
       - UPLOADS_DIR=/app/uploads
-      - REDIS_HOST=localhost
-      - REDIS_PORT=6379
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=${REDIS_HOST_PORT:-6379}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -56,7 +60,7 @@ services:
           "--quiet",
           "--tries=1",
           "--spider",
-          "http://localhost:3000/",
+          "http://localhost:3000/auth/oauth/providers",
         ]
       interval: 10s
       timeout: 5s
@@ -68,9 +72,9 @@ services:
       context: .
       dockerfile: Dockerfile.web
       target: development
-    container_name: crm-web
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "${WEB_HOST_PORT:-5173}:5173"
     volumes:
       - ./apps/web:/app/apps/web
       - ./packages:/app/packages
@@ -85,12 +89,12 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: crm-redis
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru --bind 127.0.0.1 --port 6379
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru --bind 0.0.0.0 --port 6379
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

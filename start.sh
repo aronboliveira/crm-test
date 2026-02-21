@@ -1,361 +1,222 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}  CRM Application Startup Script${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
-# Check if Docker is installed
-if ! command -v docker &> /dev/null; then
-    echo -e "${RED}Error: Docker is not installed!${NC}"
-    echo "Please install Docker from: https://docs.docker.com/get-docker/"
-    exit 1
+if ! command -v docker >/dev/null 2>&1; then
+  echo -e "${RED}Error: Docker is not installed${NC}"
+  exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    echo -e "${RED}Error: Docker Compose is not installed!${NC}"
-    echo "Please install Docker Compose from: https://docs.docker.com/compose/install/"
-    exit 1
+if docker compose version >/dev/null 2>&1; then
+  DOCKER_COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+  DOCKER_COMPOSE=(docker-compose)
+else
+  echo -e "${RED}Error: Docker Compose is not installed${NC}"
+  exit 1
 fi
+
+compose() {
+  "${DOCKER_COMPOSE[@]}" "$@"
+}
+
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-crm-test}"
+BUILDKIT_PROGRESS="${BUILDKIT_PROGRESS:-plain}"
+export COMPOSE_PROJECT_NAME BUILDKIT_PROGRESS
 
 echo -e "${GREEN}✓ Docker and Docker Compose are installed${NC}"
 echo ""
 
-# Determine docker compose command (v1 vs v2)
-if docker compose version &> /dev/null; then
-    DOCKER_COMPOSE="docker compose"
-else
-    DOCKER_COMPOSE="docker-compose"
-fi
-
-# ──────────────────────────────────────────────────────────
-#  Cleanup stale containers and docker-proxy processes
-#  This handles cases where a previous run was interrupted
-# ──────────────────────────────────────────────────────────
-cleanup_stale_resources() {
-    echo -e "${YELLOW}Cleaning up stale resources...${NC}"
-    
-    # Stop and remove any crm containers that are stuck in "Created" state
-    for container in crm-api crm-web crm-redis crm-mongodb; do
-        local state
-        state=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null || echo "none")
-        if [ "$state" = "created" ] || [ "$state" = "exited" ] || [ "$state" = "dead" ]; then
-            docker rm -f "$container" &>/dev/null || true
-        fi
-    done
-    
-    # Kill any orphaned docker-proxy processes holding our ports
-    for port in 3000 5173 6379 27017; do
-        local pids
-        pids=$(ss -tlnp 2>/dev/null | grep ":$port" | grep -oP 'pid=\K[0-9]+' | sort -u || true)
-        if [ -n "$pids" ]; then
-            # Check if any running CRM container is using this port
-            local in_use=false
-            for container in crm-api crm-web crm-redis crm-mongodb; do
-                if docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null | grep -q "running"; then
-                    in_use=true
-                    break
-                fi
-            done
-            # Only kill if no CRM container is running
-            if ! $in_use; then
-                for pid in $pids; do
-                    local cmd
-                    cmd=$(ps -p "$pid" -o comm= 2>/dev/null || true)
-                    if [ "$cmd" = "docker-proxy" ]; then
-                        kill "$pid" 2>/dev/null || true
-                    fi
-                done
-            fi
-        fi
-    done
-    
-    echo -e "${GREEN}✓ Cleanup complete${NC}"
-}
-
-cleanup_stale_resources
-
-# ──────────────────────────────────────────────────────────
-#  Dynamic port helper
-#  find_available_port <base_port> <max_attempts>
-#  Prints the first port starting at base_port that is not
-#  in use on the host.
-# ──────────────────────────────────────────────────────────
 find_available_port() {
-    local port=$1
-    local max=${2:-10}
-    local attempts=0
-    while [ $attempts -lt $max ]; do
-        # Check with ss (fast), fall back to lsof, fall back to /dev/tcp
-        if command -v ss &> /dev/null; then
-            if ! ss -ltn "sport = :$port" 2>/dev/null | grep -q ":$port"; then
-                echo "$port"
-                return 0
-            fi
-        elif command -v lsof &> /dev/null; then
-            if ! lsof -i ":$port" &> /dev/null; then
-                echo "$port"
-                return 0
-            fi
-        else
-            # Bash built-in /dev/tcp probe
-            if ! (echo >/dev/tcp/127.0.0.1/$port) 2>/dev/null; then
-                echo "$port"
-                return 0
-            fi
-        fi
-        echo -e "${YELLOW}  Port $port is busy, trying $((port + 1))...${NC}" >&2
-        port=$((port + 1))
-        attempts=$((attempts + 1))
-    done
-    echo "$port"  # last attempt even if occupied
-    return 1
+  local port="$1"
+  local max_attempts="${2:-20}"
+  local tries=0
+
+  while [ "$tries" -lt "$max_attempts" ]; do
+    if command -v ss >/dev/null 2>&1; then
+      if ! ss -ltn "sport = :$port" 2>/dev/null | grep -q ":$port"; then
+        echo "$port"
+        return 0
+      fi
+    elif command -v lsof >/dev/null 2>&1; then
+      if ! lsof -i ":$port" >/dev/null 2>&1; then
+        echo "$port"
+        return 0
+      fi
+    else
+      if ! (echo >/dev/tcp/127.0.0.1/"$port") >/dev/null 2>&1; then
+        echo "$port"
+        return 0
+      fi
+    fi
+
+    echo -e "${YELLOW}  Port $port is busy, trying $((port + 1))...${NC}" >&2
+    port=$((port + 1))
+    tries=$((tries + 1))
+  done
+
+  echo -e "${RED}Could not find a free port after ${max_attempts} attempts${NC}" >&2
+  return 1
 }
 
-# ──────────────────────────────────────────────────────────
-#  Try to start a specific service with a dynamic port.
-#  If the container doesn't become healthy within TIMEOUT
-#  seconds, tear it down, bump the port, and retry.
-#
-#  start_service_with_port_retry <svc> <base_port> <env_var>
-# ──────────────────────────────────────────────────────────
-start_service_with_port_retry() {
-    local svc=$1
-    local base_port=$2
-    local env_var=$3
-    local max_retries=${4:-5}
-    local timeout=${5:-10}
-    local port
-    local attempt=0
+wait_for_service() {
+  local service="$1"
+  local timeout="${2:-120}"
+  local waited=0
 
-    port=$(find_available_port "$base_port" "$max_retries")
+  while [ "$waited" -lt "$timeout" ]; do
+    local cid
+    cid="$(compose ps -q "$service" 2>/dev/null || true)"
 
-    while [ $attempt -lt $max_retries ]; do
-        export "$env_var=$port"
-        echo -e "${CYAN}  → Attempting $svc on host port $port ...${NC}"
+    if [ -n "$cid" ]; then
+      local state
+      state="$(docker inspect --format='{{.State.Status}}' "$cid" 2>/dev/null || echo missing)"
+      local health
+      health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid" 2>/dev/null || echo unknown)"
 
-        # Remove stale container if present
-        docker rm -f "crm-$svc" &>/dev/null || true
+      if [ "$state" = "running" ] && { [ "$health" = "healthy" ] || [ "$health" = "none" ]; }; then
+        return 0
+      fi
 
-        $DOCKER_COMPOSE up -d "$svc" 2>/dev/null
+      if [ "$state" = "exited" ] || [ "$state" = "dead" ]; then
+        echo -e "${RED}✗ Service '$service' stopped unexpectedly${NC}"
+        compose logs --tail 80 "$service" || true
+        return 1
+      fi
+    fi
 
-        # Wait up to $timeout seconds for the container to be running
-        local waited=0
-        local ok=false
-        while [ $waited -lt $timeout ]; do
-            local state
-            state=$(docker inspect --format='{{.State.Status}}' "crm-$svc" 2>/dev/null || echo "missing")
-            local health
-            health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "crm-$svc" 2>/dev/null || echo "unknown")
+    sleep 2
+    waited=$((waited + 2))
+  done
 
-            if [ "$state" = "running" ] && { [ "$health" = "healthy" ] || [ "$health" = "none" ]; }; then
-                # Extra: make sure the port is actually bound
-                sleep 1
-                state=$(docker inspect --format='{{.State.Status}}' "crm-$svc" 2>/dev/null || echo "missing")
-                if [ "$state" = "running" ]; then
-                    ok=true
-                    break
-                fi
-            fi
-
-            if [ "$state" = "exited" ] || [ "$state" = "dead" ] || [ "$state" = "missing" ]; then
-                break
-            fi
-
-            sleep 1
-            waited=$((waited + 1))
-        done
-
-        if $ok; then
-            echo -e "${GREEN}  ✓ $svc is running on host port $port${NC}"
-            return 0
-        fi
-
-        echo -e "${YELLOW}  ✗ $svc failed to start on port $port within ${timeout}s — retrying...${NC}"
-        docker rm -f "crm-$svc" &>/dev/null || true
-        port=$((port + 1))
-        attempt=$((attempt + 1))
-    done
-
-    echo -e "${RED}  ✗ Could not start $svc after $max_retries port attempts (tried up to port $port)${NC}"
-    return 1
+  echo -e "${RED}✗ Timeout waiting for service '$service'${NC}"
+  compose logs --tail 80 "$service" || true
+  return 1
 }
 
-# ──────────────────────────────────────────────────────────
-#  1. Start MongoDB
-# ──────────────────────────────────────────────────────────
-echo -e "${YELLOW}Starting MongoDB...${NC}"
-if docker ps --filter "name=crm-mongodb" --filter "status=running" | grep -q crm-mongodb; then
-    MONGO_HOST_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "27017/tcp") 0).HostPort}}' crm-mongodb 2>/dev/null || echo "27017")
-    export MONGO_HOST_PORT
-    echo -e "${GREEN}✓ MongoDB is already running on host port $MONGO_HOST_PORT${NC}"
-else
-    start_service_with_port_retry mongodb 27017 MONGO_HOST_PORT 5 15
-    # Wait for MongoDB to be healthy (beyond just "running")
-    echo -e "${YELLOW}Waiting for MongoDB to be ready...${NC}"
-    MAX_WAIT=60
-    WAITED=0
-    while [ $WAITED -lt $MAX_WAIT ]; do
-        if docker exec crm-mongodb mongosh --eval "db.adminCommand('ping')" &> /dev/null; then
-            echo -e "${GREEN}✓ MongoDB is healthy${NC}"
-            break
-        fi
-        sleep 2
-        WAITED=$((WAITED + 2))
-        echo -ne "${YELLOW}.${NC}"
-    done
-    echo ""
-    if [ $WAITED -ge $MAX_WAIT ]; then
-        echo -e "${RED}Error: MongoDB failed to become healthy within ${MAX_WAIT}s${NC}"
-        exit 1
-    fi
-fi
-echo ""
+wait_for_http() {
+  local name="$1"
+  local url="$2"
+  local timeout="${3:-60}"
+  local waited=0
 
-# ──────────────────────────────────────────────────────────
-#  2. Start Redis (the most common conflict point)
-# ──────────────────────────────────────────────────────────
-echo -e "${YELLOW}Starting Redis...${NC}"
-if docker ps --filter "name=crm-redis" --filter "status=running" | grep -q crm-redis; then
-    REDIS_HOST_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "6379/tcp") 0).HostPort}}' crm-redis 2>/dev/null || echo "6379")
-    export REDIS_HOST_PORT
-    echo -e "${GREEN}✓ Redis is already running on host port $REDIS_HOST_PORT${NC}"
-else
-    start_service_with_port_retry redis 6379 REDIS_HOST_PORT 5 10
-fi
-echo ""
-
-# ──────────────────────────────────────────────────────────
-#  3. Start API and Web (depend on the above)
-# ──────────────────────────────────────────────────────────
-echo -e "${YELLOW}Building and starting API & Web...${NC}"
-
-# Find available ports for API and Web
-if docker ps --filter "name=crm-api" --filter "status=running" | grep -q crm-api; then
-    API_HOST_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "3000/tcp") 0).HostPort}}' crm-api 2>/dev/null || echo "3000")
-else
-    API_HOST_PORT=$(find_available_port 3000 10)
-fi
-export API_HOST_PORT
-echo -e "${CYAN}  → API will use host port $API_HOST_PORT${NC}"
-
-if docker ps --filter "name=crm-web" --filter "status=running" | grep -q crm-web; then
-    WEB_HOST_PORT=$(docker inspect --format='{{(index (index .NetworkSettings.Ports "5173/tcp") 0).HostPort}}' crm-web 2>/dev/null || echo "5173")
-else
-    WEB_HOST_PORT=$(find_available_port 5173 10)
-fi
-export WEB_HOST_PORT
-echo -e "${CYAN}  → Web will use host port $WEB_HOST_PORT${NC}"
-
-# Use --no-recreate to avoid recreating already-running mongodb/redis services
-# which would cause port conflicts when the dynamic port env vars aren't preserved
-$DOCKER_COMPOSE up -d --build --no-recreate api web 2>&1 | grep -v "^[[:space:]]*$" || true
-
-echo ""
-echo -e "${YELLOW}Waiting for API container to start...${NC}"
-
-# First wait for container to be running
-MAX_WAIT=60
-WAITED=0
-while [ $WAITED -lt $MAX_WAIT ]; do
-    API_STATE=$(docker inspect --format='{{.State.Status}}' crm-api 2>/dev/null || echo "missing")
-    if [ "$API_STATE" = "running" ]; then
-        echo -e "${GREEN}✓ API container is running${NC}"
-        break
-    fi
-    if [ "$API_STATE" = "exited" ] || [ "$API_STATE" = "dead" ]; then
-        echo -e "${RED}✗ API container failed to start. Check logs:${NC}"
-        docker logs --tail 50 crm-api
-        exit 1
+  while [ "$waited" -lt "$timeout" ]; do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      return 0
     fi
     sleep 2
-    WAITED=$((WAITED + 2))
-    echo -ne "${YELLOW}.${NC}"
+    waited=$((waited + 2))
+  done
+
+  echo -e "${YELLOW}Warning: ${name} endpoint did not respond in ${timeout}s (${url})${NC}"
+  return 1
+}
+
+echo -e "${YELLOW}Cleaning up stale resources...${NC}"
+# Legacy fixed-name containers from older compose revisions
+for legacy in crm-api crm-web crm-redis crm-mongodb; do
+  docker rm -f "$legacy" >/dev/null 2>&1 || true
 done
+# Explicit cleanup for containers that may have been left without compose labels
+for svc in api web redis mongodb; do
+  docker rm -f "${COMPOSE_PROJECT_NAME}-${svc}-1" >/dev/null 2>&1 || true
+  docker rm -f "${COMPOSE_PROJECT_NAME}_${svc}_1" >/dev/null 2>&1 || true
+done
+compose down --remove-orphans >/dev/null 2>&1 || true
+echo -e "${GREEN}✓ Cleanup complete${NC}"
 echo ""
 
-if [ $WAITED -ge $MAX_WAIT ]; then
-    echo -e "${RED}Error: API container failed to start within ${MAX_WAIT}s${NC}"
-    docker logs --tail 50 crm-api
-    exit 1
-fi
+MONGO_HOST_PORT="$(find_available_port 27017 20)"
+REDIS_HOST_PORT="$(find_available_port 6379 20)"
+API_HOST_PORT="$(find_available_port 3000 20)"
+WEB_HOST_PORT="$(find_available_port 5173 20)"
 
-echo -e "${YELLOW}Waiting for API to be healthy...${NC}"
+export MONGO_HOST_PORT REDIS_HOST_PORT API_HOST_PORT WEB_HOST_PORT
 
-MAX_WAIT=90
-WAITED=0
-while [ $WAITED -lt $MAX_WAIT ]; do
-    if docker exec crm-api wget --quiet --tries=1 --spider http://localhost:3000/ 2>/dev/null; then
-        echo -e "${GREEN}✓ API is ready and healthy${NC}"
-        break
-    fi
-    # Check if container is still running
-    API_STATE=$(docker inspect --format='{{.State.Status}}' crm-api 2>/dev/null || echo "missing")
-    if [ "$API_STATE" != "running" ]; then
-        echo -e "${RED}✗ API container stopped unexpectedly. Logs:${NC}"
-        docker logs --tail 50 crm-api
-        exit 1
-    fi
-    sleep 2
-    WAITED=$((WAITED + 2))
-    echo -ne "${YELLOW}.${NC}"
-done
+cat > .runtime-ports.env <<PORTS
+COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME}
+MONGO_HOST_PORT=${MONGO_HOST_PORT}
+REDIS_HOST_PORT=${REDIS_HOST_PORT}
+API_HOST_PORT=${API_HOST_PORT}
+WEB_HOST_PORT=${WEB_HOST_PORT}
+CYPRESS_API_URL=http://localhost:${API_HOST_PORT}
+CYPRESS_BASE_URL=http://localhost:${WEB_HOST_PORT}
+PORTS
+
+echo -e "${YELLOW}Selected host ports:${NC}"
+echo -e "  ${CYAN}MongoDB:${NC} ${MONGO_HOST_PORT}"
+echo -e "  ${CYAN}Redis:${NC}   ${REDIS_HOST_PORT}"
+echo -e "  ${CYAN}API:${NC}     ${API_HOST_PORT}"
+echo -e "  ${CYAN}Web:${NC}     ${WEB_HOST_PORT}"
+echo -e "${GREEN}✓ Runtime ports saved to .runtime-ports.env${NC}"
 echo ""
 
-if [ $WAITED -ge $MAX_WAIT ]; then
-    echo -e "${RED}Error: API failed to become healthy within ${MAX_WAIT}s${NC}"
-    echo -e "${YELLOW}Last 50 lines of API logs:${NC}"
-    docker logs --tail 50 crm-api
+echo -e "${YELLOW}Starting services...${NC}"
+if [ "${FORCE_REBUILD:-0}" = "1" ]; then
+  echo -e "${CYAN}  → FORCE_REBUILD=1, rebuilding images${NC}"
+  if ! compose up -d --build; then
+    echo -e "${RED}Error: Failed to start services via Docker Compose.${NC}"
+    compose logs --tail 80 || true
     exit 1
-fi
-
-# Wait for web container
-echo -e "${YELLOW}Waiting for Web container...${NC}"
-MAX_WAIT=30
-WAITED=0
-while [ $WAITED -lt $MAX_WAIT ]; do
-    WEB_STATE=$(docker inspect --format='{{.State.Status}}' crm-web 2>/dev/null || echo "missing")
-    if [ "$WEB_STATE" = "running" ]; then
-        echo -e "${GREEN}✓ Web container is running${NC}"
-        break
+  fi
+else
+  if ! compose up -d; then
+    echo -e "${YELLOW}Initial startup failed, retrying once with image build...${NC}"
+    if ! compose up -d --build; then
+      echo -e "${RED}Error: Failed to start services via Docker Compose.${NC}"
+      compose logs --tail 80 || true
+      exit 1
     fi
-    sleep 1
-    WAITED=$((WAITED + 1))
-done
-
-if [ $WAITED -ge $MAX_WAIT ]; then
-    echo -e "${YELLOW}Warning: Web container may not be ready${NC}"
+  fi
 fi
+
+echo -e "${YELLOW}Waiting for MongoDB...${NC}"
+wait_for_service mongodb 120
+echo -e "${GREEN}✓ MongoDB is ready${NC}"
+
+echo -e "${YELLOW}Waiting for Redis...${NC}"
+wait_for_service redis 90
+echo -e "${GREEN}✓ Redis is ready${NC}"
+
+echo -e "${YELLOW}Waiting for API...${NC}"
+wait_for_service api 150
+wait_for_http "API" "http://localhost:${API_HOST_PORT}/auth/oauth/providers" 90 || true
+echo -e "${GREEN}✓ API is ready${NC}"
+
+echo -e "${YELLOW}Waiting for Web...${NC}"
+wait_for_service web 120
+wait_for_http "Web" "http://localhost:${WEB_HOST_PORT}" 120 || true
+echo -e "${GREEN}✓ Web is ready${NC}"
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  🚀 Application is running!${NC}"
+echo -e "${GREEN}  Application is running${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "${BLUE}Services:${NC}"
-echo -e "  ${GREEN}Frontend:${NC}  http://localhost:${WEB_HOST_PORT:-5173}"
-echo -e "  ${GREEN}Backend API:${NC} http://localhost:${API_HOST_PORT:-3000}"
-echo -e "  ${GREEN}MongoDB:${NC}   mongodb://localhost:${MONGO_HOST_PORT:-27017}"
-echo -e "  ${GREEN}Redis:${NC}     localhost:${REDIS_HOST_PORT:-6379}"
+echo -e "  ${GREEN}Frontend:${NC}  http://localhost:${WEB_HOST_PORT}"
+echo -e "  ${GREEN}Backend API:${NC} http://localhost:${API_HOST_PORT}"
+echo -e "  ${GREEN}MongoDB:${NC}   mongodb://localhost:${MONGO_HOST_PORT}"
+echo -e "  ${GREEN}Redis:${NC}     localhost:${REDIS_HOST_PORT}"
 echo ""
 echo -e "${BLUE}Useful commands:${NC}"
-echo -e "  View logs:        ${YELLOW}docker logs -f crm-web${NC}"
-echo -e "  View API logs:    ${YELLOW}docker logs -f crm-api${NC}"
-echo -e "  View DB logs:     ${YELLOW}docker logs -f crm-mongodb${NC}"
-echo -e "  View Redis logs:  ${YELLOW}docker logs -f crm-redis${NC}"
-echo -e "  Stop services:    ${YELLOW}${DOCKER_COMPOSE} down${NC}"
-echo -e "  Restart services: ${YELLOW}${DOCKER_COMPOSE} restart${NC}"
-echo -e "  Remove volumes:   ${YELLOW}${DOCKER_COMPOSE} down -v${NC}"
-echo ""
-echo -e "${GREEN}Open your browser at: http://localhost:${WEB_HOST_PORT:-5173}${NC}"
+echo -e "  Logs (all):      ${YELLOW}compose logs -f${NC}"
+echo -e "  API logs:        ${YELLOW}compose logs -f api${NC}"
+echo -e "  Web logs:        ${YELLOW}compose logs -f web${NC}"
+echo -e "  Stop:            ${YELLOW}compose down${NC}"
+echo -e "  Reset volumes:   ${YELLOW}compose down -v${NC}"
 echo ""
